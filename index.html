@@ -22,6 +22,19 @@
             transform: translateY(-5px);
             box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
         }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -79,8 +92,8 @@
             <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Los productos se cargarán dinámicamente aquí -->
                 <div class="text-center py-12 col-span-full">
-                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-                    <p>Cargando productos...</p>
+                    <div class="loading-spinner"></div>
+                    <p class="mt-4">Cargando productos...</p>
                 </div>
             </div>
         </section>
@@ -95,11 +108,11 @@
                 <h3 class="text-xl font-semibold text-gray-800 mb-4">Iniciar Sesión</h3>
                 <div class="mb-4">
                     <label class="block text-gray-700 mb-2" for="email">Correo Electrónico</label>
-                    <input type="email" id="email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="email" id="email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="admin@ejemplo.com">
                 </div>
                 <div class="mb-6">
                     <label class="block text-gray-700 mb-2" for="password">Contraseña</label>
-                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tu contraseña">
                 </div>
                 <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
                     Iniciar Sesión
@@ -107,6 +120,11 @@
                 <p class="text-center text-gray-500 text-sm mt-4">
                     ¿No tienes cuenta? <a href="#" id="showRegister" class="text-blue-600 hover:underline">Regístrate aquí</a>
                 </p>
+                <div class="mt-4 p-3 bg-yellow-100 rounded-lg text-yellow-800 text-sm">
+                    <p class="font-semibold">Credenciales de prueba:</p>
+                    <p>Email: admin@ejemplo.com</p>
+                    <p>Contraseña: password123</p>
+                </div>
             </div>
 
             <!-- Formulario de Registro -->
@@ -117,7 +135,7 @@
                     <input type="email" id="registerEmail" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="mb-4">
-                    <label class="block text-gray-700 mb-2" for="registerPassword">Contraseña</label>
+                    <label class="block text-gray-700 mb-2" for="registerPassword">Contraseña (mínimo 6 caracteres)</label>
                     <input type="password" id="registerPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
                 <div class="mb-6">
@@ -149,12 +167,12 @@
                         <input type="hidden" id="productId">
                         
                         <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2" for="name">Nombre del Producto</label>
+                            <label class="block text-gray-700 mb-2" for="name">Nombre del Producto *</label>
                             <input type="text" id="name" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         
                         <div>
-                            <label class="block text-gray-700 mb-2" for="category">Categoría</label>
+                            <label class="block text-gray-700 mb-2" for="category">Categoría *</label>
                             <select id="category" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                                 <option value="">Seleccionar categoría</option>
                                 <option value="diseño">Diseño Web</option>
@@ -170,25 +188,25 @@
                         </div>
                         
                         <div>
-                            <label class="block text-gray-700 mb-2" for="price_soles">Precio (S/.)</label>
+                            <label class="block text-gray-700 mb-2" for="price_soles">Precio (S/.) *</label>
                             <input type="number" step="0.01" id="price_soles" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         
                         <div>
-                            <label class="block text-gray-700 mb-2" for="price_dollars">Precio ($)</label>
+                            <label class="block text-gray-700 mb-2" for="price_dollars">Precio ($) *</label>
                             <input type="number" step="0.01" id="price_dollars" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         
                         <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2" for="description">Descripción</label>
+                            <label class="block text-gray-700 mb-2" for="description">Descripción *</label>
                             <textarea id="description" rows="3" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                         </div>
                         
                         <!-- Campo para URL de imagen -->
                         <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2" for="photo_url">URL de la Imagen</label>
+                            <label class="block text-gray-700 mb-2" for="photo_url">URL de la Imagen *</label>
                             <div class="flex gap-2">
-                                <input type="url" id="photo_url" class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Pega el enlace de la imagen aquí">
+                                <input type="url" id="photo_url" class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://ejemplo.com/imagen.jpg">
                                 <button type="button" id="searchImageBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
                                     <i class="fas fa-search"></i> Buscar
                                 </button>
@@ -229,6 +247,9 @@
                             </thead>
                             <tbody id="adminProductsList">
                                 <!-- Los productos se cargarán aquí dinámicamente -->
+                                <tr>
+                                    <td colspan="5" class="py-4 text-center text-gray-500">Cargando productos...</td>
+                                </tr>
                             </tbody>
                         </table>
                     </div>
@@ -395,13 +416,19 @@
         
         // Función para verificar autenticación
         async function checkAuth() {
-            const { data, error } = await supabase.auth.getSession();
-            if (data.session) {
-                // Usuario autenticado
-                document.getElementById('loginForm').classList.add('hidden');
-                document.getElementById('registerForm').classList.add('hidden');
-                document.getElementById('adminPanel').classList.remove('hidden');
-                await loadAdminProducts();
+            try {
+                const { data, error } = await supabase.auth.getSession();
+                if (error) throw error;
+                
+                if (data.session) {
+                    // Usuario autenticado
+                    document.getElementById('loginForm').classList.add('hidden');
+                    document.getElementById('registerForm').classList.add('hidden');
+                    document.getElementById('adminPanel').classList.remove('hidden');
+                    await loadAdminProducts();
+                }
+            } catch (error) {
+                console.error('Error checking auth:', error.message);
             }
         }
         
@@ -416,6 +443,11 @@
             }
             
             try {
+                // Mostrar indicador de carga
+                const loginBtn = document.getElementById('loginBtn');
+                loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando sesión...';
+                loginBtn.disabled = true;
+                
                 const { data, error } = await supabase.auth.signInWithPassword({
                     email: email,
                     password: password
@@ -430,6 +462,11 @@
             } catch (error) {
                 console.error('Error logging in:', error.message);
                 alert('Error al iniciar sesión: ' + error.message);
+            } finally {
+                // Restaurar botón
+                const loginBtn = document.getElementById('loginBtn');
+                loginBtn.innerHTML = 'Iniciar Sesión';
+                loginBtn.disabled = false;
             }
         }
         
@@ -439,7 +476,7 @@
             const password = document.getElementById('registerPassword').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             
-            if (!email || !password) {
+            if (!email || !password || !confirmPassword) {
                 alert('Por favor completa todos los campos');
                 return;
             }
@@ -449,7 +486,17 @@
                 return;
             }
             
+            if (password.length < 6) {
+                alert('La contraseña debe tener al menos 6 caracteres');
+                return;
+            }
+            
             try {
+                // Mostrar indicador de carga
+                const registerBtn = document.getElementById('registerBtn');
+                registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando cuenta...';
+                registerBtn.disabled = true;
+                
                 const { data, error } = await supabase.auth.signUp({
                     email: email,
                     password: password
@@ -464,6 +511,11 @@
             } catch (error) {
                 console.error('Error registering:', error.message);
                 alert('Error al crear la cuenta: ' + error.message);
+            } finally {
+                // Restaurar botón
+                const registerBtn = document.getElementById('registerBtn');
+                registerBtn.innerHTML = 'Crear Cuenta';
+                registerBtn.disabled = false;
             }
         }
         
