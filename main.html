@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catálogo Futurista</title>
+    <!-- Tailwind CSS desde CDN para un estilo rápido y moderno -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Héroe Icons para íconos -->
+    <script src="https://unpkg.com/@heroicons/react@2.1.3/24/solid/esm/index.js"></script>
+    <!-- Supabase JS para la base de datos -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.43.4"></script>
+    <!-- CSS personalizado -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800;900&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0c0a09; /* bg-gray-950 */
+            color: #d1d5db; /* text-gray-100 */
+        }
+        @keyframes glow {
+            0% { text-shadow: 0 0 5px #4ade80, 0 0 10px #4ade80; }
+            50% { text-shadow: 0 0 10px #4ade80, 0 0 20px #4ade80; }
+            100% { text-shadow: 0 0 5px #4ade80, 0 0 10px #4ade80; }
+        }
+        .text-glow {
+            animation: glow 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fadeIn {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            background-color: #1a202c;
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: #3f83f8;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Contenedor Principal -->
+    <div id="app">
+        <!-- El contenido se renderizará aquí con JavaScript -->
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div id="confirm-modal" class="fixed inset-0 bg-gray-900 bg-opacity-75 flex items-center justify-center hidden">
+        <div class="bg-gray-800 p-8 rounded-lg shadow-xl border border-blue-600/30">
+            <p class="text-white text-lg mb-4">¿Estás seguro de que quieres eliminar este producto?</p>
+            <div class="flex justify-end space-x-4">
+                <button id="confirm-cancel" class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700 transition-colors duration-200">
+                    Cancelar
+                </button>
+                <button id="confirm-delete" class="bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // *** TU CONFIGURACIÓN DE SUPABASE ***
+        const SUPABASE_URL = 'TU_URL_DE_SUPABASE'; // Reemplaza con tu URL
+        const SUPABASE_ANON_KEY = 'TU_CLAVE_ANONIMA_DE_SUPABASE'; // Reemplaza con tu clave anónima
+
+        const supabase = Supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const app = document.getElementById('app');
+
+        let currentView = 'home'; // 'home', 'login', 'admin'
+        let products = [];
+        let session = null;
+        let isEditing = false;
+        let formData = {};
+
+        // Función para convertir a dólares
+        const convertSolesToDollars = (soles) => {
+            const exchangeRate = 3.8;
+            return (soles / exchangeRate).toFixed(2);
+        };
+
+        // Función para la navegación y renderizado de páginas
+        const render = async () => {
+            // Obtener el estado de la sesión
+            const { data: { session: currentSession } } = await supabase.auth.getSession();
+            session = currentSession;
+
+            // Renderizar la vista actual
+            app.innerHTML = '';
+            if (currentView === 'home') {
+                renderHome();
+            } else if (currentView === 'login') {
+                renderLogin();
+            } else if (currentView === 'admin') {
+                renderAdmin();
+            }
+        };
+
+        // Escuchar cambios de autenticación
+        supabase.auth.onAuthStateChange((event, newSession) => {
+            session = newSession;
+            if (event === 'SIGNED_IN') {
+                currentView = 'admin';
+            } else if (event === 'SIGNED_OUT') {
+                currentView = 'home';
+            }
+            render();
+        });
+        
+        // Función para mostrar el modal de confirmación
+        const showConfirmModal = (onConfirm) => {
+            const modal = document.getElementById('confirm-modal');
+            modal.classList.remove('hidden');
+
+            const confirmBtn = document.getElementById('confirm-delete');
+            const cancelBtn = document.getElementById('confirm-cancel');
+
+            const handleConfirm = () => {
+                onConfirm();
+                modal.classList.add('hidden');
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            const handleCancel = () => {
+                modal.classList.add('hidden');
+                confirmBtn.removeEventListener('click', handleConfirm);
+                cancelBtn.removeEventListener('click', handleCancel);
+            };
+
+            confirmBtn.addEventListener('click', handleConfirm);
+            cancelBtn.addEventListener('click', handleCancel);
+        };
+
+        // --- VISTAS ---
+
+        // Renderiza la barra de navegación
+        const renderNavbar = () => {
+            const isAdmin = session && session.user && session.user.role === 'admin';
+            return `
+                <nav class="bg-gray-900 border-b border-gray-700 sticky top-0 z-50">
+                    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div class="flex justify-between h-16 items-center">
+                            <div class="flex-shrink-0">
+                                <button onclick="navigate('home')" class="text-white font-extrabold text-2xl tracking-wider text-glow">
+                                    Catálogo Futura
+                                </button>
+                            </div>
+                            <div class="flex items-center space-x-4">
+                                ${isAdmin ? `
+                                    <button onclick="navigate('admin')" class="text-blue-400 hover:text-blue-200 px-3 py-2 rounded-md font-medium flex items-center transition-colors duration-200">
+                                        Admin
+                                    </button>
+                                ` : ''}
+                                ${session ? `
+                                    <button onclick="handleLogout()" class="bg-red-700 text-white px-4 py-2 rounded-md font-medium hover:bg-red-800 transition-colors duration-200 flex items-center">
+                                        Salir
+                                    </button>
+                                ` : `
+                                    <button onclick="navigate('login')" class="bg-blue-600 text-white px-4 py-2 rounded-md font-medium hover:bg-blue-700 transition-colors duration-200 flex items-center">
+                                        Ingresar
+                                    </button>
+                                `}
+                            </div>
+                        </div>
+                    </div>
+                </nav>
+            `;
+        };
+
+        // Renderiza la página de inicio (catálogo público)
+        const renderHome = async () => {
+            const { data, error } = await supabase.from('products').select('*');
+            if (error) {
+                console.error('Error fetching products:', error);
+                products = [];
+            } else {
+                products = data;
+            }
+
+            const productsHtml = products.length === 0 
+                ? `<p class="text-center text-gray-400 text-2xl mt-20">No hay productos disponibles en este momento.</p>`
+                : products.map(product => renderProductCard(product)).join('');
+
+            app.innerHTML = `
+                ${renderNavbar()}
+                <main class="min-h-screen container mx-auto px-4 py-12">
+                    <h1 class="text-5xl md:text-6xl font-extrabold text-center text-white mb-10 tracking-tight text-glow animate-fadeIn">
+                        Catálogo de Servicios Digitales
+                    </h1>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+                        ${productsHtml}
+                    </div>
+                </main>
+            `;
+        };
+        
+        // Renderiza la página de login
+        const renderLogin = () => {
+            app.innerHTML = `
+                ${renderNavbar()}
+                <div class="min-h-screen flex items-center justify-center bg-gray-950 px-4">
+                    <div class="max-w-md w-full p-8 space-y-8 bg-gray-800 rounded-xl shadow-2xl border border-blue-600/30 animate-fadeIn">
+                        <h2 class="text-3xl font-extrabold text-center text-white">
+                            Acceso al Panel de Administración
+                        </h2>
+                        <form id="login-form" class="mt-8 space-y-6">
+                            <div class="rounded-md shadow-sm -space-y-px">
+                                <div>
+                                    <input
+                                        id="email-address"
+                                        name="email"
+                                        type="email"
+                                        required
+                                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-700 rounded-t-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Email del administrador"
+                                    />
+                                </div>
+                                <div class="mt-3">
+                                    <input
+                                        id="password"
+                                        name="password"
+                                        type="password"
+                                        required
+                                        class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-600 placeholder-gray-400 text-white bg-gray-700 rounded-b-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                                        placeholder="Contraseña"
+                                    />
+                                </div>
+                            </div>
+                            <button
+                                type="submit"
+                                class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors duration-300"
+                            >
+                                Ingresar
+                            </button>
+                            <p id="error-message" class="text-red-500 text-center"></p>
+                        </form>
+                    </div>
+                </div>
+            `;
+            // Agrega el evento del formulario
+            document.getElementById('login-form').addEventListener('submit', handleLogin);
+        };
+        
+        // Renderiza la página de administración
+        const renderAdmin = async () => {
+            // No necesita recargar productos aquí, ya que se actualizan con onSnapshot
+            const productsHtml = products.length === 0
+                ? `<p class="text-center text-gray-400 text-xl mt-20">Aún no hay productos en el catálogo.</p>`
+                : products.map(product => renderProductCard(product, true)).join('');
+            
+            app.innerHTML = `
+                ${renderNavbar()}
+                <div class="min-h-screen container mx-auto px-4 py-12">
+                    <h1 class="text-4xl font-extrabold text-center text-white mb-10">
+                        Panel de Administración
+                    </h1>
+                    <div class="text-center mb-10">
+                        <button id="toggle-form-btn" class="bg-blue-600 text-white font-bold py-3 px-6 rounded-full hover:bg-blue-700 transition-colors duration-300">
+                            Añadir Nuevo Producto
+                        </button>
+                    </div>
+                    <div id="product-form-container" class="transition-all duration-500 ease-in-out max-h-0 opacity-0 overflow-hidden">
+                        ${renderProductForm()}
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8" id="product-list">
+                        ${productsHtml}
+                    </div>
+                </div>
+            `;
+            // Agrega eventos después de renderizar el HTML
+            setupAdminListeners();
+        };
+
+        // Renderiza la tarjeta de producto
+        const renderProductCard = (product, isAdmin = false) => {
+            const plansHtml = product.plans ? product.plans.map(plan => `
+                <li class="flex items-center text-gray-400 text-sm">
+                    <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                    ${plan}
+                </li>
+            `).join('') : '';
+
+            const adminButtons = isAdmin ? `
+                <div class="mt-6 flex space-x-4">
+                    <button onclick="handleEdit('${product.id}')" class="flex-1 bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-yellow-700 transition-colors duration-200">
+                        Editar
+                    </button>
+                    <button onclick="handleDelete('${product.id}')" class="flex-1 bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200">
+                        Eliminar
+                    </button>
+                </div>
+            ` : '';
+
+            return `
+                <div class="bg-gray-800 p-6 rounded-xl shadow-lg border border-gray-700 hover:shadow-2xl hover:border-blue-500 transition-all duration-300 animate-fadeIn">
+                    <div class="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
+                        <img src="${product.photo_url || 'https://placehold.co/400x300/1e293b/9ca3af?text=Sin+imagen'}" alt="${product.name}" class="w-full h-full object-cover rounded-lg">
+                    </div>
+                    <span class="inline-block bg-blue-900 text-blue-400 text-xs font-semibold px-3 py-1 rounded-full mb-3">
+                        ${product.category}
+                    </span>
+                    <h3 class="text-2xl font-bold text-white mb-2">${product.name}</h3>
+                    <p class="text-gray-400 text-sm mb-4">${product.description}</p>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-2xl font-extrabold text-green-400">
+                            S/${product.price_soles}
+                        </span>
+                        <span class="text-xl font-bold text-green-400/80">
+                            $${product.price_dollars}
+                        </span>
+                    </div>
+                    ${product.plans && product.plans.length > 0 ? `
+                        <div class="mt-4">
+                            <p class="text-sm font-semibold text-gray-300 mb-2">Planes:</p>
+                            <ul class="space-y-2">
+                                ${plansHtml}
+                            </ul>
+                        </div>
+                    ` : ''}
+                    ${adminButtons}
+                </div>
+            `;
+        };
+
+        // Renderiza el formulario de producto
+        const renderProductForm = () => {
+            const buttonText = isEditing ? 'Actualizar Producto' : 'Crear Producto';
+            const formTitle = isEditing ? 'Editar Producto' : 'Añadir Nuevo Producto';
+            const plansHtml = formData.plans ? formData.plans.map((plan, index) => `
+                <li class="flex items-center justify-between p-2 bg-gray-700 rounded-md">
+                    <span class="text-gray-300">${plan}</span>
+                    <button type="button" onclick="handleRemovePlan(${index})" class="text-red-400 hover:text-red-500 transition-colors">
+                        &times;
+                    </button>
+                </li>
+            `).join('') : '';
+
+            return `
+                <form id="product-form" class="grid grid-cols-1 md:grid-cols-2 gap-6 bg-gray-800 p-8 rounded-xl border border-gray-700">
+                    <h2 class="col-span-1 md:col-span-2 text-2xl font-bold text-white mb-4">
+                        ${formTitle}
+                    </h2>
+                    
+                    <input type="text" name="name" placeholder="Nombre del Servicio" required value="${formData.name || ''}" class="p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="text" name="category" placeholder="Categoría" required value="${formData.category || ''}" class="p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+
+                    <textarea name="description" placeholder="Descripción detallada" required rows="3" class="p-3 bg-gray-700 border border-gray-600 rounded-md text-white md:col-span-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">${formData.description || ''}</textarea>
+
+                    <input type="number" name="price_soles" placeholder="Precio en Soles (S/)" required step="0.01" value="${formData.price_soles || ''}" class="p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="number" name="price_dollars" placeholder="Precio en Dólares ($)" readonly value="${formData.price_dollars || ''}" class="p-3 bg-gray-700 border border-gray-600 rounded-md text-white cursor-not-allowed" />
+
+                    <div class="md:col-span-2">
+                        <label for="photo_file" class="block text-sm font-medium text-gray-300 mb-2">
+                            Foto del Producto
+                        </label>
+                        <input type="file" id="photo_file" name="photo_file" class="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition-colors" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            Planes del Servicio
+                        </label>
+                        <div class="flex items-center space-x-2 mb-4">
+                            <input type="text" id="new-plan" placeholder="Añadir un plan" class="flex-1 p-3 bg-gray-700 border border-gray-600 rounded-md text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            <button type="button" onclick="handleAddPlan()" class="bg-blue-600 text-white p-3 rounded-md hover:bg-blue-700 transition-colors duration-200">
+                                +
+                            </button>
+                        </div>
+                        <ul class="space-y-2">
+                            ${plansHtml}
+                        </ul>
+                    </div>
+
+                    <div class="md:col-span-2 flex justify-end">
+                        <button type="submit" class="bg-green-600 text-white font-bold py-3 px-6 rounded-lg hover:bg-green-700 transition-colors duration-300">
+                            ${buttonText}
+                        </button>
+                    </div>
+                </form>
+            `;
+        };
+
+        // --- MANEJADORES DE EVENTOS Y LÓGICA ---
+
+        // Configura los eventos del panel de admin
+        const setupAdminListeners = () => {
+            const toggleFormBtn = document.getElementById('toggle-form-btn');
+            const formContainer = document.getElementById('product-form-container');
+            const productForm = document.getElementById('product-form');
+
+            // Toggle para mostrar/ocultar el formulario
+            toggleFormBtn.addEventListener('click', () => {
+                const isHidden = formContainer.classList.toggle('max-h-0');
+                formContainer.classList.toggle('opacity-0');
+                if (!isHidden) {
+                    toggleFormBtn.textContent = 'Ocultar Formulario';
+                } else {
+                    toggleFormBtn.textContent = 'Añadir Nuevo Producto';
+                }
+                resetForm();
+            });
+
+            // Maneja el envío del formulario
+            productForm.addEventListener('submit', handleSave);
+
+            // Maneja el cambio de precio en Soles
+            productForm.querySelector('input[name="price_soles"]').addEventListener('input', (e) => {
+                const soles = parseFloat(e.target.value) || 0;
+                document.querySelector('input[name="price_dollars"]').value = convertSolesToDollars(soles);
+            });
+        };
+        
+        const handleLogin = async (e) => {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const password = e.target.password.value;
+            const errorMessage = document.getElementById('error-message');
+
+            const { error } = await supabase.auth.signInWithPassword({ email, password });
+            if (error) {
+                errorMessage.textContent = 'Credenciales inválidas. Por favor, intenta de nuevo.';
+            } else {
+                navigate('admin');
+            }
+        };
+
+        const handleLogout = async () => {
+            await supabase.auth.signOut();
+            navigate('home');
+        };
+
+        const navigate = (view) => {
+            currentView = view;
+            render();
+        };
+
+        const handleSave = async (e) => {
+            e.preventDefault();
+            const form = e.target;
+            const data = new FormData(form);
+            let productData = {
+                name: data.get('name'),
+                description: data.get('description'),
+                category: data.get('category'),
+                price_soles: parseFloat(data.get('price_soles')),
+                price_dollars: parseFloat(data.get('price_dollars')),
+                plans: formData.plans,
+            };
+
+            const photoFile = data.get('photo_file');
+            let photo_url = formData.photo_url;
+
+            if (photoFile && photoFile.size > 0) {
+                const fileName = `${Date.now()}-${photoFile.name}`;
+                const { data: uploadData, error: uploadError } = await supabase.storage
+                    .from('product_images')
+                    .upload(fileName, photoFile);
+                if (uploadError) {
+                    console.error('Error uploading file:', uploadError);
+                    return;
+                }
+                photo_url = `${SUPABASE_URL}/storage/v1/object/public/product_images/${uploadData.path}`;
+            }
+
+            productData.photo_url = photo_url;
+
+            if (isEditing) {
+                const { error } = await supabase
+                    .from('products')
+                    .update(productData)
+                    .eq('id', formData.id);
+                if (error) console.error('Error updating product:', error);
+            } else {
+                const { error } = await supabase
+                    .from('products')
+                    .insert([productData]);
+                if (error) console.error('Error creating product:', error);
+            }
+            resetForm();
+            navigate('admin');
+        };
+
+        const handleDelete = (id) => {
+            showConfirmModal(async () => {
+                const { error } = await supabase.from('products').delete().eq('id', id);
+                if (error) console.error('Error deleting product:', error);
+            });
+        };
+
+        const handleEdit = (id) => {
+            const productToEdit = products.find(p => p.id === id);
+            isEditing = true;
+            formData = { ...productToEdit, photo_file: null };
+            document.getElementById('product-form-container').classList.remove('max-h-0', 'opacity-0');
+            document.getElementById('toggle-form-btn').textContent = 'Ocultar Formulario';
+            
+            // Renderiza el formulario con los datos a editar
+            document.getElementById('product-form-container').innerHTML = renderProductForm();
+            setupAdminListeners(); // Re-adjunta los eventos al nuevo HTML
+        };
+        
+        const handleAddPlan = () => {
+            const newPlanInput = document.getElementById('new-plan');
+            if (newPlanInput.value.trim() !== '') {
+                formData.plans = [...(formData.plans || []), newPlanInput.value.trim()];
+                newPlanInput.value = '';
+                // Renderiza solo la parte de los planes
+                const plansList = document.querySelector('#product-form ul');
+                if (plansList) {
+                    plansList.innerHTML = formData.plans.map((plan, index) => `
+                        <li class="flex items-center justify-between p-2 bg-gray-700 rounded-md">
+                            <span class="text-gray-300">${plan}</span>
+                            <button type="button" onclick="handleRemovePlan(${index})" class="text-red-400 hover:text-red-500 transition-colors">
+                                &times;
+                            </button>
+                        </li>
+                    `).join('');
+                }
+            }
+        };
+
+        const handleRemovePlan = (index) => {
+            const updatedPlans = formData.plans.filter((_, i) => i !== index);
+            formData.plans = updatedPlans;
+            // Re-renderiza solo la parte de los planes
+            const plansList = document.querySelector('#product-form ul');
+            if (plansList) {
+                plansList.innerHTML = formData.plans.map((plan, index) => `
+                    <li class="flex items-center justify-between p-2 bg-gray-700 rounded-md">
+                        <span class="text-gray-300">${plan}</span>
+                        <button type="button" onclick="handleRemovePlan(${index})" class="text-red-400 hover:text-red-500 transition-colors">
+                            &times;
+                        </button>
+                    </li>
+                `).join('');
+            }
+        };
+
+        const resetForm = () => {
+            isEditing = false;
+            formData = {
+                id: null,
+                name: '',
+                description: '',
+                category: '',
+                photo_file: null,
+                photo_url: null,
+                price_soles: '',
+                price_dollars: '',
+                plans: [],
+            };
+            document.getElementById('product-form-container').innerHTML = renderProductForm();
+            setupAdminListeners();
+        };
+
+        // Escucha cambios en la base de datos para actualizar en tiempo real
+        supabase.from('products')
+            .on('*', payload => {
+                console.log('Change received!', payload);
+                if (currentView === 'home' || currentView === 'admin') {
+                    render(); // Renderiza la vista actual para reflejar los cambios
+                }
+            })
+            .subscribe();
+
+        // Inicia la aplicación
+        document.addEventListener('DOMContentLoaded', () => {
+            render();
+        });
+
+    </script>
+</body>
+</html>
