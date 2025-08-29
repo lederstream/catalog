@@ -7,10 +7,26 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .product-card {
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .product-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+    </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
     <!-- Header -->
-    <header class="bg-white shadow-md">
+    <header class="bg-white shadow-md sticky top-0 z-10">
         <div class="container mx-auto px-4 py-4 flex justify-between items-center">
             <div class="flex items-center">
                 <i class="fas fa-store text-2xl text-blue-600 mr-2"></i>
@@ -29,7 +45,7 @@
 
     <main class="container mx-auto px-4 py-8">
         <!-- Hero Section -->
-        <section class="text-center py-12">
+        <section class="text-center py-12 fade-in">
             <h2 class="text-4xl font-bold text-gray-800 mb-4">Catálogo Digital de Productos y Servicios</h2>
             <p class="text-xl text-gray-600 max-w-2xl mx-auto mb-8">Descubre nuestra amplia gama de productos digitales y servicios con precios en soles y dólares.</p>
             <a href="#catalog" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition duration-300">
@@ -38,7 +54,7 @@
         </section>
 
         <!-- Catálogo Público -->
-        <section id="catalog" class="py-12">
+        <section id="catalog" class="py-12 fade-in">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Nuestros Productos</h2>
             <p class="text-center text-gray-600 mb-8">Explora todos nuestros productos y servicios disponibles</p>
             
@@ -62,7 +78,7 @@
             <!-- Grid de Productos -->
             <div id="productsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- Los productos se cargarán dinámicamente aquí -->
-                <div class="text-center py-12">
+                <div class="text-center py-12 col-span-full">
                     <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
                     <p>Cargando productos...</p>
                 </div>
@@ -70,7 +86,7 @@
         </section>
 
         <!-- Panel de Administración -->
-        <section id="admin" class="py-12 bg-white rounded-lg shadow-lg mt-12 p-6">
+        <section id="admin" class="py-12 bg-white rounded-lg shadow-lg mt-12 p-6 fade-in">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Panel de Administración</h2>
             <p class="text-center text-gray-600 mb-8">Gestiona tu catálogo de productos</p>
             
@@ -88,13 +104,39 @@
                 <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
                     Iniciar Sesión
                 </button>
+                <p class="text-center text-gray-500 text-sm mt-4">
+                    ¿No tienes cuenta? <a href="#" id="showRegister" class="text-blue-600 hover:underline">Regístrate aquí</a>
+                </p>
+            </div>
+
+            <!-- Formulario de Registro -->
+            <div id="registerForm" class="max-w-md mx-auto bg-gray-50 p-6 rounded-lg shadow hidden">
+                <h3 class="text-xl font-semibold text-gray-800 mb-4">Crear Cuenta</h3>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="registerEmail">Correo Electrónico</label>
+                    <input type="email" id="registerEmail" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-gray-700 mb-2" for="registerPassword">Contraseña</label>
+                    <input type="password" id="registerPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-gray-700 mb-2" for="confirmPassword">Confirmar Contraseña</label>
+                    <input type="password" id="confirmPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button id="registerBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                    Crear Cuenta
+                </button>
+                <p class="text-center text-gray-500 text-sm mt-4">
+                    ¿Ya tienes cuenta? <a href="#" id="showLogin" class="text-blue-600 hover:underline">Inicia sesión aquí</a>
+                </p>
             </div>
             
             <!-- Panel de Administración (inicialmente oculto) -->
             <div id="adminPanel" class="hidden mt-8">
                 <div class="flex justify-between items-center mb-6">
                     <h3 class="text-xl font-semibold">Gestionar Productos</h3>
-                    <button id="logoutBtn" class="text-red-600 hover:text-red-800">
+                    <button id="logoutBtn" class="text-red-600 hover:text-red-800 flex items-center">
                         <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
                     </button>
                 </div>
@@ -195,7 +237,7 @@
         </section>
 
         <!-- Contact Section -->
-        <section id="contact" class="py-12 mt-12">
+        <section id="contact" class="py-12 mt-12 fade-in">
             <h2 class="text-3xl font-bold text-center text-gray-800 mb-2">Contacto</h2>
             <p class="text-center text-gray-600 mb-8">¿Tienes preguntas? Contáctanos</p>
             
@@ -285,114 +327,167 @@
     </div>
 
     <script>
-        // Configuración de Supabase (reemplaza con tus propios valores)
+        // Configuración de Supabase
         const SUPABASE_URL = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
         
+        // Inicializar Supabase
         const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
-        // Elementos del DOM
-        const productsGrid = document.getElementById('productsGrid');
-        const adminProductsList = document.getElementById('adminProductsList');
-        const loginForm = document.getElementById('loginForm');
-        const adminPanel = document.getElementById('adminPanel');
-        const productForm = document.getElementById('productForm');
-        const formTitle = document.getElementById('formTitle');
-        const submitText = document.getElementById('submitText');
-        const cancelBtn = document.getElementById('cancelBtn');
-        const loginBtn = document.getElementById('loginBtn');
-        const logoutBtn = document.getElementById('logoutBtn');
-        const photoUrlInput = document.getElementById('photo_url');
-        const imagePreview = document.getElementById('imagePreview');
-        const imageSearchModal = document.getElementById('imageSearchModal');
-        const searchImageBtn = document.getElementById('searchImageBtn');
-        const closeModal = document.getElementById('closeModal');
-        const performSearch = document.getElementById('performSearch');
-        const imageSearchQuery = document.getElementById('imageSearchQuery');
-        const imageSearchResults = document.getElementById('imageSearchResults');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const searchInput = document.getElementById('searchInput');
-        
-        // Variables de estado
+        // Variables globales
         let editingProductId = null;
         let allProducts = [];
         
-        // Cargar productos al iniciar
+        // Inicializar la aplicación cuando el DOM esté listo
         document.addEventListener('DOMContentLoaded', () => {
-            loadProducts();
-            checkAuth();
+            initializeApp();
         });
         
-        // Vista previa de imagen al pegar URL
-        photoUrlInput.addEventListener('input', updateImagePreview);
+        async function initializeApp() {
+            // Configurar event listeners
+            setupEventListeners();
+            
+            // Verificar si el usuario ya está autenticado
+            await checkAuth();
+            
+            // Cargar productos
+            await loadProducts();
+        }
         
-        // Abrir modal de búsqueda de imágenes
-        searchImageBtn.addEventListener('click', () => {
-            imageSearchModal.classList.remove('hidden');
-        });
-        
-        // Cerrar modal
-        closeModal.addEventListener('click', () => {
-            imageSearchModal.classList.add('hidden');
-        });
-        
-        // Realizar búsqueda de imágenes
-        performSearch.addEventListener('click', searchImages);
-        
-        // Enviar formulario
-        productForm.addEventListener('submit', handleFormSubmit);
-        
-        // Cancelar edición
-        cancelBtn.addEventListener('click', resetForm);
-        
-        // Login
-        loginBtn.addEventListener('click', handleLogin);
-        
-        // Logout
-        logoutBtn.addEventListener('click', handleLogout);
-        
-        // Filtros
-        categoryFilter.addEventListener('change', filterProducts);
-        searchInput.addEventListener('input', filterProducts);
+        function setupEventListeners() {
+            // Vista previa de imagen al pegar URL
+            document.getElementById('photo_url').addEventListener('input', updateImagePreview);
+            
+            // Modal de búsqueda de imágenes
+            document.getElementById('searchImageBtn').addEventListener('click', () => {
+                document.getElementById('imageSearchModal').classList.remove('hidden');
+            });
+            
+            document.getElementById('closeModal').addEventListener('click', () => {
+                document.getElementById('imageSearchModal').classList.add('hidden');
+            });
+            
+            document.getElementById('performSearch').addEventListener('click', searchImages);
+            
+            // Formularios
+            document.getElementById('productForm').addEventListener('submit', handleFormSubmit);
+            document.getElementById('cancelBtn').addEventListener('click', resetForm);
+            
+            // Autenticación
+            document.getElementById('loginBtn').addEventListener('click', handleLogin);
+            document.getElementById('registerBtn').addEventListener('click', handleRegister);
+            document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+            document.getElementById('showRegister').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.remove('hidden');
+            });
+            document.getElementById('showLogin').addEventListener('click', (e) => {
+                e.preventDefault();
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('loginForm').classList.remove('hidden');
+            });
+            
+            // Filtros
+            document.getElementById('categoryFilter').addEventListener('change', filterProducts);
+            document.getElementById('searchInput').addEventListener('input', filterProducts);
+        }
         
         // Función para verificar autenticación
-        function checkAuth() {
-            // En una implementación real, verificarías la sesión con Supabase
-            const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
-            if (isLoggedIn) {
-                loginForm.classList.add('hidden');
-                adminPanel.classList.remove('hidden');
+        async function checkAuth() {
+            const { data, error } = await supabase.auth.getSession();
+            if (data.session) {
+                // Usuario autenticado
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('adminPanel').classList.remove('hidden');
+                await loadAdminProducts();
             }
         }
         
         // Función para manejar login
-        function handleLogin() {
+        async function handleLogin() {
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
             
-            // En una implementación real, usarías Supabase Auth
-            if (email && password) {
-                // Simulamos un login exitoso
-                localStorage.setItem('isLoggedIn', 'true');
-                loginForm.classList.add('hidden');
-                adminPanel.classList.remove('hidden');
-                loadAdminProducts();
-            } else {
+            if (!email || !password) {
                 alert('Por favor ingresa correo y contraseña');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) throw error;
+                
+                document.getElementById('loginForm').classList.add('hidden');
+                document.getElementById('adminPanel').classList.remove('hidden');
+                await loadAdminProducts();
+                
+            } catch (error) {
+                console.error('Error logging in:', error.message);
+                alert('Error al iniciar sesión: ' + error.message);
+            }
+        }
+        
+        // Función para manejar registro
+        async function handleRegister() {
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!email || !password) {
+                alert('Por favor completa todos los campos');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                alert('Las contraseñas no coinciden');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email: email,
+                    password: password
+                });
+                
+                if (error) throw error;
+                
+                alert('Cuenta creada exitosamente. Ahora puedes iniciar sesión.');
+                document.getElementById('registerForm').classList.add('hidden');
+                document.getElementById('loginForm').classList.remove('hidden');
+                
+            } catch (error) {
+                console.error('Error registering:', error.message);
+                alert('Error al crear la cuenta: ' + error.message);
             }
         }
         
         // Función para manejar logout
-        function handleLogout() {
-            localStorage.setItem('isLoggedIn', 'false');
-            loginForm.classList.remove('hidden');
-            adminPanel.classList.add('hidden');
-            resetForm();
+        async function handleLogout() {
+            try {
+                const { error } = await supabase.auth.signOut();
+                if (error) throw error;
+                
+                document.getElementById('adminPanel').classList.add('hidden');
+                document.getElementById('loginForm').classList.remove('hidden');
+                resetForm();
+                
+            } catch (error) {
+                console.error('Error logging out:', error.message);
+                alert('Error al cerrar sesión: ' + error.message);
+            }
         }
         
         // Función para actualizar la vista previa de la imagen
         function updateImagePreview() {
-            const url = photoUrlInput.value;
+            const url = document.getElementById('photo_url').value;
+            const imagePreview = document.getElementById('imagePreview');
+            
             if (url) {
                 imagePreview.innerHTML = `<img src="${url}" alt="Vista previa" class="h-full w-full object-contain">`;
             } else {
@@ -402,9 +497,10 @@
         
         // Función para buscar imágenes (simulada)
         function searchImages() {
-            const query = imageSearchQuery.value.trim();
+            const query = document.getElementById('imageSearchQuery').value.trim();
             if (!query) return;
             
+            const imageSearchResults = document.getElementById('imageSearchResults');
             imageSearchResults.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Buscando imágenes...</p>';
             
             // Simulamos una búsqueda con imágenes de ejemplo
@@ -428,9 +524,9 @@
                     `;
                     
                     imgElement.addEventListener('click', () => {
-                        photoUrlInput.value = imgUrl;
+                        document.getElementById('photo_url').value = imgUrl;
                         updateImagePreview();
-                        imageSearchModal.classList.add('hidden');
+                        document.getElementById('imageSearchModal').classList.add('hidden');
                     });
                     
                     imageSearchResults.appendChild(imgElement);
@@ -441,110 +537,103 @@
         // Función para cargar productos en el catálogo público
         async function loadProducts() {
             try {
-                // En una implementación real, obtendrías los datos de Supabase
-                // const { data: products, error } = await supabase.from('products').select('*');
+                const { data: products, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('created_at', { ascending: false });
                 
-                // Simulamos datos de ejemplo
-                const products = [
-                    {
-                        id: '1',
-                        name: 'Diseño Web Profesional',
-                        category: 'diseño',
-                        description: 'Diseño de sitio web responsive y moderno con las últimas tendencias.',
-                        price_soles: 1200,
-                        price_dollars: 350,
-                        photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                        plans: ['Básico', 'Premium', 'Completo']
-                    },
-                    {
-                        id: '2',
-                        name: 'Campaña de Marketing Digital',
-                        category: 'marketing',
-                        description: 'Estrategias de marketing digital para aumentar tu presencia en línea.',
-                        price_soles: 2500,
-                        price_dollars: 680,
-                        photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                        plans: ['Inicial', 'Avanzado', 'Enterprise']
-                    },
-                    {
-                        id: '3',
-                        name: 'Software a Medida',
-                        category: 'software',
-                        description: 'Desarrollo de software personalizado para tu negocio.',
-                        price_soles: 5000,
-                        price_dollars: 1350,
-                        photo_url: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
-                        plans: ['Pequeña Empresa', 'Mediana Empresa', 'Corporativo']
-                    }
-                ];
+                if (error) throw error;
                 
-                allProducts = products;
-                displayProducts(products);
+                allProducts = products || [];
+                displayProducts(allProducts);
                 
             } catch (error) {
                 console.error('Error loading products:', error);
-                productsGrid.innerHTML = '<p class="text-center text-red-600 col-span-full py-8">Error al cargar los productos</p>';
+                document.getElementById('productsGrid').innerHTML = '<p class="text-center text-red-600 col-span-full py-8">Error al cargar los productos: ' + error.message + '</p>';
             }
         }
         
         // Función para cargar productos en el panel de administración
-        function loadAdminProducts() {
-            // Simulamos la carga de productos
-            adminProductsList.innerHTML = '';
-            
-            allProducts.forEach(product => {
-                const row = document.createElement('tr');
-                row.className = 'border-b';
-                row.innerHTML = `
-                    <td class="py-3 px-4">
-                        <img src="${product.photo_url}" alt="${product.name}" class="w-16 h-16 object-cover rounded">
-                    </td>
-                    <td class="py-3 px-4">${product.name}</td>
-                    <td class="py-3 px-4">
-                        <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
-                    </td>
-                    <td class="py-3 px-4">S/. ${product.price_soles} | $ ${product.price_dollars}</td>
-                    <td class="py-3 px-4">
-                        <button class="edit-btn px-3 py-1 bg-blue-500 text-white rounded mr-2" data-id="${product.id}">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                        <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded" data-id="${product.id}">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                `;
+        async function loadAdminProducts() {
+            try {
+                const { data: products, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('created_at', { ascending: false });
                 
-                adminProductsList.appendChild(row);
-            });
-            
-            // Agregar event listeners a los botones
-            document.querySelectorAll('.edit-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const productId = e.currentTarget.getAttribute('data-id');
-                    editProduct(productId);
+                if (error) throw error;
+                
+                const adminProductsList = document.getElementById('adminProductsList');
+                adminProductsList.innerHTML = '';
+                
+                if (!products || products.length === 0) {
+                    adminProductsList.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-4 text-center text-gray-500">No hay productos registrados</td>
+                        </tr>
+                    `;
+                    return;
+                }
+                
+                products.forEach(product => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-b';
+                    row.innerHTML = `
+                        <td class="py-3 px-4">
+                            <img src="${product.photo_url}" alt="${product.name}" class="w-16 h-16 object-cover rounded">
+                        </td>
+                        <td class="py-3 px-4">${product.name}</td>
+                        <td class="py-3 px-4">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">${product.category}</span>
+                        </td>
+                        <td class="py-3 px-4">S/. ${product.price_soles} | $ ${product.price_dollars}</td>
+                        <td class="py-3 px-4">
+                            <button class="edit-btn px-3 py-1 bg-blue-500 text-white rounded mr-2" data-id="${product.id}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="delete-btn px-3 py-1 bg-red-500 text-white rounded" data-id="${product.id}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    adminProductsList.appendChild(row);
                 });
-            });
-            
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const productId = e.currentTarget.getAttribute('data-id');
-                    deleteProduct(productId);
+                
+                // Agregar event listeners a los botones
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const productId = e.currentTarget.getAttribute('data-id');
+                        editProduct(productId);
+                    });
                 });
-            });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const productId = e.currentTarget.getAttribute('data-id');
+                        deleteProduct(productId);
+                    });
+                });
+                
+            } catch (error) {
+                console.error('Error loading admin products:', error);
+                alert('Error al cargar los productos: ' + error.message);
+            }
         }
         
         // Función para mostrar productos en el catálogo
         function displayProducts(products) {
+            const productsGrid = document.getElementById('productsGrid');
             productsGrid.innerHTML = '';
             
-            if (products.length === 0) {
+            if (!products || products.length === 0) {
                 productsGrid.innerHTML = '<p class="text-center text-gray-600 col-span-full py-8">No se encontraron productos</p>';
                 return;
             }
             
             products.forEach(product => {
                 const productCard = document.createElement('div');
-                productCard.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition duration-300';
+                productCard.className = 'product-card bg-white rounded-lg shadow-md overflow-hidden';
                 productCard.innerHTML = `
                     <img src="${product.photo_url}" alt="${product.name}" class="w-full h-48 object-cover">
                     <div class="p-4">
@@ -556,7 +645,10 @@
                         <div class="mb-4">
                             <h4 class="font-medium text-gray-700 mb-1">Planes disponibles:</h4>
                             <div class="flex flex-wrap gap-2">
-                                ${product.plans.map(plan => `<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">${plan}</span>`).join('')}
+                                ${Array.isArray(product.plans) ? 
+                                    product.plans.map(plan => `<span class="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-sm">${plan}</span>`).join('') : 
+                                    '<span class="text-gray-500 text-sm">No especificado</span>'
+                                }
                             </div>
                         </div>
                         <div class="flex justify-between items-center">
@@ -572,8 +664,8 @@
         
         // Función para filtrar productos
         function filterProducts() {
-            const category = categoryFilter.value;
-            const searchText = searchInput.value.toLowerCase();
+            const category = document.getElementById('categoryFilter').value;
+            const searchText = document.getElementById('searchInput').value.toLowerCase();
             
             let filteredProducts = allProducts;
             
@@ -602,71 +694,76 @@
                 price_soles: parseFloat(document.getElementById('price_soles').value),
                 price_dollars: parseFloat(document.getElementById('price_dollars').value),
                 photo_url: document.getElementById('photo_url').value,
-                plans: document.getElementById('plans').value.split(',').map(item => item.trim())
+                plans: document.getElementById('plans').value.split(',').map(item => item.trim()).filter(item => item !== '')
             };
             
             try {
                 if (editingProductId) {
-                    // En una implementación real, actualizarías en Supabase
-                    // const { error } = await supabase.from('products').update(formData).eq('id', editingProductId);
+                    const { error } = await supabase
+                        .from('products')
+                        .update(formData)
+                        .eq('id', editingProductId);
                     
-                    // Simulamos la actualización
-                    const index = allProducts.findIndex(p => p.id === editingProductId);
-                    if (index !== -1) {
-                        allProducts[index] = { ...formData, id: editingProductId };
-                    }
+                    if (error) throw error;
                     
                     alert('Producto actualizado correctamente');
                 } else {
-                    // En una implementación real, insertarías en Supabase
-                    // const { error } = await supabase.from('products').insert([formData]);
+                    const { error } = await supabase
+                        .from('products')
+                        .insert([formData]);
                     
-                    // Simulamos la inserción
-                    const newProduct = {
-                        ...formData,
-                        id: Date.now().toString()
-                    };
-                    allProducts.push(newProduct);
+                    if (error) throw error;
                     
                     alert('Producto agregado correctamente');
                 }
                 
                 resetForm();
-                displayProducts(allProducts);
-                loadAdminProducts();
+                await loadProducts();
+                await loadAdminProducts();
                 
             } catch (error) {
                 console.error('Error saving product:', error);
-                alert('Error al guardar el producto');
+                alert('Error al guardar el producto: ' + error.message);
             }
         }
         
         // Función para editar producto
-        function editProduct(productId) {
-            const product = allProducts.find(p => p.id === productId);
-            if (!product) return;
-            
-            // Llenar el formulario con los datos del producto
-            document.getElementById('productId').value = product.id;
-            document.getElementById('name').value = product.name;
-            document.getElementById('category').value = product.category;
-            document.getElementById('description').value = product.description;
-            document.getElementById('price_soles').value = product.price_soles;
-            document.getElementById('price_dollars').value = product.price_dollars;
-            document.getElementById('photo_url').value = product.photo_url;
-            document.getElementById('plans').value = Array.isArray(product.plans) ? product.plans.join(', ') : '';
-            
-            // Actualizar vista previa
-            updateImagePreview();
-            
-            // Cambiar el formulario a modo edición
-            formTitle.textContent = 'Editar Producto';
-            submitText.textContent = 'Actualizar Producto';
-            cancelBtn.classList.remove('hidden');
-            editingProductId = productId;
-            
-            // Scroll al formulario
-            productForm.scrollIntoView({ behavior: 'smooth' });
+        async function editProduct(productId) {
+            try {
+                const { data: product, error } = await supabase
+                    .from('products')
+                    .select('*')
+                    .eq('id', productId)
+                    .single();
+                
+                if (error) throw error;
+                
+                // Llenar el formulario con los datos del producto
+                document.getElementById('productId').value = product.id;
+                document.getElementById('name').value = product.name;
+                document.getElementById('category').value = product.category;
+                document.getElementById('description').value = product.description;
+                document.getElementById('price_soles').value = product.price_soles;
+                document.getElementById('price_dollars').value = product.price_dollars;
+                document.getElementById('photo_url').value = product.photo_url;
+                document.getElementById('plans').value = Array.isArray(product.plans) ? product.plans.join(', ') : '';
+                
+                // Actualizar vista previa
+                updateImagePreview();
+                
+                // Cambiar el formulario a modo edición
+                document.getElementById('formTitle').textContent = 'Editar Producto';
+                document.getElementById('submitText').textContent = 'Actualizar Producto';
+                document.getElementById('cancelBtn').classList.remove('hidden');
+                editingProductId = productId;
+                
+                // Scroll al formulario
+                document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+                
+            } catch (error) {
+                console.error('Error loading product for edit:', error);
+                alert('Error al cargar el producto para editar: ' + error.message);
+            }
         }
         
         // Función para eliminar producto
@@ -674,30 +771,31 @@
             if (!confirm('¿Estás seguro de que deseas eliminar este producto?')) return;
             
             try {
-                // En una implementación real, eliminarías de Supabase
-                // const { error } = await supabase.from('products').delete().eq('id', productId);
+                const { error } = await supabase
+                    .from('products')
+                    .delete()
+                    .eq('id', productId);
                 
-                // Simulamos la eliminación
-                allProducts = allProducts.filter(p => p.id !== productId);
+                if (error) throw error;
                 
                 alert('Producto eliminado correctamente');
-                displayProducts(allProducts);
-                loadAdminProducts();
+                await loadProducts();
+                await loadAdminProducts();
                 
             } catch (error) {
                 console.error('Error deleting product:', error);
-                alert('Error al eliminar el producto');
+                alert('Error al eliminar el producto: ' + error.message);
             }
         }
         
         // Función para resetear el formulario
         function resetForm() {
-            productForm.reset();
+            document.getElementById('productForm').reset();
             editingProductId = null;
-            formTitle.textContent = 'Agregar Nuevo Producto';
-            submitText.textContent = 'Agregar Producto';
-            cancelBtn.classList.add('hidden');
-            imagePreview.innerHTML = '<p class="text-gray-500">La imagen aparecerá aquí</p>';
+            document.getElementById('formTitle').textContent = 'Agregar Nuevo Producto';
+            document.getElementById('submitText').textContent = 'Agregar Producto';
+            document.getElementById('cancelBtn').classList.add('hidden');
+            document.getElementById('imagePreview').innerHTML = '<p class="text-gray-500">La imagen aparecerá aquí</p>';
         }
     </script>
 </body>
