@@ -232,6 +232,9 @@ export const isAuthenticated = () => {
     return currentUser !== null;
 };
 
+// Alias para compatibilidad (lo que header.js necesita)
+export const isUserLoggedIn = isAuthenticated;
+
 // Escuchar cambios de autenticación
 supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
@@ -398,3 +401,4 @@ window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
 window.showLoginForm = showLoginForm;
 window.showRegisterForm = showRegisterForm;
+window.logout = handleLogout;
