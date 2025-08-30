@@ -1,6 +1,6 @@
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
-import { loadAdminProducts } from './products.js';
+import { loadProducts as loadAdminProducts } from './products.js';
 import { loadCategories } from './categories.js';
 
 // Estado de autenticación
