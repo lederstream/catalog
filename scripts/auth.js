@@ -1,6 +1,7 @@
+// scripts/auth.js
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
-import { loadProducts as loadAdminProducts } from './products.js';
+import { loadProducts } from './products.js';
 import { loadCategories } from './categories.js';
 
 // Estado de autenticación
@@ -15,7 +16,7 @@ export const checkAuth = async () => {
         
         if (session) {
             currentUser = session.user;
-            showAdminPanel();
+            await showAdminPanel();
             return true;
         }
         
@@ -29,8 +30,8 @@ export const checkAuth = async () => {
 
 // Manejar login
 export const handleLogin = async () => {
-    const email = document.getElementById('email').value;
-    const password = document.getElementById('password').value;
+    const email = document.getElementById('email')?.value;
+    const password = document.getElementById('password')?.value;
     
     if (!validateRequired(email) || !validateRequired(password)) {
         showNotification('Por favor completa todos los campos', 'error');
@@ -45,9 +46,11 @@ export const handleLogin = async () => {
     try {
         // Mostrar indicador de carga
         const loginBtn = document.getElementById('loginBtn');
-        const originalText = loginBtn.innerHTML;
-        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando sesión...';
-        loginBtn.disabled = true;
+        if (loginBtn) {
+            const originalText = loginBtn.innerHTML;
+            loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando sesión...';
+            loginBtn.disabled = true;
+        }
         
         const { data, error } = await supabase.auth.signInWithPassword({
             email: email,
@@ -57,7 +60,7 @@ export const handleLogin = async () => {
         if (error) throw error;
         
         currentUser = data.user;
-        showAdminPanel();
+        await showAdminPanel();
         showNotification('Sesión iniciada correctamente', 'success');
         
     } catch (error) {
@@ -71,16 +74,18 @@ export const handleLogin = async () => {
     } finally {
         // Restaurar botón
         const loginBtn = document.getElementById('loginBtn');
-        loginBtn.innerHTML = 'Iniciar Sesión';
-        loginBtn.disabled = false;
+        if (loginBtn) {
+            loginBtn.innerHTML = 'Iniciar Sesión';
+            loginBtn.disabled = false;
+        }
     }
 };
 
 // Manejar registro
 export const handleRegister = async () => {
-    const email = document.getElementById('registerEmail').value;
-    const password = document.getElementById('registerPassword').value;
-    const confirmPassword = document.getElementById('confirmPassword').value;
+    const email = document.getElementById('registerEmail')?.value;
+    const password = document.getElementById('registerPassword')?.value;
+    const confirmPassword = document.getElementById('confirmPassword')?.value;
     
     if (!validateRequired(email) || !validateRequired(password) || !validateRequired(confirmPassword)) {
         showNotification('Por favor completa todos los campos', 'error');
@@ -105,9 +110,11 @@ export const handleRegister = async () => {
     try {
         // Mostrar indicador de carga
         const registerBtn = document.getElementById('registerBtn');
-        const originalText = registerBtn.innerHTML;
-        registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando cuenta...';
-        registerBtn.disabled = true;
+        if (registerBtn) {
+            const originalText = registerBtn.innerHTML;
+            registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando cuenta...';
+            registerBtn.disabled = true;
+        }
         
         const { data, error } = await supabase.auth.signUp({
             email: email,
@@ -127,14 +134,18 @@ export const handleRegister = async () => {
         
         if (error.message.includes('User already registered')) {
             showNotification('Este usuario ya está registrado', 'error');
+        } else if (error.message.includes('Password should be at least 6 characters')) {
+            showNotification('La contraseña debe tener al menos 6 caracteres', 'error');
         } else {
             showNotification('Error al crear la cuenta: ' + error.message, 'error');
         }
     } finally {
         // Restaurar botón
         const registerBtn = document.getElementById('registerBtn');
-        registerBtn.innerHTML = 'Crear Cuenta';
-        registerBtn.disabled = false;
+        if (registerBtn) {
+            registerBtn.innerHTML = 'Crear Cuenta';
+            registerBtn.disabled = false;
+        }
     }
 };
 
@@ -156,32 +167,59 @@ export const handleLogout = async () => {
 };
 
 // Mostrar panel de administración
-const showAdminPanel = () => {
-    document.getElementById('loginForm').classList.add('hidden');
-    document.getElementById('registerForm').classList.add('hidden');
-    document.getElementById('adminPanel').classList.remove('hidden');
+const showAdminPanel = async () => {
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    const adminPanel = document.getElementById('adminPanel');
+    
+    if (loginForm) loginForm.classList.add('hidden');
+    if (registerForm) registerForm.classList.add('hidden');
+    if (adminPanel) adminPanel.classList.remove('hidden');
     
     // Cargar datos del admin
-    loadAdminProducts();
-    loadCategories();
+    try {
+        await loadProducts();
+        await loadCategories();
+        
+        // Forzar renderizado de productos en admin si existe la función
+        if (typeof window.renderAdminProductsList === 'function') {
+            const adminProductsList = document.getElementById('adminProductsList');
+            if (adminProductsList) {
+                const products = await loadProducts();
+                window.renderAdminProductsList(products, adminProductsList);
+            }
+        }
+    } catch (error) {
+        console.error('Error loading admin data:', error);
+        showNotification('Error al cargar datos de administración', 'error');
+    }
 };
 
 // Ocultar panel de administración
 const hideAdminPanel = () => {
-    document.getElementById('adminPanel').classList.add('hidden');
-    document.getElementById('loginForm').classList.remove('hidden');
+    const adminPanel = document.getElementById('adminPanel');
+    const loginForm = document.getElementById('loginForm');
+    
+    if (adminPanel) adminPanel.classList.add('hidden');
+    if (loginForm) loginForm.classList.remove('hidden');
 };
 
 // Mostrar formulario de login
 export const showLoginForm = () => {
-    document.getElementById('registerForm').classList.add('hidden');
-    document.getElementById('loginForm').classList.remove('hidden');
+    const registerForm = document.getElementById('registerForm');
+    const loginForm = document.getElementById('loginForm');
+    
+    if (registerForm) registerForm.classList.add('hidden');
+    if (loginForm) loginForm.classList.remove('hidden');
 };
 
 // Mostrar formulario de registro
 export const showRegisterForm = () => {
-    document.getElementById('loginForm').classList.add('hidden');
-    document.getElementById('registerForm').classList.remove('hidden');
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    
+    if (loginForm) loginForm.classList.add('hidden');
+    if (registerForm) registerForm.classList.remove('hidden');
 };
 
 // Obtener usuario actual
@@ -195,13 +233,14 @@ export const isAuthenticated = () => {
 };
 
 // Escuchar cambios de autenticación
-supabase.auth.onAuthStateChange((event, session) => {
+supabase.auth.onAuthStateChange(async (event, session) => {
     if (event === 'SIGNED_IN') {
         currentUser = session.user;
-        showAdminPanel();
+        await showAdminPanel();
     } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         hideAdminPanel();
+        showLoginForm();
     }
 });
 
@@ -269,9 +308,7 @@ export const updateProfile = async (updates) => {
 
 // Verificar si el usuario tiene un rol específico
 export const hasRole = (role) => {
-    // Esta función necesitaría implementación basada en cómo manejas los roles
-    // Podrías almacenar roles en metadata del usuario o en una tabla separada
-    return currentUser && currentUser.role === role;
+    return currentUser && currentUser.user_metadata?.role === role;
 };
 
 // Obtener metadata del usuario
@@ -282,41 +319,82 @@ export const getUserMetadata = () => {
 // Configurar event listeners de autenticación
 export const setupAuthEventListeners = () => {
     // Login
-    document.getElementById('loginBtn').addEventListener('click', handleLogin);
+    const loginBtn = document.getElementById('loginBtn');
+    if (loginBtn) {
+        loginBtn.addEventListener('click', handleLogin);
+    }
     
     // Registro
-    document.getElementById('registerBtn').addEventListener('click', handleRegister);
+    const registerBtn = document.getElementById('registerBtn');
+    if (registerBtn) {
+        registerBtn.addEventListener('click', handleRegister);
+    }
     
     // Logout
-    document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
     
     // Cambiar entre login y registro
-    document.getElementById('showRegister').addEventListener('click', (e) => {
-        e.preventDefault();
-        showRegisterForm();
-    });
+    const showRegisterLink = document.getElementById('showRegister');
+    if (showRegisterLink) {
+        showRegisterLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showRegisterForm();
+        });
+    }
     
-    document.getElementById('showLogin').addEventListener('click', (e) => {
-        e.preventDefault();
-        showLoginForm();
-    });
+    const showLoginLink = document.getElementById('showLogin');
+    if (showLoginLink) {
+        showLoginLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginForm();
+        });
+    }
     
     // Enter key en formularios
-    document.getElementById('password').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleLogin();
-        }
-    });
+    const passwordInput = document.getElementById('password');
+    if (passwordInput) {
+        passwordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
+    }
     
-    document.getElementById('registerPassword').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleRegister();
-        }
-    });
+    const registerPasswordInput = document.getElementById('registerPassword');
+    if (registerPasswordInput) {
+        registerPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleRegister();
+            }
+        });
+    }
     
-    document.getElementById('confirmPassword').addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            handleRegister();
-        }
-    });
+    const confirmPasswordInput = document.getElementById('confirmPassword');
+    if (confirmPasswordInput) {
+        confirmPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleRegister();
+            }
+        });
+    }
 };
+
+// Inicializar auth
+export const initializeAuth = async () => {
+    try {
+        await checkAuth();
+        setupAuthEventListeners();
+    } catch (error) {
+        console.error('Error initializing auth:', error);
+        showNotification('Error al inicializar autenticación', 'error');
+    }
+};
+
+// Hacer funciones disponibles globalmente si es necesario
+window.handleLogin = handleLogin;
+window.handleLogout = handleLogout;
+window.showLoginForm = showLoginForm;
+window.showRegisterForm = showRegisterForm;
