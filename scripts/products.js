@@ -8,27 +8,109 @@ let products = [];
 // Cargar productos desde Supabase
 export async function loadProducts() {
     try {
-        const { data, error } = await supabase
+        // Primero intentar cargar con join a categories
+        let query = supabase
             .from('products')
-            .select(`
-                *,
-                categories (name)
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
 
+        // Intentar agregar el join si es posible
+        try {
+            query = query.select('*, categories(name)');
+        } catch (e) {
+            console.warn('No se puede hacer join con categories, cargando solo productos');
+        }
+
+        const { data, error } = await query;
+
         if (error) {
-            console.error('Error al cargar productos:', error);
-            showNotification('Error al cargar productos', 'error');
-            return [];
+            // Si hay error de relación, intentar sin el join
+            if (error.code === 'PGRST200' || error.message.includes('relationship')) {
+                console.warn('Relación no encontrada, cargando productos sin categorías');
+                const { data: simpleData, error: simpleError } = await supabase
+                    .from('products')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+                
+                if (simpleError) {
+                    // Si la tabla products no existe, usar datos de muestra
+                    if (simpleError.code === 'PGRST205' || simpleError.code === '42P01') {
+                        console.warn('Tabla products no existe, usando datos de muestra');
+                        products = getSampleProducts();
+                        return products;
+                    }
+                    throw simpleError;
+                }
+                
+                products = simpleData || [];
+                return products;
+            }
+            
+            // Si la tabla no existe, usar datos de muestra
+            if (error.code === 'PGRST205' || error.code === '42P01') {
+                console.warn('Tabla products no existe, usando datos de muestra');
+                products = getSampleProducts();
+                return products;
+            }
+            
+            throw error;
         }
 
         products = data || [];
         return products;
     } catch (error) {
-        console.error('Error inesperado al cargar productos:', error);
-        showNotification('Error inesperado al cargar productos', 'error');
-        return [];
+        console.error('Error al cargar productos:', error);
+        
+        // En caso de error, usar datos de muestra
+        products = getSampleProducts();
+        showNotification('Usando datos de demostración', 'info');
+        return products;
     }
+}
+
+// Datos de muestra para cuando no hay base de datos
+function getSampleProducts() {
+    return [
+        {
+            id: '1',
+            name: 'Diseño de Logo Profesional',
+            description: 'Diseño de logo moderno y profesional para tu marca',
+            category: 'diseño',
+            category_id: 1,
+            photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Básico', price_soles: 199, price_dollars: 50 },
+                { name: 'Premium', price_soles: 399, price_dollars: 100 }
+            ],
+            created_at: new Date().toISOString()
+        },
+        {
+            id: '2', 
+            name: 'Sitio Web Responsive',
+            description: 'Desarrollo de sitio web moderno y responsive',
+            category: 'software',
+            category_id: 3,
+            photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
+                { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
+            ],
+            created_at: new Date().toISOString()
+        },
+        {
+            id: '3',
+            name: 'Campaña de Marketing Digital',
+            description: 'Campaña completa de marketing para redes sociales',
+            category: 'marketing',
+            category_id: 2,
+            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Básica', price_soles: 999, price_dollars: 250 },
+                { name: 'Completa', price_soles: 1999, price_dollars: 500 }
+            ],
+            created_at: new Date().toISOString()
+        }
+    ];
 }
 
 // Alias para compatibilidad con auth.js
@@ -45,15 +127,20 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
 
     // Filtrar por categoría
     if (categoryId !== 'all') {
-        filtered = filtered.filter(product => product.category_id === categoryId);
+        filtered = filtered.filter(product => 
+            product.category_id == categoryId || 
+            product.category === categoryId ||
+            (typeof categoryId === 'string' && product.category && product.category.toLowerCase() === categoryId.toLowerCase())
+        );
     }
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(product => 
-            product.name.toLowerCase().includes(term) || 
-            product.description.toLowerCase().includes(term)
+            (product.name && product.name.toLowerCase().includes(term)) || 
+            (product.description && product.description.toLowerCase().includes(term)) ||
+            (product.category && product.category.toLowerCase().includes(term))
         );
     }
 
@@ -69,7 +156,7 @@ export function getProductById(id) {
 export async function addProduct(productData) {
     try {
         // Validar datos del producto
-        if (!productData.name || !productData.description || !productData.category_id || !productData.photo_url) {
+        if (!productData.name || !productData.description || !productData.photo_url) {
             showNotification('Todos los campos obligatorios deben estar completos', 'error');
             return null;
         }
@@ -90,22 +177,42 @@ export async function addProduct(productData) {
             return null;
         }
 
+        // Si no hay category_id pero hay category, usar category como string
+        const productToInsert = {
+            name: productData.name,
+            description: productData.description,
+            photo_url: productData.photo_url,
+            plans: productData.plans,
+            created_at: new Date().toISOString()
+        };
+
+        // Agregar category_id o category según lo que esté disponible
+        if (productData.category_id) {
+            productToInsert.category_id = productData.category_id;
+        } else if (productData.category) {
+            productToInsert.category = productData.category;
+        }
+
         const { data, error } = await supabase
             .from('products')
-            .insert([{
-                name: productData.name,
-                description: productData.description,
-                category_id: productData.category_id,
-                photo_url: productData.photo_url,
-                plans: productData.plans
-            }])
-            .select(`
-                *,
-                categories (name)
-            `);
+            .insert([productToInsert])
+            .select();
 
         if (error) {
             console.error('Error al agregar producto:', error);
+            
+            // Si hay error de tabla, agregar al array local
+            if (error.code === 'PGRST205' || error.code === '42P01') {
+                const newProduct = {
+                    id: Date.now().toString(),
+                    ...productToInsert,
+                    categories: { name: productData.category || 'General' }
+                };
+                products.unshift(newProduct);
+                showNotification('Producto agregado (modo demostración)', 'success');
+                return newProduct;
+            }
+            
             showNotification('Error al agregar producto', 'error');
             return null;
         }
@@ -119,7 +226,7 @@ export async function addProduct(productData) {
         return null;
     } catch (error) {
         console.error('Error inesperado al agregar producto:', error);
-        showNotification('Error inesperado al agregar producto', 'error');
+        showNotification('Error al agregar producto', 'error');
         return null;
     }
 }
@@ -128,7 +235,7 @@ export async function addProduct(productData) {
 export async function updateProduct(id, productData) {
     try {
         // Validar datos del producto
-        if (!productData.name || !productData.description || !productData.category_id || !productData.photo_url) {
+        if (!productData.name || !productData.description || !productData.photo_url) {
             showNotification('Todos los campos obligatorios deben estar completos', 'error');
             return null;
         }
@@ -149,24 +256,40 @@ export async function updateProduct(id, productData) {
             return null;
         }
 
+        const updateData = {
+            name: productData.name,
+            description: productData.description,
+            photo_url: productData.photo_url,
+            plans: productData.plans,
+            updated_at: new Date().toISOString()
+        };
+
+        // Agregar category_id o category según lo que esté disponible
+        if (productData.category_id) {
+            updateData.category_id = productData.category_id;
+        } else if (productData.category) {
+            updateData.category = productData.category;
+        }
+
         const { data, error } = await supabase
             .from('products')
-            .update({
-                name: productData.name,
-                description: productData.description,
-                category_id: productData.category_id,
-                photo_url: productData.photo_url,
-                plans: productData.plans,
-                updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', id)
-            .select(`
-                *,
-                categories (name)
-            `);
+            .select();
 
         if (error) {
             console.error('Error al actualizar producto:', error);
+            
+            // Si hay error de tabla, actualizar en el array local
+            if (error.code === 'PGRST205' || error.code === '42P01') {
+                const index = products.findIndex(product => product.id === id);
+                if (index !== -1) {
+                    products[index] = { ...products[index], ...updateData };
+                    showNotification('Producto actualizado (modo demostración)', 'success');
+                    return products[index];
+                }
+            }
+            
             showNotification('Error al actualizar producto', 'error');
             return null;
         }
@@ -184,7 +307,7 @@ export async function updateProduct(id, productData) {
         return null;
     } catch (error) {
         console.error('Error inesperado al actualizar producto:', error);
-        showNotification('Error inesperado al actualizar producto', 'error');
+        showNotification('Error al actualizar producto', 'error');
         return null;
     }
 }
@@ -199,6 +322,14 @@ export async function deleteProduct(id) {
 
         if (error) {
             console.error('Error al eliminar producto:', error);
+            
+            // Si hay error de tabla, eliminar del array local
+            if (error.code === 'PGRST205' || error.code === '42P01') {
+                products = products.filter(product => product.id !== id);
+                showNotification('Producto eliminado (modo demostración)', 'success');
+                return true;
+            }
+            
             showNotification('Error al eliminar producto', 'error');
             return false;
         }
@@ -209,53 +340,60 @@ export async function deleteProduct(id) {
         return true;
     } catch (error) {
         console.error('Error inesperado al eliminar producto:', error);
-        showNotification('Error inesperado al eliminar producto', 'error');
+        showNotification('Error al eliminar producto', 'error');
         return false;
     }
 }
 
 // Renderizar productos en el grid público
-export function renderProductsGrid(products, container) {
+export function renderProductsGrid(productsToRender, containerId) {
+    const container = document.getElementById(containerId);
     if (!container) return;
 
-    if (products.length === 0) {
+    if (!productsToRender || productsToRender.length === 0) {
         container.innerHTML = `
             <div class="col-span-full text-center py-12">
                 <i class="fas fa-search fa-3x text-gray-300 mb-4"></i>
                 <p class="text-gray-500 text-lg">No se encontraron productos</p>
+                <p class="text-sm text-gray-400">Intenta con otros filtros de búsqueda</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = products.map(product => renderProductCard(product)).join('');
+    container.innerHTML = productsToRender.map(product => renderProductCard(product)).join('');
 }
 
 // Renderizar lista de productos en el panel de administración
-export function renderAdminProductsList(products, container) {
+export function renderAdminProductsList(productsToRender, container) {
     if (!container) return;
 
-    if (products.length === 0) {
+    if (!productsToRender || productsToRender.length === 0) {
         container.innerHTML = `
             <tr>
-                <td colspan="5" class="py-6 text-center text-gray-500">
-                    No hay productos. Agrega tu primer producto usando el formulario arriba.
+                <td colspan="5" class="py-8 text-center text-gray-500">
+                    <i class="fas fa-box-open text-2xl mb-2"></i>
+                    <p>No hay productos registrados</p>
+                    <p class="text-sm">Agrega tu primer producto usando el formulario</p>
                 </td>
             </tr>
         `;
         return;
     }
 
-    container.innerHTML = products.map(product => `
+    container.innerHTML = productsToRender.map(product => `
         <tr class="border-b hover:bg-gray-50">
             <td class="py-3 px-4">
-                <img src="${product.photo_url}" alt="${product.name}" class="w-12 h-12 object-cover rounded">
+                <img src="${product.photo_url || 'https://via.placeholder.com/50x50?text=Imagen'}" 
+                     alt="${product.name}" 
+                     class="w-12 h-12 object-cover rounded"
+                     onerror="this.src='https://via.placeholder.com/50x50?text=Error'">
             </td>
-            <td class="py-3 px-4 font-medium">${product.name}</td>
-            <td class="py-3 px-4">${product.categories?.name || 'Sin categoría'}</td>
+            <td class="py-3 px-4 font-medium">${product.name || 'Sin nombre'}</td>
+            <td class="py-3 px-4">${getCategoryName(product)}</td>
             <td class="py-3 px-4">
                 ${product.plans ? product.plans.map(plan => `
-                    <div class="text-sm">
+                    <div class="text-sm mb-1">
                         <span class="font-medium">${plan.name}:</span>
                         ${plan.price_soles ? `S/ ${formatCurrency(plan.price_soles)}` : ''}
                         ${plan.price_soles && plan.price_dollars ? ' • ' : ''}
@@ -265,10 +403,10 @@ export function renderAdminProductsList(products, container) {
             </td>
             <td class="py-3 px-4">
                 <div class="flex space-x-2">
-                    <button class="edit-product text-blue-500 hover:text-blue-700" data-id="${product.id}">
+                    <button class="edit-product text-blue-500 hover:text-blue-700 p-1" data-id="${product.id}">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="delete-product text-red-500 hover:text-red-700" data-id="${product.id}">
+                    <button class="delete-product text-red-500 hover:text-red-700 p-1" data-id="${product.id}">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
@@ -293,9 +431,14 @@ export function renderAdminProductsList(products, container) {
                 deleteProduct(id).then(success => {
                     if (success) {
                         // Recargar la lista de productos
-                        if (typeof window.loadAdminProducts === 'function') {
-                            window.loadAdminProducts();
-                        }
+                        loadProducts().then(() => {
+                            if (typeof window.renderAdminProductsList === 'function') {
+                                const adminList = document.getElementById('adminProductsList');
+                                if (adminList) {
+                                    window.renderAdminProductsList(products, adminList);
+                                }
+                            }
+                        });
                     }
                 });
             }
@@ -303,8 +446,26 @@ export function renderAdminProductsList(products, container) {
     });
 }
 
+// Helper para obtener nombre de categoría
+function getCategoryName(product) {
+    if (product.categories && product.categories.name) {
+        return product.categories.name;
+    }
+    if (product.category) {
+        return product.category;
+    }
+    if (product.category_id) {
+        return `Categoría ${product.category_id}`;
+    }
+    return 'Sin categoría';
+}
+
 // Hacer funciones disponibles globalmente
 window.loadProducts = loadProducts;
-window.loadAdminProducts = loadProducts; // Alias para compatibilidad
+window.loadAdminProducts = loadProducts;
 window.renderProductsGrid = renderProductsGrid;
 window.renderAdminProductsList = renderAdminProductsList;
+window.addProduct = addProduct;
+window.updateProduct = updateProduct;
+window.deleteProduct = deleteProduct;
+window.getProductById = getProductById;
