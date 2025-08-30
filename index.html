@@ -137,9 +137,8 @@
                     ¿No tienes cuenta? <a href="#" id="showRegister" class="text-blue-600 hover:underline">Regístrate aquí</a>
                 </p>
                 <div class="mt-4 p-3 bg-yellow-100 rounded-lg text-yellow-800 text-sm">
-                    <p class="font-semibold">Credenciales de prueba:</p>
-                    <p>Email: admin@ejemplo.com</p>
-                    <p>Contraseña: password123</p>
+                    <p class="font-semibold">Nota:</p>
+                    <p>Para usar esta aplicación, primero debes configurar las políticas de seguridad en Supabase.</p>
                 </div>
             </div>
 
@@ -352,7 +351,7 @@
                     <ul class="space-y-2">
                         <li><a href="#" class="text-gray-400 hover:text-white">Inicio</a></li>
                         <li><a href="#catalog" class="text-gray-400 hover:text-white">Catálogo</a></li>
-                        <li><a href="#admin" class="text-gray-400 hover:text-white">Admin</a></li>
+                        <li><a href#admin" class="text-gray-400 hover:text-white">Admin</a></li>
                         <li><a href="#contact" class="text-gray-400 hover:text-white">Contacto</a></li>
                     </ul>
                 </div>
@@ -399,7 +398,7 @@
     <script>
         // Configuración de Supabase
         const SUPABASE_URL = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
-        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZEIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
         
         // Inicializar Supabase
         let supabase;
@@ -771,20 +770,95 @@
         // Función para cargar productos en el catálogo público
         async function loadProducts() {
             try {
+                // Primero intentamos cargar con autenticación
                 const { data: products, error } = await supabase
                     .from('products')
                     .select('*')
                     .order('created_at', { ascending: false });
                 
-                if (error) throw error;
+                if (error) {
+                    console.warn('Error al cargar productos con autenticación, intentando sin autenticación:', error.message);
+                    // Si hay error, mostramos datos de ejemplo
+                    displaySampleProducts();
+                    return;
+                }
                 
                 allProducts = products || [];
                 displayProducts(allProducts);
                 
             } catch (error) {
                 console.error('Error loading products:', error);
-                document.getElementById('productsGrid').innerHTML = '<p class="text-center text-red-600 col-span-full py-8">Error al cargar los productos: ' + error.message + '</p>';
+                // En caso de error, mostramos productos de ejemplo
+                displaySampleProducts();
             }
+        }
+        
+        // Función para mostrar productos de ejemplo
+        function displaySampleProducts() {
+            const sampleProducts = [
+                {
+                    id: '1',
+                    name: 'Diseño Web Profesional',
+                    category: 'diseño',
+                    description: 'Diseño de sitio web responsive y moderno con las últimas tendencias.',
+                    photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    plans: [
+                        { name: 'Básico', price_soles: 800, price_dollars: 220 },
+                        { name: 'Premium', price_soles: 1200, price_dollars: 350 },
+                        { name: 'Completo', price_soles: 2000, price_dollars: 550 }
+                    ]
+                },
+                {
+                    id: '2',
+                    name: 'Campaña de Marketing Digital',
+                    category: 'marketing',
+                    description: 'Estrategias de marketing digital para aumentar tu presencia en línea.',
+                    photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    plans: [
+                        { name: 'Inicial', price_soles: 1500, price_dollars: 400 },
+                        { name: 'Avanzado', price_soles: 2500, price_dollars: 680 },
+                        { name: 'Enterprise', price_soles: 4000, price_dollars: 1100 }
+                    ]
+                },
+                {
+                    id: '3',
+                    name: 'Software a Medida',
+                    category: 'software',
+                    description: 'Desarrollo de software personalizado para tu negocio.',
+                    photo_url: 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    plans: [
+                        { name: 'Pequeña Empresa', price_soles: 3500, price_dollars: 950 },
+                        { name: 'Mediana Empresa', price_soles: 5000, price_dollars: 1350 },
+                        { name: 'Corporativo', price_soles: 8000, price_dollars: 2200 }
+                    ]
+                },
+                {
+                    id: '4',
+                    name: 'Consultoría Estratégica',
+                    category: 'consultoria',
+                    description: 'Asesoramiento especializado para el crecimiento de tu negocio.',
+                    photo_url: 'https://images.unsplash.com/photo-1552664730-d307ca884978?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+                    plans: [
+                        { name: 'Sesión Individual', price_soles: 300, price_dollars: 80 },
+                        { name: 'Paquete Mensual', price_soles: 1000, price_dollars: 270 },
+                        { name: 'Plan Anual', price_soles: 10000, price_dollars: 2700 }
+                    ]
+                }
+            ];
+            
+            allProducts = sampleProducts;
+            displayProducts(allProducts);
+            
+            // Mostrar mensaje informativo
+            const productsGrid = document.getElementById('productsGrid');
+            const infoMessage = document.createElement('div');
+            infoMessage.className = 'col-span-full bg-blue-50 p-4 rounded-lg mt-4';
+            infoMessage.innerHTML = `
+                <p class="text-blue-800"><strong>Nota:</strong> Mostrando datos de ejemplo. Para conectar con tu base de datos, 
+                configura las políticas de seguridad en Supabase.</p>
+                <p class="text-blue-700 text-sm mt-2">Ve a Authentication > Policies y crea políticas para permitir acceso a la tabla 'products'.</p>
+            `;
+            productsGrid.parentNode.insertBefore(infoMessage, productsGrid.nextSibling);
         }
         
         // Función para cargar productos en el panel de administración
@@ -795,7 +869,18 @@
                     .select('*')
                     .order('created_at', { ascending: false });
                 
-                if (error) throw error;
+                if (error) {
+                    console.error('Error loading admin products:', error);
+                    const adminProductsList = document.getElementById('adminProductsList');
+                    adminProductsList.innerHTML = `
+                        <tr>
+                            <td colspan="5" class="py-4 text-center text-gray-500">
+                                Error al cargar productos. Verifica las políticas de seguridad en Supabase.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
                 
                 const adminProductsList = document.getElementById('adminProductsList');
                 adminProductsList.innerHTML = '';
@@ -986,7 +1071,7 @@
                 
             } catch (error) {
                 console.error('Error saving product:', error);
-                alert('Error al guardar el producto: ' + error.message);
+                alert('Error al guardar el producto: ' + error.message + '. Verifica las políticas de seguridad en Supabase.');
             }
         }
         
