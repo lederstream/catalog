@@ -353,7 +353,7 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
         
         // Inicializar Supabase
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        let supabase;
         
         // Variables globales
         let editingProductId = null;
@@ -364,15 +364,18 @@
             initializeApp();
         });
         
-        async function initializeApp() {
+        function initializeApp() {
+            // Inicializar Supabase
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            
             // Configurar event listeners
             setupEventListeners();
             
             // Verificar si el usuario ya está autenticado
-            await checkAuth();
+            checkAuth();
             
             // Cargar productos
-            await loadProducts();
+            loadProducts();
         }
         
         function setupEventListeners() {
@@ -425,7 +428,7 @@
                     document.getElementById('loginForm').classList.add('hidden');
                     document.getElementById('registerForm').classList.add('hidden');
                     document.getElementById('adminPanel').classList.remove('hidden');
-                    await loadAdminProducts();
+                    loadAdminProducts();
                 }
             } catch (error) {
                 console.error('Error checking auth:', error.message);
@@ -457,7 +460,7 @@
                 
                 document.getElementById('loginForm').classList.add('hidden');
                 document.getElementById('adminPanel').classList.remove('hidden');
-                await loadAdminProducts();
+                loadAdminProducts();
                 
             } catch (error) {
                 console.error('Error logging in:', error.message);
@@ -770,8 +773,8 @@
                 }
                 
                 resetForm();
-                await loadProducts();
-                await loadAdminProducts();
+                loadProducts();
+                loadAdminProducts();
                 
             } catch (error) {
                 console.error('Error saving product:', error);
@@ -831,8 +834,8 @@
                 if (error) throw error;
                 
                 alert('Producto eliminado correctamente');
-                await loadProducts();
-                await loadAdminProducts();
+                loadProducts();
+                loadAdminProducts();
                 
             } catch (error) {
                 console.error('Error deleting product:', error);
