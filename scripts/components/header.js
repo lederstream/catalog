@@ -24,7 +24,7 @@ export function renderHeader() {
             </div>
             <div class="flex items-center">
                 ${isLoggedIn ? `
-                    <span class="hidden md:inline mr-4 text-gray-700">Hola, ${user?.email}</span>
+                    <span class="hidden md:inline mr-4 text-gray-700">Hola, ${user?.email || 'Usuario'}</span>
                     <button id="mobileLogoutBtn" class="md:hidden text-gray-700 mr-2">
                         <i class="fas fa-sign-out-alt"></i>
                     </button>
@@ -49,36 +49,83 @@ export function renderHeader() {
                     <li><a href="#catalog" class="block text-gray-700 hover:text-blue-600">Catálogo</a></li>
                     <li><a href="#admin" class="block text-gray-700 hover:text-blue-600">Admin</a></li>
                     <li><a href="#contact" class="block text-gray-700 hover:text-blue-600">Contacto</a></li>
+                    ${isLoggedIn ? `
+                    <li>
+                        <button class="w-full text-left text-red-600 hover:text-red-800 mobile-logout-btn">
+                            <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
+                        </button>
+                    </li>
+                    ` : ''}
                 </ul>
             </nav>
         </div>
     `;
 
     // Configurar event listeners
+    setupHeaderEventListeners();
+}
+
+// Configurar event listeners del header
+function setupHeaderEventListeners() {
     const mobileMenuBtn = document.getElementById('mobileMenuBtn');
     const mobileMenu = document.getElementById('mobileMenu');
     const logoutBtn = document.getElementById('logoutBtn');
     const mobileLogoutBtn = document.getElementById('mobileLogoutBtn');
+    const mobileLogoutButton = document.querySelector('.mobile-logout-btn');
 
+    // Menú móvil
     if (mobileMenuBtn && mobileMenu) {
         mobileMenuBtn.addEventListener('click', () => {
             mobileMenu.classList.toggle('hidden');
         });
     }
 
+    // Cerrar sesión - botón desktop
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            if (typeof window.logout === 'function') {
-                window.logout();
-            }
-        });
+        logoutBtn.addEventListener('click', handleLogout);
     }
 
+    // Cerrar sesión - botón móvil pequeño
     if (mobileLogoutBtn) {
-        mobileLogoutBtn.addEventListener('click', () => {
-            if (typeof window.logout === 'function') {
-                window.logout();
+        mobileLogoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // Cerrar sesión - botón móvil en menú
+    if (mobileLogoutButton) {
+        mobileLogoutButton.addEventListener('click', handleLogout);
+    }
+
+    // Cerrar menú móvil al hacer clic en un enlace
+    const mobileLinks = document.querySelectorAll('#mobileMenu a');
+    mobileLinks.forEach(link => {
+        link.addEventListener('click', () => {
+            if (mobileMenu) {
+                mobileMenu.classList.add('hidden');
             }
         });
+    });
+
+    // Cerrar menú móvil al hacer clic fuera
+    document.addEventListener('click', (e) => {
+        if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+            if (!mobileMenu.contains(e.target) && e.target !== mobileMenuBtn) {
+                mobileMenu.classList.add('hidden');
+            }
+        }
+    });
+}
+
+// Manejar logout
+function handleLogout() {
+    if (typeof window.logout === 'function') {
+        window.logout();
     }
 }
+
+// Actualizar header cuando cambie el estado de autenticación
+export function updateHeader() {
+    renderHeader();
+}
+
+// Hacer funciones disponibles globalmente
+window.updateHeader = updateHeader;
