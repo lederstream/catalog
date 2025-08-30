@@ -31,6 +31,9 @@ export async function loadProducts() {
     }
 }
 
+// Alias para compatibilidad con auth.js
+export const loadAdminProducts = loadProducts;
+
 // Obtener productos
 export function getProducts() {
     return products;
@@ -299,3 +302,9 @@ export function renderAdminProductsList(products, container) {
         });
     });
 }
+
+// Hacer funciones disponibles globalmente
+window.loadProducts = loadProducts;
+window.loadAdminProducts = loadProducts; // Alias para compatibilidad
+window.renderProductsGrid = renderProductsGrid;
+window.renderAdminProductsList = renderAdminProductsList;
