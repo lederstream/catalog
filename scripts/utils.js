@@ -1,4 +1,6 @@
-import { showNotification } from './notifications.js';
+// scripts/utils.js
+
+import { showNotification, showError, showSuccess, showWarning, showInfo } from './notifications.js';
 
 // Utilidades generales
 export const debounce = (func, wait) => {
@@ -14,16 +16,16 @@ export const debounce = (func, wait) => {
 };
 
 export const formatCurrency = (amount, currency = 'PEN') => {
+    // Manejar valores nulos o undefined
+    if (amount === null || amount === undefined || isNaN(amount)) {
+        amount = 0;
+    }
+    
     const formatter = new Intl.NumberFormat('es-PE', {
         style: 'currency',
         currency: currency,
         minimumFractionDigits: 2
     });
-    
-    // Manejar valores nulos o undefined
-    if (amount === null || amount === undefined) {
-        return formatter.format(0);
-    }
     
     return formatter.format(amount);
 };
@@ -53,6 +55,7 @@ export const validateNumber = (value) => {
 
 export const slugify = (text) => {
     return text.toString().toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
         .replace(/\s+/g, '-')           // Replace spaces with -
         .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
         .replace(/\-\-+/g, '-')         // Replace multiple - with single -
@@ -61,10 +64,12 @@ export const slugify = (text) => {
 };
 
 export const capitalize = (text) => {
+    if (!text) return '';
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
 
 export const truncateText = (text, maxLength = 100) => {
+    if (!text) return '';
     if (text.length <= maxLength) return text;
     return text.substr(0, maxLength) + '...';
 };
@@ -88,6 +93,7 @@ export const stringifyJSONSafe = (data, defaultValue = '{}') => {
 };
 
 export const deepClone = (obj) => {
+    if (obj === null || typeof obj !== 'object') return obj;
     return JSON.parse(JSON.stringify(obj));
 };
 
@@ -96,6 +102,8 @@ export const getRandomId = () => {
 };
 
 export const formatDate = (date, options = {}) => {
+    if (!date) return '';
+    
     const defaultOptions = {
         year: 'numeric',
         month: 'long',
@@ -107,7 +115,9 @@ export const formatDate = (date, options = {}) => {
 };
 
 export const formatDateTime = (date) => {
-    return formatDate(date, {
+    if (!date) return '';
+    
+    return new Date(date).toLocaleDateString('es-ES', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -117,11 +127,12 @@ export const formatDateTime = (date) => {
 };
 
 export const getFileExtension = (filename) => {
+    if (!filename) return '';
     return filename.split('.').pop().toLowerCase();
 };
 
 export const isImageFile = (filename) => {
-    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'];
+    const imageExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp'];
     const extension = getFileExtension(filename);
     return imageExtensions.includes(extension);
 };
@@ -164,21 +175,35 @@ export const throttle = (func, limit) => {
 };
 
 export const groupBy = (array, key) => {
+    if (!array) return {};
     return array.reduce((result, currentValue) => {
-        (result[currentValue[key]] = result[currentValue[key]] || []).push(currentValue);
+        const keyValue = currentValue[key];
+        if (keyValue !== undefined && keyValue !== null) {
+            (result[keyValue] = result[keyValue] || []).push(currentValue);
+        }
         return result;
     }, {});
 };
 
 export const sortBy = (array, key, direction = 'asc') => {
-    return array.sort((a, b) => {
-        if (a[key] < b[key]) return direction === 'asc' ? -1 : 1;
-        if (a[key] > b[key]) return direction === 'asc' ? 1 : -1;
+    if (!array) return [];
+    
+    return [...array].sort((a, b) => {
+        let aValue = a[key];
+        let bValue = b[key];
+        
+        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
+        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
+        
+        if (aValue < bValue) return direction === 'asc' ? -1 : 1;
+        if (aValue > bValue) return direction === 'asc' ? 1 : -1;
         return 0;
     });
 };
 
 export const filterUnique = (array, key = null) => {
+    if (!array) return [];
+    
     if (key) {
         return array.filter((item, index, self) =>
             index === self.findIndex(t => t[key] === item[key])
@@ -188,7 +213,8 @@ export const filterUnique = (array, key = null) => {
 };
 
 export const calculateTotal = (items, key) => {
-    return items.reduce((total, item) => total + (item[key] || 0), 0);
+    if (!items) return 0;
+    return items.reduce((total, item) => total + (parseFloat(item[key]) || 0), 0);
 };
 
 export const getPercentage = (value, total) => {
@@ -205,10 +231,12 @@ export const randomInt = (min, max) => {
 };
 
 export const randomItem = (array) => {
+    if (!array || array.length === 0) return null;
     return array[Math.floor(Math.random() * array.length)];
 };
 
 export const shuffleArray = (array) => {
+    if (!array) return [];
     const newArray = [...array];
     for (let i = newArray.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -265,7 +293,7 @@ export const getDeviceType = () => {
 export const copyToClipboard = async (text) => {
     try {
         await navigator.clipboard.writeText(text);
-        showNotification('Texto copiado al portapapeles', 'success');
+        showSuccess('Texto copiado al portapapeles');
         return true;
     } catch (error) {
         console.error('Error copying to clipboard:', error);
@@ -274,6 +302,7 @@ export const copyToClipboard = async (text) => {
         const textArea = document.createElement('textarea');
         textArea.value = text;
         textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
         document.body.appendChild(textArea);
         textArea.focus();
         textArea.select();
@@ -283,15 +312,15 @@ export const copyToClipboard = async (text) => {
             document.body.removeChild(textArea);
             
             if (successful) {
-                showNotification('Texto copiado al portapapeles', 'success');
+                showSuccess('Texto copiado al portapapeles');
                 return true;
             } else {
-                showNotification('Error al copiar el texto', 'error');
+                showError('Error al copiar el texto');
                 return false;
             }
         } catch (fallbackError) {
             document.body.removeChild(textArea);
-            showNotification('Error al copiar el texto', 'error');
+            showError('Error al copiar el texto');
             return false;
         }
     }
@@ -303,6 +332,7 @@ export const downloadFile = (content, fileName, contentType = 'text/plain') => {
     const a = document.createElement('a');
     a.href = url;
     a.download = fileName;
+    a.style.display = 'none';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -311,23 +341,35 @@ export const downloadFile = (content, fileName, contentType = 'text/plain') => {
 
 export const loadScript = (src, async = true, defer = true) => {
     return new Promise((resolve, reject) => {
+        // Verificar si el script ya está cargado
+        if (document.querySelector(`script[src="${src}"]`)) {
+            resolve();
+            return;
+        }
+
         const script = document.createElement('script');
         script.src = src;
         script.async = async;
         script.defer = defer;
-        script.onload = resolve;
-        script.onerror = reject;
+        script.onload = () => resolve();
+        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
         document.head.appendChild(script);
     });
 };
 
 export const loadStyle = (href) => {
     return new Promise((resolve, reject) => {
+        // Verificar si el estilo ya está cargado
+        if (document.querySelector(`link[href="${href}"]`)) {
+            resolve();
+            return;
+        }
+
         const link = document.createElement('link');
         link.rel = 'stylesheet';
         link.href = href;
-        link.onload = resolve;
-        link.onerror = reject;
+        link.onload = () => resolve();
+        link.onerror = () => reject(new Error(`Failed to load style: ${href}`));
         document.head.appendChild(link);
     });
 };
@@ -362,6 +404,7 @@ export const observeElement = (element, callback, options = {}) => {
         childList: true,
         subtree: true,
         attributes: true,
+        attributeFilter: ['class', 'style'],
         ...options
     });
     return observer;
@@ -375,10 +418,10 @@ export const waitForElement = (selector, timeout = 5000) => {
             return;
         }
 
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver((mutations, obs) => {
             const element = document.querySelector(selector);
             if (element) {
-                observer.disconnect();
+                obs.disconnect();
                 resolve(element);
             }
         });
@@ -404,6 +447,8 @@ export const addGlobalEventListener = (type, selector, callback, options = {}) =
 };
 
 export const getElementOffset = (element) => {
+    if (!element) return { top: 0, left: 0, width: 0, height: 0 };
+    
     const rect = element.getBoundingClientRect();
     return {
         top: rect.top + window.pageYOffset,
@@ -414,6 +459,8 @@ export const getElementOffset = (element) => {
 };
 
 export const isElementInViewport = (element) => {
+    if (!element) return false;
+    
     const rect = element.getBoundingClientRect();
     return (
         rect.top >= 0 &&
@@ -424,6 +471,8 @@ export const isElementInViewport = (element) => {
 };
 
 export const scrollToElement = (element, options = {}) => {
+    if (!element) return;
+    
     const defaultOptions = {
         behavior: 'smooth',
         block: 'start',
@@ -435,10 +484,12 @@ export const scrollToElement = (element, options = {}) => {
 
 export const disableScroll = () => {
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
 };
 
 export const enableScroll = () => {
     document.body.style.overflow = '';
+    document.documentElement.style.overflow = '';
 };
 
 export const lockBodyScroll = (lock = true) => {
@@ -460,7 +511,10 @@ export const createElement = (tag, attributes = {}, children = []) => {
         } else if (key === 'innerHTML') {
             element.innerHTML = value;
         } else if (key.startsWith('on') && typeof value === 'function') {
-            element.addEventListener(key.slice(2).toLowerCase(), value);
+            const eventName = key.slice(2).toLowerCase();
+            element.addEventListener(eventName, value);
+        } else if (key === 'style' && typeof value === 'object') {
+            Object.assign(element.style, value);
         } else {
             element.setAttribute(key, value);
         }
@@ -469,7 +523,7 @@ export const createElement = (tag, attributes = {}, children = []) => {
     children.forEach(child => {
         if (typeof child === 'string') {
             element.appendChild(document.createTextNode(child));
-        } else {
+        } else if (child instanceof Node) {
             element.appendChild(child);
         }
     });
@@ -478,12 +532,16 @@ export const createElement = (tag, attributes = {}, children = []) => {
 };
 
 export const removeAllChildren = (element) => {
+    if (!element) return;
+    
     while (element.firstChild) {
         element.removeChild(element.firstChild);
     }
 };
 
 export const toggleClass = (element, className, force) => {
+    if (!element) return;
+    
     if (force !== undefined) {
         element.classList.toggle(className, force);
     } else {
@@ -492,28 +550,36 @@ export const toggleClass = (element, className, force) => {
 };
 
 export const hasClass = (element, className) => {
+    if (!element) return false;
     return element.classList.contains(className);
 };
 
 export const addClass = (element, className) => {
+    if (!element) return;
     element.classList.add(className);
 };
 
 export const removeClass = (element, className) => {
+    if (!element) return;
     element.classList.remove(className);
 };
 
 export const setAttributes = (element, attributes) => {
+    if (!element) return;
+    
     Object.entries(attributes).forEach(([key, value]) => {
         element.setAttribute(key, value);
     });
 };
 
 export const getComputedStyleValue = (element, property) => {
+    if (!element) return '';
     return window.getComputedStyle(element).getPropertyValue(property);
 };
 
-export const animateValue = (element, property, start, end, duration = 1000, easing = 'easeInOut') => {
+export const animateValue = (element, property, start, end, duration = 1000, easing = 'easeInOut', unit = '') => {
+    if (!element) return;
+    
     const startTime = performance.now();
     const easingFunctions = {
         linear: t => t,
@@ -530,7 +596,7 @@ export const animateValue = (element, property, start, end, duration = 1000, eas
         const easedProgress = ease(progress);
         const value = start + (end - start) * easedProgress;
         
-        element.style[property] = value;
+        element.style[property] = value + unit;
         
         if (progress < 1) {
             requestAnimationFrame(update);
@@ -554,6 +620,8 @@ export const preloadImages = (imageUrls) => {
 };
 
 export const lazyLoadImages = (images) => {
+    if (!images || images.length === 0) return;
+    
     const lazyImages = [...images];
     
     if ('IntersectionObserver' in window) {
@@ -561,7 +629,12 @@ export const lazyLoadImages = (images) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const lazyImage = entry.target;
-                    lazyImage.src = lazyImage.dataset.src;
+                    lazyImage.src = lazyImage.dataset.src || lazyImage.src;
+                    
+                    if (lazyImage.dataset.srcset) {
+                        lazyImage.srcset = lazyImage.dataset.srcset;
+                    }
+                    
                     lazyImage.classList.remove('lazy');
                     lazyImageObserver.unobserve(lazyImage);
                 }
@@ -574,7 +647,7 @@ export const lazyLoadImages = (images) => {
     } else {
         // Fallback para navegadores que no soportan IntersectionObserver
         lazyImages.forEach(lazyImage => {
-            lazyImage.src = lazyImage.dataset.src;
+            lazyImage.src = lazyImage.dataset.src || lazyImage.src;
         });
     }
 };
@@ -614,18 +687,23 @@ export const isEqual = (a, b) => {
 };
 
 export const difference = (a, b) => {
+    if (!a) return [];
+    if (!b) return a;
     return a.filter(x => !b.includes(x));
 };
 
 export const intersection = (a, b) => {
+    if (!a || !b) return [];
     return a.filter(x => b.includes(x));
 };
 
 export const union = (a, b) => {
-    return [...new Set([...a, ...b])];
+    return [...new Set([...(a || []), ...(b || [])])];
 };
 
 export const chunkArray = (array, size) => {
+    if (!array) return [];
+    
     const chunks = [];
     for (let i = 0; i < array.length; i += size) {
         chunks.push(array.slice(i, i + size));
@@ -634,6 +712,8 @@ export const chunkArray = (array, size) => {
 };
 
 export const flattenArray = (array) => {
+    if (!array) return [];
+    
     return array.reduce((flat, next) => {
         return flat.concat(Array.isArray(next) ? flattenArray(next) : next);
     }, []);
@@ -702,3 +782,84 @@ export const createThrottledFunction = (fn, limit) => {
         }
     };
 };
+
+// Utilidades específicas para el catálogo
+export const validateProductForm = (formData) => {
+    const errors = [];
+    
+    if (!validateRequired(formData.name)) {
+        errors.push('El nombre del producto es requerido');
+    }
+    
+    if (!validateRequired(formData.category)) {
+        errors.push('La categoría es requerida');
+    }
+    
+    if (!validateRequired(formData.description)) {
+        errors.push('La descripción es requerida');
+    }
+    
+    if (!validateUrl(formData.photo_url)) {
+        errors.push('La URL de la imagen no es válida');
+    }
+    
+    if (!formData.plans || formData.plans.length === 0) {
+        errors.push('Debe agregar al menos un plan');
+    } else {
+        formData.plans.forEach((plan, index) => {
+            if (!validateRequired(plan.name)) {
+                errors.push(`El nombre del plan ${index + 1} es requerido`);
+            }
+            
+            if (!validateNumber(plan.price_soles) || parseFloat(plan.price_soles) < 0) {
+                errors.push(`El precio en soles del plan ${index + 1} no es válido`);
+            }
+            
+            if (!validateNumber(plan.price_dollars) || parseFloat(plan.price_dollars) < 0) {
+                errors.push(`El precio en dólares del plan ${index + 1} no es válido`);
+            }
+        });
+    }
+    
+    return errors;
+};
+
+export const formatPlanPrices = (plans) => {
+    if (!plans) return [];
+    
+    return plans.map(plan => ({
+        ...plan,
+        price_soles: plan.price_soles ? parseFloat(plan.price_soles) : 0,
+        price_dollars: plan.price_dollars ? parseFloat(plan.price_dollars) : 0,
+        formatted_soles: formatCurrency(plan.price_soles, 'PEN'),
+        formatted_dollars: formatCurrency(plan.price_dollars, 'USD')
+    }));
+};
+
+export const escapeHtml = (text) => {
+    if (!text) return '';
+    
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+};
+
+export const sanitizeInput = (input) => {
+    if (typeof input !== 'string') return input;
+    
+    // Eliminar scripts y etiquetas potencialmente peligrosas
+    return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                .replace(/on\w+="[^"]*"/g, '')
+                .replace(/on\w+='[^']*'/g, '')
+                .replace(/on\w+=\w+/g, '')
+                .trim();
+};
+
+// Exportar funciones de notificación para uso conveniente
+export { showNotification, showError, showSuccess, showWarning, showInfo };
