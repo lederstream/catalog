@@ -29,7 +29,7 @@ export function initAdminPanel() {
 }
 
 // Configurar el formulario de producto
-export function setupProductForm() {
+function setupProductForm() {
     const productForm = document.getElementById('productForm');
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -142,7 +142,7 @@ async function handleProductSubmit(e) {
     const productData = {
         name,
         description,
-        category_id: category, // Esta es la clave foránea (debe ser número)
+        category_id: category,
         photo_url,
         plans
     };
@@ -283,8 +283,36 @@ export function prepareEditForm(product) {
     }
 }
 
+// Función para editar producto
+export function editProduct(id) {
+    if (typeof window.getProductById !== 'function') {
+        console.error('getProductById no está disponible');
+        return;
+    }
+    
+    const product = window.getProductById(id);
+    if (product) {
+        prepareEditForm(product);
+    } else {
+        console.error('Producto no encontrado:', id);
+        if (typeof window.showError === 'function') {
+            window.showError('Producto no encontrado');
+        }
+    }
+}
+
+// Helper function para mostrar notificaciones
+function showNotification(message, type = 'info') {
+    if (typeof window.showNotification === 'function') {
+        window.showNotification(message, type);
+    } else {
+        console.log(`${type}: ${message}`);
+    }
+}
+
 // Hacer funciones disponibles globalmente
 window.prepareEditForm = prepareEditForm;
 window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
+window.editProduct = editProduct;
