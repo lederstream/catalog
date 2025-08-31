@@ -9,15 +9,18 @@ import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
 import { showNotification, debounce, getRandomId } from './utils.js';
 
-// Variables globales para el estado de la aplicación
-let allProducts = [];
-let allCategories = [];
-let isAppInitialized = false;
-let currentFilterState = { category: 'all', search: '' };
+// Estado global de la aplicación
+const appState = {
+    products: [],
+    categories: [],
+    currentUser: null,
+    isInitialized: false,
+    currentFilter: { category: 'all', search: '' }
+};
 
 // Inicializar la aplicación
 export const initializeApp = async () => {
-    if (isAppInitialized) {
+    if (appState.isInitialized) {
         console.warn('La aplicación ya está inicializada');
         return;
     }
@@ -42,7 +45,7 @@ export const initializeApp = async () => {
 
         // Finalizar inicialización
         hideLoadingState();
-        isAppInitialized = true;
+        appState.isInitialized = true;
         
         showNotification('Catálogo cargado correctamente', 'success');
         console.log('✅ Aplicación inicializada correctamente');
@@ -58,14 +61,14 @@ export const initializeApp = async () => {
 // Cargar datos de demostración
 const loadDemoData = () => {
     console.log('📋 Cargando datos de demostración...');
-    allProducts = getSampleProducts();
-    allCategories = getDefaultCategories();
+    appState.products = getSampleProducts();
+    appState.categories = getDefaultCategories();
     
-    window.getCategories = () => allCategories;
+    window.getCategories = () => appState.categories;
     
     updateCategoryFilter();
     if (typeof window.renderProductsGrid === 'function') {
-        window.renderProductsGrid(allProducts, 'productsGrid');
+        window.renderProductsGrid(appState.products, 'productsGrid');
     }
 };
 
@@ -134,33 +137,33 @@ const loadInitialData = async () => {
 
         // Procesar resultados de productos
         if (productsResult.status === 'fulfilled') {
-            allProducts = productsResult.value;
-            console.log(`✅ ${allProducts.length} productos cargados`);
+            appState.products = productsResult.value;
+            console.log(`✅ ${appState.products.length} productos cargados`);
         } else {
             console.error('Error loading products:', productsResult.reason);
-            allProducts = getSampleProducts();
+            appState.products = getSampleProducts();
             showNotification('Error al cargar productos, usando datos demo', 'error');
         }
 
         // Procesar resultados de categorías
         if (categoriesResult.status === 'fulfilled') {
-            allCategories = categoriesResult.value;
-            console.log(`✅ ${allCategories.length} categorías cargadas`);
+            appState.categories = categoriesResult.value;
+            console.log(`✅ ${appState.categories.length} categorías cargadas`);
             
-            window.getCategories = () => allCategories;
+            window.getCategories = () => appState.categories;
         } else {
             console.error('Error loading categories:', categoriesResult.reason);
-            allCategories = getDefaultCategories();
+            appState.categories = getDefaultCategories();
             showNotification('Error al cargar categorías, usando datos demo', 'error');
             
-            window.getCategories = () => allCategories;
+            window.getCategories = () => appState.categories;
         }
 
         // Actualizar UI
         updateCategoryFilter();
 
         if (typeof window.renderProductsGrid === 'function') {
-            window.renderProductsGrid(allProducts, 'productsGrid');
+            window.renderProductsGrid(appState.products, 'productsGrid');
         }
 
     } catch (error) {
@@ -177,44 +180,50 @@ function getSampleProducts() {
             id: '1',
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
-            category: 'diseño',
+            category_id: 1,
+            categories: { id: 1, name: 'diseño' },
             photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
                 { name: 'Premium', price_soles: 399, price_dollars: 100 }
-            ]
+            ],
+            created_at: new Date().toISOString()
         },
         {
-            id: '2',
+            id: '2', 
             name: 'Sitio Web Responsive',
-            description: 'Desarrollo de sitio web moderno y adaptable',
-            category: 'software',
+            description: 'Desarrollo de sitio web moderno y responsive',
+            category_id: 3,
+            categories: { id: 3, name: 'software' },
             photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
-            ]
+            ],
+            created_at: new Date().toISOString()
         },
         {
             id: '3',
             name: 'Campaña de Marketing Digital',
             description: 'Campaña completa de marketing para redes sociales',
-            category: 'marketing',
+            category_id: 2,
+            categories: { id: 2, name: 'marketing' },
             photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Básica', price_soles: 999, price_dollars: 250 },
                 { name: 'Completa', price_soles: 1999, price_dollars: 500 }
-            ]
+            ],
+            created_at: new Date().toISOString()
         }
     ];
 }
 
 function getDefaultCategories() {
     return [
-        { id: 1, name: 'diseño' },
-        { id: 2, name: 'marketing' },
-        { id: 3, name: 'software' },
-        { id: 4, name: 'consultoria' }
+        { id: 1, name: 'diseño', created_at: new Date().toISOString() },
+        { id: 2, name: 'marketing', created_at: new Date().toISOString() },
+        { id: 3, name: 'software', created_at: new Date().toISOString() },
+        { id: 4, name: 'consultoria', created_at: new Date().toISOString() }
     ];
 }
 
@@ -227,7 +236,7 @@ const updateCategoryFilter = () => {
 
     categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>';
 
-    allCategories.forEach(category => {
+    appState.categories.forEach(category => {
         const option = document.createElement('option');
         option.value = category.id || category.name;
         option.textContent = category.name;
@@ -289,7 +298,7 @@ const setupSmoothNavigation = () => {
 // Configurar manejadores globales
 const setupGlobalHandlers = () => {
     window.addEventListener('focus', async () => {
-        if (isAppInitialized) {
+        if (appState.isInitialized) {
             await refreshData();
         }
     });
@@ -323,9 +332,9 @@ const filterProducts = () => {
     const category = categoryFilter.value;
 
     // Guardar estado actual de filtros
-    currentFilterState = { category, search: searchText };
+    appState.currentFilter = { category, search: searchText };
 
-    let filteredProducts = allProducts;
+    let filteredProducts = appState.products;
 
     if (category !== 'all') {
         filteredProducts = filteredProducts.filter(product => {
@@ -366,8 +375,8 @@ export const refreshData = async () => {
             loadCategories()
         ]);
 
-        allProducts = products;
-        allCategories = categories;
+        appState.products = products;
+        appState.categories = categories;
 
         updateCategoryFilter();
         filterProducts();
@@ -414,7 +423,7 @@ const hideLoadingState = () => {
 
 // Función para reinicializar la aplicación
 const reinitializeApp = async () => {
-    isAppInitialized = false;
+    appState.isInitialized = false;
     await initializeApp();
 };
 
@@ -440,8 +449,8 @@ window.debugApp = async () => {
     
     await checkDatabaseConnection();
     
-    console.log('Productos en memoria:', allProducts.length);
-    console.log('Categorías en memoria:', allCategories.length);
+    console.log('Productos en memoria:', appState.products.length);
+    console.log('Categorías en memoria:', appState.categories.length);
     
     console.log('Category Filter:', document.getElementById('categoryFilter'));
     console.log('Products Grid:', document.getElementById('productsGrid'));
@@ -458,15 +467,15 @@ window.handleAppAuthChange = handleAppAuthChange;
 
 // Hacer variables globales disponibles para depuración
 window.appState = {
-    products: allProducts,
-    categories: allCategories,
-    isInitialized: isAppInitialized,
+    products: appState.products,
+    categories: appState.categories,
+    isInitialized: appState.isInitialized,
     getState: () => ({
-        products: allProducts,
-        categories: allCategories,
-        isInitialized: isAppInitialized,
+        products: appState.products,
+        categories: appState.categories,
+        isInitialized: appState.isInitialized,
         user: window.getCurrentUser ? window.getCurrentUser() : null,
-        filters: currentFilterState
+        filters: appState.currentFilter
     })
 };
 
