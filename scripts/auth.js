@@ -464,11 +464,13 @@ export const initializeAuth = async () => {
         
         window.addEventListener('authStateChanged', (event) => {
             console.log('Auth state changed event:', event.detail);
+            // Actualizar UI cuando cambie el estado de autenticación
+            updateHeader();
         });
         
     } catch (error) {
         console.error('Error initializing auth:', error);
-        showNotification('Error al inicializar autenticación', 'error');
+        // No mostrar error al usuario, ya que esto es en segundo plano
     }
 };
 
