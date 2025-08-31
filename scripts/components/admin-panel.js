@@ -1,9 +1,13 @@
+// scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList } from '../categories.js';
 import { openCategoriesModal } from '../modals.js';
+import { validateRequired, validateUrl, validateNumber, showNotification } from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
     try {
+        console.log('🛠️ Inicializando panel de administración...');
+        
         // Botón para gestionar categorías
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
@@ -28,8 +32,11 @@ export function initAdminPanel() {
         if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
             setupProductForm();
         }
+        
+        console.log('✅ Panel de administración inicializado');
     } catch (error) {
         console.error('Error initializing admin panel:', error);
+        showNotification('Error al inicializar el panel de administración', 'error');
     }
 }
 
@@ -41,7 +48,10 @@ export function setupProductForm() {
     const photoUrlInput = document.getElementById('photo_url');
     const searchImageBtn = document.getElementById('searchImageBtn');
 
-    if (!productForm) return;
+    if (!productForm) {
+        console.error('Formulario de producto no encontrado');
+        return;
+    }
 
     // Agregar nuevo plan
     if (addPlanBtn) {
@@ -64,6 +74,14 @@ export function setupProductForm() {
         photoUrlInput.addEventListener('input', (e) => {
             updateImagePreview(e.target.value);
         });
+        
+        // Validar URL en tiempo real
+        photoUrlInput.addEventListener('blur', (e) => {
+            if (e.target.value && !validateUrl(e.target.value)) {
+                showNotification('La URL de la imagen no es válida', 'error');
+                e.target.focus();
+            }
+        });
     }
 
     // Botón de búsqueda de imagen
@@ -74,6 +92,8 @@ export function setupProductForm() {
             }
         });
     }
+    
+    console.log('✅ Formulario de producto configurado');
 }
 
 // Agregar fila de plan
@@ -81,15 +101,16 @@ function addPlanRow() {
     const plansContainer = document.getElementById('plansContainer');
     if (!plansContainer) return;
 
+    const planId = Date.now() + Math.random().toString(36).substr(2, 5);
     const planItem = document.createElement('div');
-    planItem.className = 'plan-item flex items-center gap-2 mb-2';
+    planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg';
     planItem.innerHTML = `
         <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name" required>
-            <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles">
-            <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars">
+            <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+            <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent">
+            <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent">
         </div>
-        <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2">
+        <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200" title="Eliminar plan">
             <i class="fas fa-times"></i>
         </button>
     `;
@@ -97,12 +118,68 @@ function addPlanRow() {
     // Agregar event listener para eliminar plan
     const removeBtn = planItem.querySelector('.remove-plan');
     removeBtn.addEventListener('click', () => {
-        if (document.querySelectorAll('.plan-item').length > 1) {
+        const planItems = document.querySelectorAll('.plan-item');
+        if (planItems.length > 1) {
             planItem.remove();
+            showNotification('Plan eliminado', 'info');
+        } else {
+            showNotification('Debe haber al menos un plan', 'warning');
         }
     });
 
     plansContainer.appendChild(planItem);
+    
+    // Enfocar el primer campo del nuevo plan
+    const firstInput = planItem.querySelector('input');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
+    }
+}
+
+// Validar formulario de producto
+function validateProductForm(formData) {
+    const errors = [];
+    
+    if (!validateRequired(formData.name)) {
+        errors.push('El nombre del producto es requerido');
+    }
+    
+    if (!validateRequired(formData.category)) {
+        errors.push('La categoría es requerida');
+    }
+    
+    if (!validateRequired(formData.description)) {
+        errors.push('La descripción es requerida');
+    }
+    
+    if (!validateUrl(formData.photo_url)) {
+        errors.push('La URL de la imagen no es válida');
+    }
+    
+    // Validar planes
+    const planItems = document.querySelectorAll('.plan-item');
+    if (planItems.length === 0) {
+        errors.push('Debe agregar al menos un plan');
+    } else {
+        planItems.forEach((item, index) => {
+            const name = item.querySelector('.plan-name').value;
+            const priceSoles = item.querySelector('.plan-price-soles').value;
+            const priceDollars = item.querySelector('.plan-price-dollars').value;
+            
+            if (!validateRequired(name)) {
+                errors.push(`El nombre del plan ${index + 1} es requerido`);
+            }
+            
+            const hasSoles = validateNumber(priceSoles) && parseFloat(priceSoles) >= 0;
+            const hasDollars = validateNumber(priceDollars) && parseFloat(priceDollars) >= 0;
+            
+            if (!hasSoles && !hasDollars) {
+                errors.push(`El plan ${index + 1} debe tener al menos un precio (soles o dólares)`);
+            }
+        });
+    }
+    
+    return errors;
 }
 
 // Manejar envío del formulario de producto
@@ -114,12 +191,6 @@ async function handleProductSubmit(e) {
     const category = document.getElementById('category').value;
     const description = document.getElementById('description').value;
     const photo_url = document.getElementById('photo_url').value;
-
-    // Validaciones básicas
-    if (!name || !description || !category || !photo_url) {
-        showNotification('Por favor completa todos los campos obligatorios', 'error');
-        return;
-    }
 
     // Recopilar planes
     const plans = [];
@@ -137,12 +208,6 @@ async function handleProductSubmit(e) {
         }
     });
 
-    // Validar que haya al menos un plan
-    if (plans.length === 0) {
-        showNotification('Debe agregar al menos un plan', 'error');
-        return;
-    }
-
     const productData = {
         name,
         description,
@@ -151,8 +216,22 @@ async function handleProductSubmit(e) {
         plans
     };
 
+    // Validar formulario
+    const validationErrors = validateProductForm(productData);
+    if (validationErrors.length > 0) {
+        validationErrors.forEach(error => showNotification(error, 'error'));
+        return;
+    }
+
     try {
         let result;
+        const submitBtn = document.querySelector('#productForm button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        // Mostrar estado de carga
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        submitBtn.disabled = true;
+        
         if (productId) {
             if (typeof window.updateProduct === 'function') {
                 result = await window.updateProduct(productId, productData);
@@ -174,6 +253,12 @@ async function handleProductSubmit(e) {
     } catch (error) {
         console.error('Error al procesar el producto:', error);
         showNotification('Error al procesar el producto: ' + error.message, 'error');
+    } finally {
+        const submitBtn = document.querySelector('#productForm button[type="submit"]');
+        if (submitBtn) {
+            submitBtn.innerHTML = productId ? 'Actualizar Producto' : 'Agregar Producto';
+            submitBtn.disabled = false;
+        }
     }
 }
 
@@ -199,6 +284,12 @@ export function resetForm() {
         }
         
         updateImagePreview('');
+        
+        // Enfocar el primer campo
+        const firstInput = productForm.querySelector('input');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
     }
 }
 
@@ -209,13 +300,19 @@ function updateImagePreview(url) {
 
     if (url && url.trim() !== '') {
         imagePreview.innerHTML = `
-            <img src="${url}" 
-                 alt="Vista previa" 
-                 class="w-full h-full object-contain"
-                 onerror="this.parentElement.innerHTML='<p class=\\"text-red-500\\">Error al cargar imagen</p>'">
+            <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
+                <img src="${url}" 
+                     alt="Vista previa" 
+                     class="w-full h-full object-contain"
+                     onerror="this.parentElement.innerHTML='<p class=\\"text-red-500 p-4\\">Error al cargar imagen</p>'">
+            </div>
         `;
     } else {
-        imagePreview.innerHTML = '<p class="text-gray-500">La imagen aparecerá aquí</p>';
+        imagePreview.innerHTML = `
+            <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500">
+                <p>La imagen aparecerá aquí</p>
+            </div>
+        `;
     }
 }
 
@@ -246,14 +343,14 @@ export function prepareEditForm(product) {
         if (product.plans && product.plans.length > 0) {
             product.plans.forEach(plan => {
                 const planItem = document.createElement('div');
-                planItem.className = 'plan-item flex items-center gap-2 mb-2';
+                planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg';
                 planItem.innerHTML = `
                     <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name" value="${plan.name || ''}" required>
-                        <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles" value="${plan.price_soles || ''}">
-                        <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars" value="${plan.price_dollars || ''}">
+                        <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.name || ''}" required>
+                        <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" value="${plan.price_soles || ''}">
+                        <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.price_dollars || ''}">
                     </div>
-                    <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2">
+                    <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200" title="Eliminar plan">
                         <i class="fas fa-times"></i>
                     </button>
                 `;
@@ -272,9 +369,16 @@ export function prepareEditForm(product) {
         }
     }
     
+    // Scroll al formulario
     const productForm = document.getElementById('productForm');
     if (productForm) {
-        productForm.scrollIntoView({ behavior: 'smooth' });
+        productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    
+    // Enfocar el primer campo
+    const firstInput = productForm.querySelector('input');
+    if (firstInput) {
+        setTimeout(() => firstInput.focus(), 100);
     }
 }
 
@@ -282,6 +386,7 @@ export function prepareEditForm(product) {
 export function editProduct(id) {
     if (typeof window.getProductById !== 'function') {
         console.error('getProductById no está disponible');
+        showNotification('Error: Función no disponible', 'error');
         return;
     }
     
@@ -293,15 +398,6 @@ export function editProduct(id) {
         if (typeof window.showError === 'function') {
             window.showError('Producto no encontrado');
         }
-    }
-}
-
-// Helper function para mostrar notificaciones
-function showNotification(message, type = 'info') {
-    if (typeof window.showNotification === 'function') {
-        window.showNotification(message, type);
-    } else {
-        console.log(`${type}: ${message}`);
     }
 }
 
