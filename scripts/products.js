@@ -8,24 +8,24 @@ let products = [];
 // Cargar productos desde Supabase
 export async function loadProducts() {
     try {
-        // Primero intentar cargar con join a categories
+        console.log('Cargando productos desde Supabase...');
+        
+        // Primero intentar cargar con join a categories usando la sintaxis correcta
         let query = supabase
             .from('products')
-            .select('*')
+            .select(`
+                *,
+                categories (*)
+            `)
             .order('created_at', { ascending: false });
-
-        // Intentar agregar el join si es posible
-        try {
-            query = query.select('*, categories(name)');
-        } catch (e) {
-            console.warn('No se puede hacer join con categories, cargando solo productos');
-        }
 
         const { data, error } = await query;
 
         if (error) {
+            console.log('Error con join, intentando sin relación:', error);
+            
             // Si hay error de relación, intentar sin el join
-            if (error.code === 'PGRST200' || error.message.includes('relationship')) {
+            if (error.code === 'PGRST201' || error.code === '42703' || error.message.includes('relationship') || error.message.includes('column')) {
                 console.warn('Relación no encontrada, cargando productos sin categorías');
                 const { data: simpleData, error: simpleError } = await supabase
                     .from('products')
@@ -34,7 +34,7 @@ export async function loadProducts() {
                 
                 if (simpleError) {
                     // Si la tabla products no existe, usar datos de muestra
-                    if (simpleError.code === 'PGRST205' || simpleError.code === '42P01') {
+                    if (simpleError.code === 'PGRST204' || simpleError.code === '42P01') {
                         console.warn('Tabla products no existe, usando datos de muestra');
                         products = getSampleProducts();
                         return products;
@@ -43,11 +43,12 @@ export async function loadProducts() {
                 }
                 
                 products = simpleData || [];
+                console.log('Productos cargados (sin categorías):', products);
                 return products;
             }
             
             // Si la tabla no existe, usar datos de muestra
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 console.warn('Tabla products no existe, usando datos de muestra');
                 products = getSampleProducts();
                 return products;
@@ -57,6 +58,7 @@ export async function loadProducts() {
         }
 
         products = data || [];
+        console.log('Productos cargados con categorías:', products);
         return products;
     } catch (error) {
         console.error('Error al cargar productos:', error);
@@ -127,21 +129,30 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
 
     // Filtrar por categoría
     if (categoryId !== 'all') {
-        filtered = filtered.filter(product => 
-            product.category_id == categoryId || 
-            product.category === categoryId ||
-            (typeof categoryId === 'string' && product.category && product.category.toLowerCase() === categoryId.toLowerCase())
-        );
+        filtered = filtered.filter(product => {
+            // Manejar diferentes formatos de categoría
+            const productCategoryId = product.category_id || product.categories?.id;
+            const productCategoryName = product.category || product.categories?.name;
+            
+            return (
+                productCategoryId == categoryId || 
+                productCategoryName === categoryId ||
+                (typeof categoryId === 'string' && productCategoryName && productCategoryName.toLowerCase() === categoryId.toLowerCase())
+            );
+        });
     }
 
     // Filtrar por término de búsqueda
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
-        filtered = filtered.filter(product => 
-            (product.name && product.name.toLowerCase().includes(term)) || 
-            (product.description && product.description.toLowerCase().includes(term)) ||
-            (product.category && product.category.toLowerCase().includes(term))
-        );
+        filtered = filtered.filter(product => {
+            const categoryName = product.category || product.categories?.name;
+            return (
+                (product.name && product.name.toLowerCase().includes(term)) || 
+                (product.description && product.description.toLowerCase().includes(term)) ||
+                (categoryName && categoryName.toLowerCase().includes(term))
+            );
+        });
     }
 
     return filtered;
@@ -177,7 +188,6 @@ export async function addProduct(productData) {
             return null;
         }
 
-        // Si no hay category_id pero hay category, usar category como string
         const productToInsert = {
             name: productData.name,
             description: productData.description,
@@ -186,11 +196,9 @@ export async function addProduct(productData) {
             created_at: new Date().toISOString()
         };
 
-        // Agregar category_id o category según lo que esté disponible
+        // Agregar category_id si está disponible
         if (productData.category_id) {
             productToInsert.category_id = productData.category_id;
-        } else if (productData.category) {
-            productToInsert.category = productData.category;
         }
 
         const { data, error } = await supabase
@@ -202,7 +210,7 @@ export async function addProduct(productData) {
             console.error('Error al agregar producto:', error);
             
             // Si hay error de tabla, agregar al array local
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 const newProduct = {
                     id: Date.now().toString(),
                     ...productToInsert,
@@ -264,11 +272,9 @@ export async function updateProduct(id, productData) {
             updated_at: new Date().toISOString()
         };
 
-        // Agregar category_id o category según lo que esté disponible
+        // Agregar category_id si está disponible
         if (productData.category_id) {
             updateData.category_id = productData.category_id;
-        } else if (productData.category) {
-            updateData.category = productData.category;
         }
 
         const { data, error } = await supabase
@@ -281,7 +287,7 @@ export async function updateProduct(id, productData) {
             console.error('Error al actualizar producto:', error);
             
             // Si hay error de tabla, actualizar en el array local
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 const index = products.findIndex(product => product.id === id);
                 if (index !== -1) {
                     products[index] = { ...products[index], ...updateData };
@@ -324,7 +330,7 @@ export async function deleteProduct(id) {
             console.error('Error al eliminar producto:', error);
             
             // Si hay error de tabla, eliminar del array local
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 products = products.filter(product => product.id !== id);
                 showNotification('Producto eliminado (modo demostración)', 'success');
                 return true;
