@@ -3,28 +3,35 @@ import { openCategoriesModal } from '../modals.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
-    // Botón para gestionar categorías
-    const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
-    if (manageCategoriesBtn) {
-        manageCategoriesBtn.addEventListener('click', () => {
-            openCategoriesModal();
-            // Cargar y renderizar categorías
-            renderCategoriesList(document.getElementById('categoriesList'));
-        });
-    }
+    try {
+        // Botón para gestionar categorías
+        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+        if (manageCategoriesBtn) {
+            manageCategoriesBtn.addEventListener('click', () => {
+                openCategoriesModal();
+                // Cargar y renderizar categorías
+                renderCategoriesList(document.getElementById('categoriesList'));
+            });
+        }
 
-    // Botón de cerrar sesión
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', () => {
-            if (typeof window.handleLogout === 'function') {
-                window.handleLogout();
-            }
-        });
-    }
+        // Botón de cerrar sesión
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                if (typeof window.handleLogout === 'function') {
+                    window.handleLogout();
+                }
+            });
+        }
 
-    // Configurar formulario de producto
-    setupProductForm();
+        // Configurar formulario de producto solo si el usuario está autenticado
+        if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
+            setupProductForm();
+        }
+    } catch (error) {
+        console.error('Error initializing admin panel:', error);
+        // No mostrar error al usuario
+    }
 }
 
 // Configurar el formulario de producto (ahora exportada)
