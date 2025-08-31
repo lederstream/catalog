@@ -4,7 +4,6 @@ import { showNotification, validateEmail, validateRequired } from './utils.js';
 import { loadProducts } from './products.js';
 import { loadCategories } from './categories.js';
 import { updateHeader } from './components/header.js';
-import { refreshData } from './app.js';
 
 // Estado de autenticación
 let currentUser = null;
@@ -258,13 +257,31 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Manejar cambios de autenticación
-export const handleAuthChange = async () => {
+// Función auxiliar para recargar datos (reemplaza la importación de refreshData)
+const refreshAuthData = async () => {
     try {
-        await refreshData();
+        showNotification('Actualizando datos de autenticación...', 'info');
+        
+        // Recargar productos y categorías
+        await loadProducts();
+        await loadCategories();
+        
+        // Actualizar header
         if (typeof updateHeader === 'function') {
             updateHeader();
         }
+        
+        showNotification('Datos de autenticación actualizados', 'success');
+    } catch (error) {
+        console.error('Error refreshing auth data:', error);
+        showNotification('Error al actualizar datos de autenticación', 'error');
+    }
+};
+
+// Manejar cambios de autenticación
+export const handleAuthChange = async () => {
+    try {
+        await refreshAuthData();
         
         // Disparar evento personalizado
         window.dispatchEvent(new CustomEvent('authStateChanged', { 
