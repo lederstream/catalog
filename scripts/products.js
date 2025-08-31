@@ -1,4 +1,4 @@
-// scripts/products.js
+// scripts/products.js - VERSIÓN PARA category_id
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency } from './utils.js';
 import { renderProductCard } from './components/product-card.js';
@@ -10,7 +10,7 @@ export async function loadProducts() {
     try {
         console.log('Cargando productos desde Supabase...');
         
-        // Primero intentar cargar con join a categories usando la sintaxis correcta
+        // Intentar cargar con JOIN a categories (porque ahora tenemos category_id)
         let query = supabase
             .from('products')
             .select(`
@@ -77,8 +77,7 @@ function getSampleProducts() {
             id: '1',
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
-            category: 'diseño',
-            category_id: 1,
+            category_id: 1, // ← Ahora usa category_id
             photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
@@ -90,25 +89,11 @@ function getSampleProducts() {
             id: '2', 
             name: 'Sitio Web Responsive',
             description: 'Desarrollo de sitio web moderno y responsive',
-            category: 'software',
-            category_id: 3,
+            category_id: 3, // ← Ahora usa category_id
             photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
-            ],
-            created_at: new Date().toISOString()
-        },
-        {
-            id: '3',
-            name: 'Campaña de Marketing Digital',
-            description: 'Campaña completa de marketing para redes sociales',
-            category: 'marketing',
-            category_id: 2,
-            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
-            plans: [
-                { name: 'Básica', price_soles: 999, price_dollars: 250 },
-                { name: 'Completa', price_soles: 1999, price_dollars: 500 }
             ],
             created_at: new Date().toISOString()
         }
@@ -130,14 +115,10 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
     // Filtrar por categoría
     if (categoryId !== 'all') {
         filtered = filtered.filter(product => {
-            // Manejar diferentes formatos de categoría
-            const productCategoryId = product.category_id || product.categories?.id;
-            const productCategoryName = product.category || product.categories?.name;
-            
+            // Buscar por ID de categoría (category_id)
+            const productCategoryId = product.category_id;
             return (
-                productCategoryId == categoryId || 
-                productCategoryName === categoryId ||
-                (typeof categoryId === 'string' && productCategoryName && productCategoryName.toLowerCase() === categoryId.toLowerCase())
+                productCategoryId == categoryId
             );
         });
     }
@@ -146,7 +127,7 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(product => {
-            const categoryName = product.category || product.categories?.name;
+            const categoryName = product.categories?.name;
             return (
                 (product.name && product.name.toLowerCase().includes(term)) || 
                 (product.description && product.description.toLowerCase().includes(term)) ||
@@ -196,7 +177,7 @@ export async function addProduct(productData) {
             created_at: new Date().toISOString()
         };
 
-        // Agregar category_id si está disponible
+        // Agregar category_id (no category)
         if (productData.category_id) {
             productToInsert.category_id = productData.category_id;
         }
@@ -214,7 +195,7 @@ export async function addProduct(productData) {
                 const newProduct = {
                     id: Date.now().toString(),
                     ...productToInsert,
-                    categories: { name: productData.category || 'General' }
+                    categories: { name: 'General' }
                 };
                 products.unshift(newProduct);
                 showNotification('Producto agregado (modo demostración)', 'success');
@@ -272,7 +253,7 @@ export async function updateProduct(id, productData) {
             updated_at: new Date().toISOString()
         };
 
-        // Agregar category_id si está disponible
+        // Agregar category_id (no category)
         if (productData.category_id) {
             updateData.category_id = productData.category_id;
         }
@@ -456,9 +437,6 @@ export function renderAdminProductsList(productsToRender, container) {
 function getCategoryName(product) {
     if (product.categories && product.categories.name) {
         return product.categories.name;
-    }
-    if (product.category) {
-        return product.category;
     }
     if (product.category_id) {
         return `Categoría ${product.category_id}`;
