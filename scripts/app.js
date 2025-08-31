@@ -2,24 +2,76 @@
 import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
-import { checkAuth, initializeAuth, setupAuthEventListeners, handleAuthChange } from './auth.js';
+import { initializeAuth, setupAuthEventListeners, handleAuthChange } from './auth.js';
 import { loadProducts, getProducts, filterProducts as filterProductsUtil } from './products.js';
 import { loadCategories, getCategories } from './categories.js';
 import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
-import { showNotification, debounce, getRandomId } from './utils.js';
+import { showNotification, debounce } from './utils.js';
 
-// Estado global de la aplicación
-const appState = {
-    products: [],
-    categories: [],
-    currentUser: null,
-    isInitialized: false,
-    currentFilter: { category: 'all', search: '' }
-};
+// Estado global de la aplicación con patrón Singleton
+class AppState {
+    constructor() {
+        this.products = [];
+        this.categories = [];
+        this.currentUser = null;
+        this.isInitialized = false;
+        this.currentFilter = { category: 'all', search: '' };
+        this.isOnline = navigator.onLine;
+    }
+    
+    static getInstance() {
+        if (!AppState.instance) {
+            AppState.instance = new AppState();
+        }
+        return AppState.instance;
+    }
+    
+    // Métodos de utilidad para el estado
+    updateProducts(products) {
+        this.products = products;
+        this._persistState();
+    }
+    
+    updateCategories(categories) {
+        this.categories = categories;
+        this._persistState();
+    }
+    
+    setUser(user) {
+        this.currentUser = user;
+        this._persistState();
+    }
+    
+    _persistState() {
+        if (this.isOnline) {
+            localStorage.setItem('appState', JSON.stringify({
+                products: this.products,
+                categories: this.categories,
+                currentFilter: this.currentFilter
+            }));
+        }
+    }
+    
+    _restoreState() {
+        try {
+            const savedState = localStorage.getItem('appState');
+            if (savedState) {
+                const state = JSON.parse(savedState);
+                this.products = state.products || [];
+                this.categories = state.categories || [];
+                this.currentFilter = state.currentFilter || { category: 'all', search: '' };
+            }
+        } catch (error) {
+            console.warn('Error restoring state from localStorage:', error);
+        }
+    }
+}
 
 // Inicializar la aplicación
 export const initializeApp = async () => {
+    const appState = AppState.getInstance();
+    
     if (appState.isInitialized) {
         console.warn('La aplicación ya está inicializada');
         return;
@@ -28,17 +80,30 @@ export const initializeApp = async () => {
     try {
         showLoadingState();
         console.log('🚀 Inicializando aplicación DigitalCatalog...');
+        
+        // Restaurar estado previo si existe
+        appState._restoreState();
+        
+        // Configurar monitoreo de conexión
+        setupConnectionMonitoring();
 
         // Renderizar componentes básicos
         renderHeader();
         initModals();
 
-        // Cargar datos iniciales
-        await loadInitialData();
+        // Inicializar autenticación
+        await initializeAuth();
+        
+        // Cargar datos iniciales (solo si estamos online)
+        if (appState.isOnline) {
+            await loadInitialData();
+        } else {
+            showNotification('Modo offline activado. Usando datos almacenados localmente.', 'info');
+        }
 
         // Inicializar componentes
         initCatalogGrid();
-        initializeAuthBackground();
+        initAdminPanel();
 
         // Configurar event listeners globales
         setupGlobalEventListeners();
@@ -47,7 +112,10 @@ export const initializeApp = async () => {
         hideLoadingState();
         appState.isInitialized = true;
         
-        showNotification('Catálogo cargado correctamente', 'success');
+        if (appState.isOnline) {
+            showNotification('Catálogo cargado correctamente', 'success');
+        }
+        
         console.log('✅ Aplicación inicializada correctamente');
         
     } catch (error) {
@@ -58,75 +126,26 @@ export const initializeApp = async () => {
     }
 };
 
-// Cargar datos de demostración
-const loadDemoData = () => {
-    console.log('📋 Cargando datos de demostración...');
-    appState.products = getSampleProducts();
-    appState.categories = getDefaultCategories();
+// Configurar monitoreo de conexión
+const setupConnectionMonitoring = () => {
+    const appState = AppState.getInstance();
     
-    window.getCategories = () => appState.categories;
-    
-    updateCategoryFilter();
-    if (typeof window.renderProductsGrid === 'function') {
-        window.renderProductsGrid(appState.products, 'productsGrid');
-    }
-};
+    window.addEventListener('online', () => {
+        appState.isOnline = true;
+        showNotification('Conexión restaurada. Sincronizando datos...', 'success');
+        refreshData();
+    });
 
-// Inicializar autenticación en segundo plano
-const initializeAuthBackground = async () => {
-    try {
-        const dbConnected = await checkDatabaseConnection();
-        if (!dbConnected) {
-            showNotification('Base de datos no configurada. Usando modo demostración.', 'warning');
-        }
-
-        await initializeAuth();
-        setupAuthEventListeners();
-
-        initAdminPanel();
-        setupProductForm();
-
-    } catch (error) {
-        console.error('Error en inicialización en segundo plano:', error);
-    }
-};
-
-// Función de diagnóstico para verificar la base de datos
-export const checkDatabaseConnection = async () => {
-    try {
-        console.log('🔍 Verificando conexión con la base de datos...');
-        
-        const { data: products, error: productsError } = await supabase
-            .from('products')
-            .select('count')
-            .limit(1);
-        
-        const { data: categories, error: categoriesError } = await supabase
-            .from('categories')
-            .select('count')
-            .limit(1);
-        
-        if (productsError && productsError.code === '42P01') {
-            console.error('❌ La tabla products no existe en la base de datos');
-            return false;
-        }
-        
-        if (categoriesError && categoriesError.code === '42P01') {
-            console.error('❌ La tabla categories no existe en la base de datos');
-            return false;
-        }
-        
-        console.log('✅ Tablas verificadas correctamente');
-        return true;
-        
-    } catch (error) {
-        console.error('❌ Error verificando base de datos:', error);
-        return false;
-    }
+    window.addEventListener('offline', () => {
+        appState.isOnline = false;
+        showNotification('Sin conexión. Modo offline activado.', 'warning');
+    });
 };
 
 // Cargar datos iniciales
 const loadInitialData = async () => {
+    const appState = AppState.getInstance();
+    
     try {
         console.log('📦 Cargando datos del catálogo...');
         
@@ -137,39 +156,52 @@ const loadInitialData = async () => {
 
         // Procesar resultados de productos
         if (productsResult.status === 'fulfilled') {
-            appState.products = productsResult.value;
+            appState.updateProducts(productsResult.value);
             console.log(`✅ ${appState.products.length} productos cargados`);
         } else {
             console.error('Error loading products:', productsResult.reason);
-            appState.products = getSampleProducts();
-            showNotification('Error al cargar productos, usando datos demo', 'error');
+            if (appState.products.length === 0) {
+                appState.updateProducts(getSampleProducts());
+                showNotification('Error al cargar productos, usando datos demo', 'error');
+            }
         }
 
         // Procesar resultados de categorías
         if (categoriesResult.status === 'fulfilled') {
-            appState.categories = categoriesResult.value;
+            appState.updateCategories(categoriesResult.value);
             console.log(`✅ ${appState.categories.length} categorías cargadas`);
-            
-            window.getCategories = () => appState.categories;
         } else {
             console.error('Error loading categories:', categoriesResult.reason);
-            appState.categories = getDefaultCategories();
-            showNotification('Error al cargar categorías, usando datos demo', 'error');
-            
-            window.getCategories = () => appState.categories;
+            if (appState.categories.length === 0) {
+                appState.updateCategories(getDefaultCategories());
+                showNotification('Error al cargar categorías, usando datos demo', 'error');
+            }
         }
 
         // Actualizar UI
         updateCategoryFilter();
-
-        if (typeof window.renderProductsGrid === 'function') {
-            window.renderProductsGrid(appState.products, 'productsGrid');
-        }
-
+        filterProducts();
+        
     } catch (error) {
         console.error('Error loading initial data:', error);
-        loadDemoData();
-        showNotification('Usando datos de demostración', 'info');
+        if (appState.products.length === 0) {
+            loadDemoData();
+        }
+        showNotification('Error al cargar datos. Verifica tu conexión.', 'error');
+    }
+};
+
+// Cargar datos de demostración
+const loadDemoData = () => {
+    const appState = AppState.getInstance();
+    
+    console.log('📋 Cargando datos de demostración...');
+    appState.updateProducts(getSampleProducts());
+    appState.updateCategories(getDefaultCategories());
+    
+    updateCategoryFilter();
+    if (typeof window.renderProductsGrid === 'function') {
+        window.renderProductsGrid(appState.products, 'productsGrid');
     }
 };
 
@@ -177,7 +209,7 @@ const loadInitialData = async () => {
 function getSampleProducts() {
     return [
         {
-            id: '1',
+            id: 'demo-1',
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
             category_id: 1,
@@ -187,10 +219,11 @@ function getSampleProducts() {
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
                 { name: 'Premium', price_soles: 399, price_dollars: 100 }
             ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         },
         {
-            id: '2', 
+            id: 'demo-2', 
             name: 'Sitio Web Responsive',
             description: 'Desarrollo de sitio web moderno y responsive',
             category_id: 3,
@@ -200,35 +233,24 @@ function getSampleProducts() {
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
             ],
-            created_at: new Date().toISOString()
-        },
-        {
-            id: '3',
-            name: 'Campaña de Marketing Digital',
-            description: 'Campaña completa de marketing para redes sociales',
-            category_id: 2,
-            categories: { id: 2, name: 'marketing' },
-            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
-            plans: [
-                { name: 'Básica', price_soles: 999, price_dollars: 250 },
-                { name: 'Completa', price_soles: 1999, price_dollars: 500 }
-            ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         }
     ];
 }
 
 function getDefaultCategories() {
     return [
-        { id: 1, name: 'diseño', created_at: new Date().toISOString() },
-        { id: 2, name: 'marketing', created_at: new Date().toISOString() },
-        { id: 3, name: 'software', created_at: new Date().toISOString() },
-        { id: 4, name: 'consultoria', created_at: new Date().toISOString() }
+        { id: 1, name: 'diseño', created_at: new Date().toISOString(), isDemo: true },
+        { id: 2, name: 'marketing', created_at: new Date().toISOString(), isDemo: true },
+        { id: 3, name: 'software', created_at: new Date().toISOString(), isDemo: true },
+        { id: 4, name: 'consultoria', created_at: new Date().toISOString(), isDemo: true }
     ];
 }
 
 // Actualizar filtro de categorías
 const updateCategoryFilter = () => {
+    const appState = AppState.getInstance();
     const categoryFilter = document.getElementById('categoryFilter');
     if (!categoryFilter) return;
 
@@ -238,8 +260,11 @@ const updateCategoryFilter = () => {
 
     appState.categories.forEach(category => {
         const option = document.createElement('option');
-        option.value = category.id || category.name;
+        option.value = category.id;
         option.textContent = category.name;
+        if (category.isDemo) {
+            option.dataset.demo = 'true';
+        }
         categoryFilter.appendChild(option);
     });
 
@@ -253,6 +278,7 @@ const setupGlobalEventListeners = () => {
     setupSearchAndFilter();
     setupSmoothNavigation();
     setupGlobalHandlers();
+    setupGlobalEventListeners(); // Desde el archivo event-listeners.js
 };
 
 // Configurar búsqueda y filtros
@@ -289,6 +315,7 @@ const setupSmoothNavigation = () => {
                     block: 'start'
                 });
                 
+                // Actualizar URL sin recargar la página
                 history.pushState(null, null, targetId);
             }
         });
@@ -297,8 +324,10 @@ const setupSmoothNavigation = () => {
 
 // Configurar manejadores globales
 const setupGlobalHandlers = () => {
+    const appState = AppState.getInstance();
+    
     window.addEventListener('focus', async () => {
-        if (appState.isInitialized) {
+        if (appState.isInitialized && appState.isOnline) {
             await refreshData();
         }
     });
@@ -318,10 +347,20 @@ const setupGlobalHandlers = () => {
         console.log('Estado de autenticación cambiado:', event.detail);
         updateHeader();
     });
+
+    // Prevenir recarga accidental con Ctrl+R
+    window.addEventListener('beforeunload', (e) => {
+        if (appState.currentUser) {
+            const message = '¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.';
+            e.returnValue = message;
+            return message;
+        }
+    });
 };
 
 // Función para filtrar productos
 const filterProducts = () => {
+    const appState = AppState.getInstance();
     const searchInput = document.getElementById('searchInput');
     const categoryFilter = document.getElementById('categoryFilter');
     const productsGrid = document.getElementById('productsGrid');
@@ -352,11 +391,8 @@ const filterProducts = () => {
     if (searchText) {
         filteredProducts = filteredProducts.filter(product => {
             const categoryName = product.category || product.categories?.name;
-            return (
-                (product.name && product.name.toLowerCase().includes(searchText)) || 
-                (product.description && product.description.toLowerCase().includes(searchText)) ||
-                (categoryName && categoryName.toLowerCase().includes(searchText))
-            );
+            const searchableText = `${product.name || ''} ${product.description || ''} ${categoryName || ''}`.toLowerCase();
+            return searchableText.includes(searchText);
         });
     }
 
@@ -367,6 +403,13 @@ const filterProducts = () => {
 
 // Recargar datos
 export const refreshData = async () => {
+    const appState = AppState.getInstance();
+    
+    if (!appState.isOnline) {
+        showNotification('No hay conexión a internet. No se pueden actualizar los datos.', 'warning');
+        return;
+    }
+
     try {
         showNotification('Actualizando datos...', 'info');
         
@@ -375,8 +418,8 @@ export const refreshData = async () => {
             loadCategories()
         ]);
 
-        appState.products = products;
-        appState.categories = categories;
+        appState.updateProducts(products);
+        appState.updateCategories(categories);
 
         updateCategoryFilter();
         filterProducts();
@@ -423,6 +466,7 @@ const hideLoadingState = () => {
 
 // Función para reinicializar la aplicación
 const reinitializeApp = async () => {
+    const appState = AppState.getInstance();
     appState.isInitialized = false;
     await initializeApp();
 };
@@ -445,12 +489,13 @@ window.debugApp = async () => {
     
     const { data: session } = await supabase.auth.getSession();
     console.log('Sesión:', session);
-    console.log('Usuario actual:', window.getCurrentUser ? window.getCurrentUser() : null);
     
-    await checkDatabaseConnection();
+    const appState = AppState.getInstance();
+    console.log('Usuario actual:', appState.currentUser);
     
     console.log('Productos en memoria:', appState.products.length);
     console.log('Categorías en memoria:', appState.categories.length);
+    console.log('Estado de conexión:', appState.isOnline ? 'Online' : 'Offline');
     
     console.log('Category Filter:', document.getElementById('categoryFilter'));
     console.log('Products Grid:', document.getElementById('productsGrid'));
@@ -467,16 +512,17 @@ window.handleAppAuthChange = handleAppAuthChange;
 
 // Hacer variables globales disponibles para depuración
 window.appState = {
-    products: appState.products,
-    categories: appState.categories,
-    isInitialized: appState.isInitialized,
-    getState: () => ({
-        products: appState.products,
-        categories: appState.categories,
-        isInitialized: appState.isInitialized,
-        user: window.getCurrentUser ? window.getCurrentUser() : null,
-        filters: appState.currentFilter
-    })
+    getState: () => {
+        const appState = AppState.getInstance();
+        return {
+            products: appState.products,
+            categories: appState.categories,
+            isInitialized: appState.isInitialized,
+            user: appState.currentUser,
+            filters: appState.currentFilter,
+            isOnline: appState.isOnline
+        };
+    }
 };
 
 // Inicializar la aplicación cuando el DOM esté listo
@@ -485,3 +531,11 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(initializeApp, 100);
 }
+
+// Manejar el evento de vuelta/adelante del navegador
+window.addEventListener('popstate', () => {
+    const appState = AppState.getInstance();
+    if (appState.isInitialized) {
+        filterProducts();
+    }
+});
