@@ -375,11 +375,13 @@ if (document.readyState === 'loading') {
     initializeApp();
 }
 
-// Exportar para tests - SOLO LAS FUNCIONES PRINCIPALES
+// SOLO PARA TESTS - Si necesitas exportar para pruebas, comenta/elimina esta sección
+// ya que initializeApp ya está exportado individualmente al principio
+/*
 export { 
     allProducts, 
     allCategories, 
     isAppInitialized,
-    initializeApp,
     filterProducts
 };
+*/
