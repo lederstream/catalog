@@ -1,9 +1,5 @@
-// scripts/auth.js
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
-import { loadProducts } from './products.js';
-import { loadCategories } from './categories.js';
-import { updateHeader } from './components/header.js';
 
 // Estado de autenticación
 let currentUser = null;
@@ -45,7 +41,6 @@ export const handleLogin = async () => {
     }
     
     try {
-        // Mostrar indicador de carga
         const loginBtn = document.getElementById('loginBtn');
         if (loginBtn) {
             const originalText = loginBtn.innerHTML;
@@ -64,7 +59,6 @@ export const handleLogin = async () => {
         await showAdminPanel();
         showNotification('Sesión iniciada correctamente', 'success');
         
-        // Disparar evento personalizado para cambios de autenticación
         window.dispatchEvent(new CustomEvent('authStateChanged', { 
             detail: { user: currentUser, isAuthenticated: true } 
         }));
@@ -80,7 +74,6 @@ export const handleLogin = async () => {
             showNotification('Error al iniciar sesión: ' + error.message, 'error');
         }
     } finally {
-        // Restaurar botón
         const loginBtn = document.getElementById('loginBtn');
         if (loginBtn) {
             loginBtn.innerHTML = 'Iniciar Sesión';
@@ -116,7 +109,6 @@ export const handleRegister = async () => {
     }
     
     try {
-        // Mostrar indicador de carga
         const registerBtn = document.getElementById('registerBtn');
         if (registerBtn) {
             const originalText = registerBtn.innerHTML;
@@ -158,7 +150,6 @@ export const handleRegister = async () => {
             showNotification('Error al crear la cuenta: ' + error.message, 'error');
         }
     } finally {
-        // Restaurar botón
         const registerBtn = document.getElementById('registerBtn');
         if (registerBtn) {
             registerBtn.innerHTML = 'Crear Cuenta';
@@ -178,7 +169,6 @@ export const handleLogout = async () => {
         showLoginForm();
         showNotification('Sesión cerrada correctamente', 'success');
         
-        // Disparar evento personalizado para cambios de autenticación
         window.dispatchEvent(new CustomEvent('authStateChanged', { 
             detail: { user: null, isAuthenticated: false } 
         }));
@@ -199,15 +189,19 @@ const showAdminPanel = async () => {
     if (registerForm) registerForm.classList.add('hidden');
     if (adminPanel) adminPanel.classList.remove('hidden');
     
-    // Cargar datos del admin
     try {
-        await loadProducts();
-        await loadCategories();
+        if (typeof window.loadProducts === 'function') {
+            await window.loadProducts();
+        }
+        
+        if (typeof window.loadCategories === 'function') {
+            await window.loadCategories();
+        }
         
         if (typeof window.renderAdminProductsList === 'function') {
             const adminProductsList = document.getElementById('adminProductsList');
             if (adminProductsList) {
-                const products = await loadProducts();
+                const products = await window.loadProducts();
                 window.renderAdminProductsList(products, adminProductsList);
             }
         }
@@ -257,18 +251,21 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Función auxiliar para recargar datos (reemplaza la importación de refreshData)
+// Función auxiliar para recargar datos
 const refreshAuthData = async () => {
     try {
         showNotification('Actualizando datos de autenticación...', 'info');
         
-        // Recargar productos y categorías
-        await loadProducts();
-        await loadCategories();
+        if (typeof window.loadProducts === 'function') {
+            await window.loadProducts();
+        }
         
-        // Actualizar header
-        if (typeof updateHeader === 'function') {
-            updateHeader();
+        if (typeof window.loadCategories === 'function') {
+            await window.loadCategories();
+        }
+        
+        if (typeof window.updateHeader === 'function') {
+            window.updateHeader();
         }
         
         showNotification('Datos de autenticación actualizados', 'success');
@@ -283,7 +280,6 @@ export const handleAuthChange = async () => {
     try {
         await refreshAuthData();
         
-        // Disparar evento personalizado
         window.dispatchEvent(new CustomEvent('authStateChanged', { 
             detail: { 
                 user: currentUser, 
@@ -464,13 +460,13 @@ export const initializeAuth = async () => {
         
         window.addEventListener('authStateChanged', (event) => {
             console.log('Auth state changed event:', event.detail);
-            // Actualizar UI cuando cambie el estado de autenticación
-            updateHeader();
+            if (typeof window.updateHeader === 'function') {
+                window.updateHeader();
+            }
         });
         
     } catch (error) {
         console.error('Error initializing auth:', error);
-        // No mostrar error al usuario, ya que esto es en segundo plano
     }
 };
 
