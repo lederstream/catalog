@@ -1,17 +1,18 @@
 // scripts/utils.js
-
 import { showNotification, showError, showSuccess, showWarning, showInfo } from './notifications.js';
 
 // Utilidades generales
-export const debounce = (func, wait) => {
+export const debounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
         const later = () => {
-            clearTimeout(timeout);
-            func(...args);
+            timeout = null;
+            if (!immediate) func(...args);
         };
+        const callNow = immediate && !timeout;
         clearTimeout(timeout);
         timeout = setTimeout(later, wait);
+        if (callNow) func(...args);
     };
 };
 
@@ -24,21 +25,25 @@ export const formatCurrency = (amount, currency = 'PEN') => {
     const formatter = new Intl.NumberFormat('es-PE', {
         style: 'currency',
         currency: currency,
-        minimumFractionDigits: 2
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
     });
     
     return formatter.format(amount);
 };
 
 export const validateEmail = (email) => {
+    if (!email) return false;
     const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
+    return re.test(email.trim());
 };
 
 export const validateUrl = (url) => {
     if (!url) return false;
     try {
-        new URL(url);
+        // Asegurarse de que la URL tenga protocolo
+        const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+        new URL(urlWithProtocol);
         return true;
     } catch (_) {
         return false;
@@ -50,10 +55,12 @@ export const validateRequired = (value) => {
 };
 
 export const validateNumber = (value) => {
-    return !isNaN(parseFloat(value)) && isFinite(value);
+    if (value === null || value === undefined || value === '') return false;
+    return !isNaN(parseFloat(value)) && isFinite(value) && parseFloat(value) >= 0;
 };
 
 export const slugify = (text) => {
+    if (!text) return '';
     return text.toString().toLowerCase()
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
         .replace(/\s+/g, '-')           // Replace spaces with -
@@ -98,7 +105,7 @@ export const deepClone = (obj) => {
 };
 
 export const getRandomId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 };
 
 export const formatDate = (date, options = {}) => {
