@@ -1,6 +1,5 @@
 import { addCategory, renderCategoriesList } from '../categories.js';
 import { openCategoriesModal } from '../modals.js';
-import { showNotification } from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
@@ -301,7 +300,7 @@ export function editProduct(id) {
     }
 }
 
-// Helper function para mostrar notificaciones
+// Helper function para mostrar notificaciones (CORREGIDO - solo una declaración)
 function showNotification(message, type = 'info') {
     if (typeof window.showNotification === 'function') {
         window.showNotification(message, type);
