@@ -61,57 +61,71 @@ export const initializeApp = async () => {
         // Mostrar estado de carga
         showLoadingState();
 
-        // 0. Verificar conexión con la base de datos
-        const dbConnected = await checkDatabaseConnection();
-        if (!dbConnected) {
-            showNotification('Base de datos no configurada. Usando modo demostración.', 'warning');
-        }
-
-        // 1. Renderizar componentes estáticos
+        // 1. Renderizar componentes estáticos INMEDIATAMENTE
         renderHeader();
-        initAdminPanel();
-        setupProductForm();
         initModals();
 
-        // 2. Inicializar autenticación
-        await initializeAuth();
-        setupAuthEventListeners();
-
-        // 3. Cargar datos iniciales
+        // 2. Cargar datos del catálogo INMEDIATAMENTE (sin esperar auth)
         await loadInitialData();
 
-        // 4. Configurar event listeners globales
-        setupGlobalEventListeners();
-
-        // 5. Inicializar componentes específicos
+        // 3. Inicializar componentes de UI
         initCatalogGrid();
+
+        // 4. Inicializar autenticación EN SEGUNDO PLANO (no bloqueante)
+        initializeAuthBackground();
+
+        // 5. Configurar event listeners globales
+        setupGlobalEventListeners();
 
         // 6. Ocultar estado de carga
         hideLoadingState();
 
         isAppInitialized = true;
         
-        showNotification('Aplicación cargada correctamente', 'success');
+        showNotification('Catálogo cargado correctamente', 'success');
         
     } catch (error) {
         console.error('Error inicializando la aplicación:', error);
-        showNotification('Error al cargar la aplicación', 'error');
+        showNotification('Error al cargar el catálogo', 'error');
         hideLoadingState();
+    }
+};
+
+// Inicializar autenticación en segundo plano (no bloqueante)
+const initializeAuthBackground = async () => {
+    try {
+        // 0. Verificar conexión con la base de datos en segundo plano
+        const dbConnected = await checkDatabaseConnection();
+        if (!dbConnected) {
+            showNotification('Base de datos no configurada. Usando modo demostración.', 'warning');
+        }
+
+        // 1. Inicializar autenticación
+        await initializeAuth();
+        setupAuthEventListeners();
+
+        // 2. Inicializar panel de admin solo si el usuario está autenticado
+        initAdminPanel();
+        setupProductForm();
+
+    } catch (error) {
+        console.error('Error en inicialización en segundo plano:', error);
+        // No mostrar error al usuario, ya que el catálogo ya está cargado
     }
 };
 
 // Cargar datos iniciales
 const loadInitialData = async () => {
     try {
-        console.log('📦 Cargando datos iniciales...');
+        console.log('📦 Cargando datos del catálogo...');
         
-        // Cargar en paralelo pero manejar errores individualmente
+        // Cargar productos y categorías en paralelo
         const [productsResult, categoriesResult] = await Promise.allSettled([
             loadProducts(),
             loadCategories()
         ]);
 
-        // Manejar resultados
+        // Manejar productos
         if (productsResult.status === 'fulfilled') {
             allProducts = productsResult.value;
             console.log(`✅ ${allProducts.length} productos cargados`);
@@ -121,19 +135,26 @@ const loadInitialData = async () => {
             showNotification('Error al cargar productos, usando datos demo', 'error');
         }
 
+        // Manejar categorías
         if (categoriesResult.status === 'fulfilled') {
             allCategories = categoriesResult.value;
             console.log(`✅ ${allCategories.length} categorías cargadas`);
+            
+            // Hacer categorías disponibles globalmente
+            window.getCategories = () => allCategories;
         } else {
             console.error('Error loading categories:', categoriesResult.reason);
             allCategories = getDefaultCategories();
             showNotification('Error al cargar categorías, usando datos demo', 'error');
+            
+            // Hacer categorías disponibles globalmente
+            window.getCategories = () => allCategories;
         }
 
         // Actualizar filtro de categorías
         updateCategoryFilter();
 
-        // Renderizar productos
+        // Renderizar productos INMEDIATAMENTE
         renderProductsGrid(allProducts, 'productsGrid');
 
     } catch (error) {
@@ -141,9 +162,13 @@ const loadInitialData = async () => {
         // Usar datos de ejemplo en caso de error crítico
         allProducts = getSampleProducts();
         allCategories = getDefaultCategories();
+        
+        // Hacer categorías disponibles globalmente
+        window.getCategories = () => allCategories;
+        
         updateCategoryFilter();
         renderProductsGrid(allProducts, 'productsGrid');
-        showNotification('Usando datos de demostración por error crítico', 'info');
+        showNotification('Usando datos de demostración', 'info');
     }
 };
 
