@@ -1,12 +1,13 @@
+// scripts/product.js
 import { supabase } from './supabase.js';
-import { showNotification, formatCurrency } from './utils.js';
+import { showNotification, formatCurrency, validateUrl, validateRequired, validateNumber } from './utils.js';
 
 let products = [];
 
 // Cargar productos desde Supabase CON JOIN
 export async function loadProducts() {
     try {
-        console.log('Cargando productos desde Supabase con JOIN...');
+        console.log('📦 Cargando productos desde Supabase con JOIN...');
         
         const { data, error } = await supabase
             .from('products')
@@ -35,12 +36,12 @@ export async function loadProducts() {
             }
             
             products = simpleData || [];
-            console.log('Productos cargados (sin JOIN):', products);
+            console.log('Productos cargados (sin JOIN):', products.length);
             return products;
         }
 
         products = data || [];
-        console.log('Productos cargados con JOIN:', products);
+        console.log(`✅ ${products.length} productos cargados con JOIN`);
         return products;
     } catch (error) {
         console.error('Error al cargar productos:', error);
@@ -124,11 +125,8 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(product => {
             const categoryName = product.categories?.name;
-            return (
-                (product.name && product.name.toLowerCase().includes(term)) || 
-                (product.description && product.description.toLowerCase().includes(term)) ||
-                (categoryName && categoryName.toLowerCase().includes(term))
-            );
+            const searchableText = `${product.name || ''} ${product.description || ''} ${categoryName || ''}`.toLowerCase();
+            return searchableText.includes(term);
         });
     }
 
@@ -137,36 +135,64 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
 
 // Obtener producto por ID
 export function getProductById(id) {
-    return products.find(product => product.id === id);
+    return products.find(product => product.id == id);
+}
+
+// Validar datos del producto
+function validateProductData(productData) {
+    const errors = [];
+    
+    if (!validateRequired(productData.name)) {
+        errors.push('El nombre del producto es requerido');
+    }
+    
+    if (!validateRequired(productData.description)) {
+        errors.push('La descripción es requerida');
+    }
+    
+    if (!validateUrl(productData.photo_url)) {
+        errors.push('La URL de la imagen no es válida');
+    }
+    
+    if (!productData.plans || productData.plans.length === 0) {
+        errors.push('Debe agregar al menos un plan');
+    } else {
+        productData.plans.forEach((plan, index) => {
+            if (!validateRequired(plan.name)) {
+                errors.push(`El nombre del plan ${index + 1} es requerido`);
+            }
+            
+            const hasSoles = validateNumber(plan.price_soles) && parseFloat(plan.price_soles) >= 0;
+            const hasDollars = validateNumber(plan.price_dollars) && parseFloat(plan.price_dollars) >= 0;
+            
+            if (!hasSoles && !hasDollars) {
+                errors.push(`El plan ${index + 1} debe tener al menos un precio (soles o dólares)`);
+            }
+        });
+    }
+    
+    return errors;
 }
 
 // Agregar un nuevo producto
 export async function addProduct(productData) {
     try {
-        if (!productData.name || !productData.description || !productData.photo_url) {
-            showNotification('Todos los campos obligatorios deben estar completos', 'error');
-            return null;
-        }
-
-        if (!productData.plans || productData.plans.length === 0) {
-            showNotification('Debe agregar al menos un plan al producto', 'error');
-            return null;
-        }
-
-        const invalidPlan = productData.plans.find(plan => 
-            !plan.name || (!plan.price_soles && !plan.price_dollars)
-        );
-
-        if (invalidPlan) {
-            showNotification('Cada plan debe tener un nombre y al menos un precio', 'error');
+        // Validar datos
+        const validationErrors = validateProductData(productData);
+        if (validationErrors.length > 0) {
+            validationErrors.forEach(error => showNotification(error, 'error'));
             return null;
         }
 
         const productToInsert = {
-            name: productData.name,
-            description: productData.description,
-            photo_url: productData.photo_url,
-            plans: productData.plans,
+            name: productData.name.trim(),
+            description: productData.description.trim(),
+            photo_url: productData.photo_url.trim(),
+            plans: productData.plans.map(plan => ({
+                name: plan.name.trim(),
+                price_soles: plan.price_soles ? parseFloat(plan.price_soles) : 0,
+                price_dollars: plan.price_dollars ? parseFloat(plan.price_dollars) : 0
+            })),
             created_at: new Date().toISOString()
         };
 
@@ -189,14 +215,16 @@ export async function addProduct(productData) {
                 const newProduct = {
                     id: Date.now().toString(),
                     ...productToInsert,
-                    categories: { name: 'General' }
+                    categories: productData.category_id ? 
+                        { id: productData.category_id, name: 'Categoría ' + productData.category_id } : 
+                        { name: 'General' }
                 };
                 products.unshift(newProduct);
                 showNotification('Producto agregado (modo demostración)', 'success');
                 return newProduct;
             }
             
-            showNotification('Error al agregar producto', 'error');
+            showNotification('Error al agregar producto: ' + error.message, 'error');
             return null;
         }
 
@@ -217,30 +245,22 @@ export async function addProduct(productData) {
 // Actualizar un producto
 export async function updateProduct(id, productData) {
     try {
-        if (!productData.name || !productData.description || !productData.photo_url) {
-            showNotification('Todos los campos obligatorios deben estar completos', 'error');
-            return null;
-        }
-
-        if (!productData.plans || productData.plans.length === 0) {
-            showNotification('Debe agregar al menos un plan al producto', 'error');
-            return null;
-        }
-
-        const invalidPlan = productData.plans.find(plan => 
-            !plan.name || (!plan.price_soles && !plan.price_dollars)
-        );
-
-        if (invalidPlan) {
-            showNotification('Cada plan debe tener un nombre y al menos un precio', 'error');
+        // Validar datos
+        const validationErrors = validateProductData(productData);
+        if (validationErrors.length > 0) {
+            validationErrors.forEach(error => showNotification(error, 'error'));
             return null;
         }
 
         const updateData = {
-            name: productData.name,
-            description: productData.description,
-            photo_url: productData.photo_url,
-            plans: productData.plans,
+            name: productData.name.trim(),
+            description: productData.description.trim(),
+            photo_url: productData.photo_url.trim(),
+            plans: productData.plans.map(plan => ({
+                name: plan.name.trim(),
+                price_soles: plan.price_soles ? parseFloat(plan.price_soles) : 0,
+                price_dollars: plan.price_dollars ? parseFloat(plan.price_dollars) : 0
+            })),
             updated_at: new Date().toISOString()
         };
 
@@ -269,7 +289,7 @@ export async function updateProduct(id, productData) {
                 }
             }
             
-            showNotification('Error al actualizar producto', 'error');
+            showNotification('Error al actualizar producto: ' + error.message, 'error');
             return null;
         }
 
@@ -307,7 +327,7 @@ export async function deleteProduct(id) {
                 return true;
             }
             
-            showNotification('Error al eliminar producto', 'error');
+            showNotification('Error al eliminar producto: ' + error.message, 'error');
             return false;
         }
 
@@ -324,7 +344,10 @@ export async function deleteProduct(id) {
 // Renderizar productos en el grid público
 export function renderProductsGrid(productsToRender, containerId) {
     const container = document.getElementById(containerId);
-    if (!container) return;
+    if (!container) {
+        console.error(`Contenedor con ID ${containerId} no encontrado`);
+        return;
+    }
 
     if (!productsToRender || productsToRender.length === 0) {
         container.innerHTML = `
@@ -339,6 +362,23 @@ export function renderProductsGrid(productsToRender, containerId) {
 
     if (typeof window.renderProductCard === 'function') {
         container.innerHTML = productsToRender.map(product => window.renderProductCard(product)).join('');
+        
+        // Configurar lazy loading para imágenes
+        const images = container.querySelectorAll('img[data-src]');
+        if (images.length > 0 && 'IntersectionObserver' in window) {
+            const imageObserver = new IntersectionObserver((entries, observer) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const img = entry.target;
+                        img.src = img.dataset.src;
+                        img.classList.remove('lazy');
+                        imageObserver.unobserve(img);
+                    }
+                });
+            });
+
+            images.forEach(img => imageObserver.observe(img));
+        }
     }
 }
 
@@ -360,7 +400,7 @@ export function renderAdminProductsList(productsToRender, container) {
     }
 
     container.innerHTML = productsToRender.map(product => `
-        <tr class="border-b hover:bg-gray-50">
+        <tr class="border-b hover:bg-gray-50 transition-colors duration-150">
             <td class="py-3 px-4">
                 <img src="${product.photo_url || 'https://via.placeholder.com/50x50?text=Imagen'}" 
                      alt="${product.name}" 
@@ -368,9 +408,13 @@ export function renderAdminProductsList(productsToRender, container) {
                      onerror="this.src='https://via.placeholder.com/50x50?text=Error'">
             </td>
             <td class="py-3 px-4 font-medium">${product.name || 'Sin nombre'}</td>
-            <td class="py-3 px-4">${getCategoryName(product)}</td>
             <td class="py-3 px-4">
-                ${product.plans ? product.plans.map(plan => `
+                <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    ${getCategoryName(product)}
+                </span>
+            </td>
+            <td class="py-3 px-4">
+                ${product.plans ? product.plans.slice(0, 2).map(plan => `
                     <div class="text-sm mb-1">
                         <span class="font-medium">${plan.name}:</span>
                         ${plan.price_soles ? `S/ ${formatCurrency(plan.price_soles)}` : ''}
@@ -378,13 +422,17 @@ export function renderAdminProductsList(productsToRender, container) {
                         ${plan.price_dollars ? `$ ${formatCurrency(plan.price_dollars)}` : ''}
                     </div>
                 `).join('') : 'Sin planes'}
+                ${product.plans && product.plans.length > 2 ? 
+                    `<div class="text-xs text-gray-500">+${product.plans.length - 2} planes más</div>` : ''}
             </td>
             <td class="py-3 px-4">
                 <div class="flex space-x-2">
-                    <button class="edit-product text-blue-500 hover:text-blue-700 p-1" data-id="${product.id}">
+                    <button class="edit-product text-blue-500 hover:text-blue-700 p-1 transition-colors duration-200" 
+                            data-id="${product.id}" title="Editar producto">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="delete-product text-red-500 hover:text-red-700 p-1" data-id="${product.id}">
+                    <button class="delete-product text-red-500 hover:text-red-700 p-1 transition-colors duration-200" 
+                            data-id="${product.id}" title="Eliminar producto">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
