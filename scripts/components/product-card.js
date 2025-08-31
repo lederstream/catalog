@@ -1,3 +1,4 @@
+// scripts/components/product-card.js
 import { formatCurrency, truncateText, lazyLoadImages } from '../utils.js';
 
 // Crear tarjeta de producto
