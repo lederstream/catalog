@@ -30,11 +30,10 @@ export function initAdminPanel() {
         }
     } catch (error) {
         console.error('Error initializing admin panel:', error);
-        // No mostrar error al usuario
     }
 }
 
-// Configurar el formulario de producto (ahora exportada)
+// Configurar el formulario de producto
 export function setupProductForm() {
     const productForm = document.getElementById('productForm');
     const addPlanBtn = document.getElementById('addPlanBtn');
@@ -98,7 +97,6 @@ function addPlanRow() {
     // Agregar event listener para eliminar plan
     const removeBtn = planItem.querySelector('.remove-plan');
     removeBtn.addEventListener('click', () => {
-        // No permitir eliminar si solo queda un plan
         if (document.querySelectorAll('.plan-item').length > 1) {
             planItem.remove();
         }
@@ -156,12 +154,10 @@ async function handleProductSubmit(e) {
     try {
         let result;
         if (productId) {
-            // Editar producto existente
             if (typeof window.updateProduct === 'function') {
                 result = await window.updateProduct(productId, productData);
             }
         } else {
-            // Agregar nuevo producto
             if (typeof window.addProduct === 'function') {
                 result = await window.addProduct(productData);
             }
@@ -171,7 +167,6 @@ async function handleProductSubmit(e) {
             showNotification(productId ? 'Producto actualizado correctamente' : 'Producto agregado correctamente', 'success');
             resetForm();
             
-            // Recargar productos
             if (typeof window.loadProducts === 'function') {
                 await window.loadProducts();
             }
@@ -197,14 +192,12 @@ export function resetForm() {
         if (submitText) submitText.textContent = 'Agregar Producto';
         if (cancelBtn) cancelBtn.classList.add('hidden');
         
-        // Limpiar planes y agregar uno vacío
         const plansContainer = document.getElementById('plansContainer');
         if (plansContainer) {
             plansContainer.innerHTML = '';
             addPlanRow();
         }
         
-        // Limpiar vista previa de imagen
         updateImagePreview('');
     }
 }
@@ -244,10 +237,8 @@ export function prepareEditForm(product) {
     if (submitText) submitText.textContent = 'Actualizar Producto';
     if (cancelBtn) cancelBtn.classList.remove('hidden');
     
-    // Actualizar vista previa de imagen
     updateImagePreview(product.photo_url);
     
-    // Llenar planes
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
@@ -267,7 +258,6 @@ export function prepareEditForm(product) {
                     </button>
                 `;
                 
-                // Agregar event listener para eliminar plan
                 const removeBtn = planItem.querySelector('.remove-plan');
                 removeBtn.addEventListener('click', () => {
                     if (document.querySelectorAll('.plan-item').length > 1) {
@@ -282,7 +272,6 @@ export function prepareEditForm(product) {
         }
     }
     
-    // Scroll al formulario
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth' });
