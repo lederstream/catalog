@@ -1,4 +1,4 @@
-import { formatCurrency, truncateText } from '../utils.js';
+import { formatCurrency, truncateText, lazyLoadImages } from '../utils.js';
 
 // Crear tarjeta de producto
 export const createProductCard = (product) => {
@@ -7,7 +7,7 @@ export const createProductCard = (product) => {
         return '';
     }
 
-    // Manejar imagen con fallback
+    // Manejar imagen con fallback y lazy loading
     const imageUrl = product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen';
     
     // Obtener nombre de categoría
@@ -16,7 +16,11 @@ export const createProductCard = (product) => {
     // Generar HTML de planes
     let plansHTML = '';
     if (Array.isArray(product.plans) && product.plans.length > 0) {
-        plansHTML = product.plans.map(plan => `
+        // Mostrar máximo 3 planes inicialmente
+        const visiblePlans = product.plans.slice(0, 3);
+        const hiddenPlansCount = product.plans.length - 3;
+        
+        plansHTML = visiblePlans.map(plan => `
             <div class="border-t border-gray-100 pt-2 mt-2 first:border-t-0 first:mt-0 first:pt-0">
                 <div class="flex justify-between items-center">
                     <span class="text-sm font-medium text-gray-700">${plan.name || 'Plan sin nombre'}</span>
@@ -27,6 +31,10 @@ export const createProductCard = (product) => {
                 </div>
             </div>
         `).join('');
+        
+        if (hiddenPlansCount > 0) {
+            plansHTML += `<div class="text-xs text-gray-500 mt-2">+${hiddenPlansCount} plan(s) más</div>`;
+        }
     } else {
         plansHTML = '<span class="text-gray-500 text-sm">No hay planes disponibles</span>';
     }
@@ -35,29 +43,31 @@ export const createProductCard = (product) => {
     const description = truncateText(product.description || 'Sin descripción', 120);
     
     return `
-        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full flex flex-col" data-product-id="${product.id}">
-            <div class="h-48 bg-gray-100 overflow-hidden">
-                <img src="${imageUrl}" 
+        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full flex flex-col group" data-product-id="${product.id}">
+            <div class="h-48 bg-gray-100 overflow-hidden relative">
+                <img src="https://via.placeholder.com/300x200?text=Cargando..." 
+                     data-src="${imageUrl}" 
                      alt="${product.name}" 
-                     class="w-full h-full object-cover"
+                     class="w-full h-full object-cover transition-opacity duration-300 group-hover:scale-105"
                      loading="lazy"
-                     onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
+                     onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen';this.onerror=null;">
+                <div class="absolute top-2 right-2">
+                    <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded-full shadow-sm">${categoryName}</span>
+                </div>
             </div>
             <div class="p-4 flex-1 flex flex-col">
-                <div class="flex justify-between items-start mb-2">
-                    <h3 class="text-lg font-semibold text-gray-800 flex-1 mr-2">${product.name || 'Producto sin nombre'}</h3>
-                    <span class="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs whitespace-nowrap">${categoryName}</span>
-                </div>
-                <p class="text-gray-600 text-sm mb-4 flex-1">${description}</p>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2" title="${product.name || 'Producto sin nombre'}">${product.name || 'Producto sin nombre'}</h3>
+                <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${description}</p>
                 <div class="mb-4">
                     <h4 class="font-medium text-gray-700 text-sm mb-2">Planes y precios:</h4>
                     <div class="space-y-1">
                         ${plansHTML}
                     </div>
                 </div>
-                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 view-details-btn flex items-center justify-center" 
-                        data-product-id="${product.id}">
-                    <i class="fas fa-eye mr-2"></i>
+                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 view-details-btn flex items-center justify-center group/btn" 
+                        data-product-id="${product.id}"
+                        aria-label="Ver detalles de ${product.name}">
+                    <i class="fas fa-eye mr-2 group-hover/btn:animate-pulse"></i>
                     Ver detalles
                 </button>
             </div>
@@ -84,7 +94,7 @@ function getCategoryName(product) {
     if (product.category) {
         return product.category;
     }
-    return 'Sin categoría';
+    return 'General';
 }
 
 // Renderizar grid de productos
@@ -110,6 +120,12 @@ export const renderProductsGrid = (products, containerId) => {
     try {
         container.innerHTML = products.map(product => createProductCard(product)).join('');
         addProductCardEventListeners();
+        
+        // Configurar lazy loading para imágenes
+        const images = container.querySelectorAll('img[data-src]');
+        if (images.length > 0) {
+            lazyLoadImages(images);
+        }
     } catch (error) {
         console.error('Error al renderizar productos:', error);
         container.innerHTML = `
@@ -134,6 +150,23 @@ const addProductCardEventListeners = () => {
             }
         });
     });
+    
+    // Hacer toda la tarjeta clickeable en móviles
+    if (window.innerWidth < 768) {
+        document.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                // No activar si se hizo clic en un botón o enlace
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
+                    return;
+                }
+                
+                const productId = card.getAttribute('data-product-id');
+                if (productId && typeof window.showProductDetails === 'function') {
+                    window.showProductDetails(productId);
+                }
+            });
+        });
+    }
 };
 
 // Mostrar detalles del producto (modal)
@@ -147,6 +180,7 @@ export const showProductDetails = (productId) => {
         
         if (!product) {
             console.error('Producto no encontrado:', productId);
+            showNotification('Producto no encontrado', 'error');
             return;
         }
         
@@ -184,12 +218,12 @@ const showProductModal = (product) => {
     
     // Crear modal
     const modalHTML = `
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" id="productDetailModal">
             <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div class="p-6">
                     <div class="flex justify-between items-start mb-4">
                         <h2 class="text-2xl font-bold text-gray-800">${product.name || 'Producto sin nombre'}</h2>
-                        <button class="close-modal text-gray-500 hover:text-gray-700 text-xl">
+                        <button class="close-modal text-gray-500 hover:text-gray-700 text-xl transition-colors duration-200" aria-label="Cerrar modal">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
@@ -200,17 +234,19 @@ const showProductModal = (product) => {
                         </span>
                     </div>
                     
-                    <img src="${product.photo_url || 'https://via.placeholder.com/500x300?text=Imagen+no+disponible'}" 
-                         alt="${product.name}" 
-                         class="w-full h-64 object-cover rounded-lg mb-4"
-                         onerror="this.src='https://via.placeholder.com/500x300?text=Imagen+no+disponible'">
+                    <div class="h-64 bg-gray-100 rounded-lg mb-4 overflow-hidden">
+                        <img src="${product.photo_url || 'https://via.placeholder.com/500x300?text=Imagen+no+disponible'}" 
+                             alt="${product.name}" 
+                             class="w-full h-full object-cover"
+                             onerror="this.src='https://via.placeholder.com/500x300?text=Imagen+no+disponible';this.onerror=null;">
+                    </div>
                     
                     <div class="mb-4">
                         <h3 class="font-semibold text-gray-800 mb-2">Descripción:</h3>
                         <p class="text-gray-600">${product.description || 'Sin descripción disponible'}</p>
                     </div>
                     
-                    <div class="mb-4">
+                    <div class="mb-6">
                         <h3 class="font-semibold text-gray-800 mb-2">Planes y precios:</h3>
                         <div class="space-y-2">
                             ${plansHTML}
@@ -218,7 +254,8 @@ const showProductModal = (product) => {
                     </div>
                     
                     <div class="flex justify-end mt-6">
-                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg close-modal">
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 close-modal flex items-center">
+                            <i class="fas fa-times mr-2"></i>
                             Cerrar
                         </button>
                     </div>
@@ -226,6 +263,12 @@ const showProductModal = (product) => {
             </div>
         </div>
     `;
+    
+    // Eliminar modal existente si hay uno
+    const existingModal = document.getElementById('productDetailModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
     
     // Agregar modal al documento
     const modalContainer = document.createElement('div');
@@ -259,6 +302,9 @@ const showProductModal = (product) => {
     };
     
     document.addEventListener('keydown', handleEscape);
+    
+    // Enfocar el modal para accesibilidad
+    modalContainer.querySelector('.close-modal')?.focus();
 };
 
 // Exportar función de renderizado para compatibilidad
@@ -268,3 +314,4 @@ export const renderProductCard = (product) => {
 
 // Hacer funciones disponibles globalmente
 window.showProductDetails = showProductDetails;
+window.renderProductCard = renderProductCard;
