@@ -1,3 +1,4 @@
+// scripts/app.js
 import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
@@ -6,12 +7,86 @@ import { loadProducts, getProducts, filterProducts as filterProductsUtil } from 
 import { loadCategories, getCategories } from './categories.js';
 import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
-import { showNotification, debounce } from './utils.js';
+import { showNotification, debounce, getRandomId } from './utils.js';
 
-// Variables globales
+// Variables globales para el estado de la aplicación
 let allProducts = [];
 let allCategories = [];
 let isAppInitialized = false;
+let currentFilterState = { category: 'all', search: '' };
+
+// Inicializar la aplicación
+export const initializeApp = async () => {
+    if (isAppInitialized) {
+        console.warn('La aplicación ya está inicializada');
+        return;
+    }
+
+    try {
+        showLoadingState();
+        console.log('🚀 Inicializando aplicación DigitalCatalog...');
+
+        // Renderizar componentes básicos
+        renderHeader();
+        initModals();
+
+        // Cargar datos iniciales
+        await loadInitialData();
+
+        // Inicializar componentes
+        initCatalogGrid();
+        initializeAuthBackground();
+
+        // Configurar event listeners globales
+        setupGlobalEventListeners();
+
+        // Finalizar inicialización
+        hideLoadingState();
+        isAppInitialized = true;
+        
+        showNotification('Catálogo cargado correctamente', 'success');
+        console.log('✅ Aplicación inicializada correctamente');
+        
+    } catch (error) {
+        console.error('❌ Error inicializando la aplicación:', error);
+        showNotification('Error al cargar el catálogo. Usando modo demostración.', 'error');
+        loadDemoData();
+        hideLoadingState();
+    }
+};
+
+// Cargar datos de demostración
+const loadDemoData = () => {
+    console.log('📋 Cargando datos de demostración...');
+    allProducts = getSampleProducts();
+    allCategories = getDefaultCategories();
+    
+    window.getCategories = () => allCategories;
+    
+    updateCategoryFilter();
+    if (typeof window.renderProductsGrid === 'function') {
+        window.renderProductsGrid(allProducts, 'productsGrid');
+    }
+};
+
+// Inicializar autenticación en segundo plano
+const initializeAuthBackground = async () => {
+    try {
+        const dbConnected = await checkDatabaseConnection();
+        if (!dbConnected) {
+            showNotification('Base de datos no configurada. Usando modo demostración.', 'warning');
+        }
+
+        await initializeAuth();
+        setupAuthEventListeners();
+
+        initAdminPanel();
+        setupProductForm();
+
+    } catch (error) {
+        console.error('Error en inicialización en segundo plano:', error);
+    }
+};
 
 // Función de diagnóstico para verificar la base de datos
 export const checkDatabaseConnection = async () => {
@@ -47,59 +122,6 @@ export const checkDatabaseConnection = async () => {
     }
 };
 
-// Inicializar la aplicación
-export const initializeApp = async () => {
-    if (isAppInitialized) {
-        console.warn('La aplicación ya está inicializada');
-        return;
-    }
-
-    try {
-        showLoadingState();
-
-        renderHeader();
-        initModals();
-
-        await loadInitialData();
-
-        initCatalogGrid();
-
-        initializeAuthBackground();
-
-        setupGlobalEventListeners();
-
-        hideLoadingState();
-
-        isAppInitialized = true;
-        
-        showNotification('Catálogo cargado correctamente', 'success');
-        
-    } catch (error) {
-        console.error('Error inicializando la aplicación:', error);
-        showNotification('Error al cargar el catálogo', 'error');
-        hideLoadingState();
-    }
-};
-
-// Inicializar autenticación en segundo plano
-const initializeAuthBackground = async () => {
-    try {
-        const dbConnected = await checkDatabaseConnection();
-        if (!dbConnected) {
-            showNotification('Base de datos no configurada. Usando modo demostración.', 'warning');
-        }
-
-        await initializeAuth();
-        setupAuthEventListeners();
-
-        initAdminPanel();
-        setupProductForm();
-
-    } catch (error) {
-        console.error('Error en inicialización en segundo plano:', error);
-    }
-};
-
 // Cargar datos iniciales
 const loadInitialData = async () => {
     try {
@@ -110,6 +132,7 @@ const loadInitialData = async () => {
             loadCategories()
         ]);
 
+        // Procesar resultados de productos
         if (productsResult.status === 'fulfilled') {
             allProducts = productsResult.value;
             console.log(`✅ ${allProducts.length} productos cargados`);
@@ -119,6 +142,7 @@ const loadInitialData = async () => {
             showNotification('Error al cargar productos, usando datos demo', 'error');
         }
 
+        // Procesar resultados de categorías
         if (categoriesResult.status === 'fulfilled') {
             allCategories = categoriesResult.value;
             console.log(`✅ ${allCategories.length} categorías cargadas`);
@@ -132,6 +156,7 @@ const loadInitialData = async () => {
             window.getCategories = () => allCategories;
         }
 
+        // Actualizar UI
         updateCategoryFilter();
 
         if (typeof window.renderProductsGrid === 'function') {
@@ -140,15 +165,7 @@ const loadInitialData = async () => {
 
     } catch (error) {
         console.error('Error loading initial data:', error);
-        allProducts = getSampleProducts();
-        allCategories = getDefaultCategories();
-        
-        window.getCategories = () => allCategories;
-        
-        updateCategoryFilter();
-        if (typeof window.renderProductsGrid === 'function') {
-            window.renderProductsGrid(allProducts, 'productsGrid');
-        }
+        loadDemoData();
         showNotification('Usando datos de demostración', 'info');
     }
 };
@@ -176,6 +193,17 @@ function getSampleProducts() {
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
+            ]
+        },
+        {
+            id: '3',
+            name: 'Campaña de Marketing Digital',
+            description: 'Campaña completa de marketing para redes sociales',
+            category: 'marketing',
+            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Básica', price_soles: 999, price_dollars: 250 },
+                { name: 'Completa', price_soles: 1999, price_dollars: 500 }
             ]
         }
     ];
@@ -294,6 +322,9 @@ const filterProducts = () => {
     const searchText = searchInput.value.toLowerCase().trim();
     const category = categoryFilter.value;
 
+    // Guardar estado actual de filtros
+    currentFilterState = { category, search: searchText };
+
     let filteredProducts = allProducts;
 
     if (category !== 'all') {
@@ -358,7 +389,7 @@ const showLoadingState = () => {
         loadingDiv.innerHTML = `
             <div class="text-center">
                 <div class="loading-spinner inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p class="mt-2 text-gray-600">Cargando...</p>
+                <p class="mt-2 text-gray-600">Cargando catálogo...</p>
             </div>
         `;
         document.body.appendChild(loadingDiv);
@@ -373,7 +404,11 @@ const showLoadingState = () => {
 const hideLoadingState = () => {
     const loadingElements = document.querySelectorAll('.loading-spinner, .loading-state');
     loadingElements.forEach(element => {
-        element.classList.add('hidden');
+        if (element.parentNode) {
+            element.parentNode.removeChild(element);
+        } else {
+            element.classList.add('hidden');
+        }
     });
 };
 
@@ -430,7 +465,8 @@ window.appState = {
         products: allProducts,
         categories: allCategories,
         isInitialized: isAppInitialized,
-        user: window.getCurrentUser ? window.getCurrentUser() : null
+        user: window.getCurrentUser ? window.getCurrentUser() : null,
+        filters: currentFilterState
     })
 };
 
@@ -438,5 +474,5 @@ window.appState = {
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', initializeApp);
 } else {
-    initializeApp();
+    setTimeout(initializeApp, 100);
 }
