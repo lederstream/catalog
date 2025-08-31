@@ -1,22 +1,30 @@
+// scripts/auth.js
 import { supabase } from './supabase.js';
-import { showNotification, validateEmail, validateRequired } from './utils.js';
+import { showNotification, validateEmail, validateRequired, debounce } from './utils.js';
 
 // Estado de autenticación
 let currentUser = null;
+let authInitialized = false;
 
 // Verificar autenticación al cargar
 export const checkAuth = async () => {
     try {
+        console.log('🔐 Verificando autenticación...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
-        if (error) throw error;
+        if (error) {
+            console.error('Error obteniendo sesión:', error);
+            return false;
+        }
         
         if (session) {
             currentUser = session.user;
+            console.log('✅ Usuario autenticado:', currentUser.email);
             await showAdminPanel();
             return true;
         }
         
+        console.log('ℹ️ No hay sesión activa');
         return false;
     } catch (error) {
         console.error('Error checking auth:', error);
@@ -42,14 +50,15 @@ export const handleLogin = async () => {
     
     try {
         const loginBtn = document.getElementById('loginBtn');
+        const originalText = loginBtn?.innerHTML;
+        
         if (loginBtn) {
-            const originalText = loginBtn.innerHTML;
             loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando sesión...';
             loginBtn.disabled = true;
         }
         
         const { data, error } = await supabase.auth.signInWithPassword({
-            email: email,
+            email: email.trim(),
             password: password
         });
         
@@ -70,6 +79,8 @@ export const handleLogin = async () => {
             showNotification('Credenciales inválidas', 'error');
         } else if (error.message.includes('Email not confirmed')) {
             showNotification('Por favor confirma tu email antes de iniciar sesión', 'warning');
+        } else if (error.message.includes('Failed to fetch')) {
+            showNotification('Error de conexión. Verifica tu conexión a internet.', 'error');
         } else {
             showNotification('Error al iniciar sesión: ' + error.message, 'error');
         }
@@ -110,19 +121,21 @@ export const handleRegister = async () => {
     
     try {
         const registerBtn = document.getElementById('registerBtn');
+        const originalText = registerBtn?.innerHTML;
+        
         if (registerBtn) {
-            const originalText = registerBtn.innerHTML;
             registerBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Creando cuenta...';
             registerBtn.disabled = true;
         }
         
         const { data, error } = await supabase.auth.signUp({
-            email: email,
+            email: email.trim(),
             password: password,
             options: {
                 emailRedirectTo: window.location.origin,
                 data: {
-                    role: 'admin'
+                    role: 'admin',
+                    created_at: new Date().toISOString()
                 }
             }
         });
@@ -146,6 +159,8 @@ export const handleRegister = async () => {
             showNotification('La contraseña debe tener al menos 6 caracteres', 'error');
         } else if (error.message.includes('Invalid email')) {
             showNotification('El formato del email no es válido', 'error');
+        } else if (error.message.includes('Failed to fetch')) {
+            showNotification('Error de conexión. Verifica tu conexión a internet.', 'error');
         } else {
             showNotification('Error al crear la cuenta: ' + error.message, 'error');
         }
@@ -226,7 +241,12 @@ export const showLoginForm = () => {
     const loginForm = document.getElementById('loginForm');
     
     if (registerForm) registerForm.classList.add('hidden');
-    if (loginForm) loginForm.classList.remove('hidden');
+    if (loginForm) {
+        loginForm.classList.remove('hidden');
+        // Enfocar el primer campo
+        const emailInput = loginForm.querySelector('input[type="email"]');
+        if (emailInput) emailInput.focus();
+    }
 };
 
 // Mostrar formulario de registro
@@ -235,7 +255,12 @@ export const showRegisterForm = () => {
     const registerForm = document.getElementById('registerForm');
     
     if (loginForm) loginForm.classList.add('hidden');
-    if (registerForm) registerForm.classList.remove('hidden');
+    if (registerForm) {
+        registerForm.classList.remove('hidden');
+        // Enfocar el primer campo
+        const emailInput = registerForm.querySelector('input[type="email"]');
+        if (emailInput) emailInput.focus();
+    }
 };
 
 // Obtener usuario actual
@@ -450,10 +475,25 @@ export const setupAuthEventListeners = () => {
     setupEnterKey(document.getElementById('registerPassword'), handleRegister);
     setupEnterKey(document.getElementById('confirmPassword'), handleRegister);
     setupEnterKey(document.getElementById('email'), handleLogin);
+    
+    // Prevenir envío de formularios con Enter
+    const authForms = document.querySelectorAll('#loginForm, #registerForm');
+    authForms.forEach(form => {
+        form.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+            }
+        });
+    });
 };
 
 // Inicializar auth
 export const initializeAuth = async () => {
+    if (authInitialized) {
+        console.warn('Auth ya inicializado');
+        return;
+    }
+    
     try {
         await checkAuth();
         setupAuthEventListeners();
@@ -464,6 +504,9 @@ export const initializeAuth = async () => {
                 window.updateHeader();
             }
         });
+        
+        authInitialized = true;
+        console.log('✅ Auth inicializado correctamente');
         
     } catch (error) {
         console.error('Error initializing auth:', error);
