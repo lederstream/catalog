@@ -863,3 +863,11 @@ export const sanitizeInput = (input) => {
 
 // Exportar funciones de notificación para uso conveniente
 export { showNotification, showError, showSuccess, showWarning, showInfo };
+
+if (typeof window !== 'undefined') {
+    window.showNotification = showNotification;
+    window.showError = showError;
+    window.showSuccess = showSuccess;
+    window.showWarning = showWarning;
+    window.showInfo = showInfo;
+}
