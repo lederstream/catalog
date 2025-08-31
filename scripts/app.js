@@ -1,4 +1,3 @@
-// scripts/app.js
 import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { renderProductsGrid } from './components/product-card.js';
