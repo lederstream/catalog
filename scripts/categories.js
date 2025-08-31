@@ -7,6 +7,7 @@ let categories = [];
 // Cargar categorías desde Supabase
 export async function loadCategories() {
     try {
+        console.log('Cargando categorías desde Supabase...');
         const { data, error } = await supabase
             .from('categories')
             .select('*')
@@ -14,7 +15,7 @@ export async function loadCategories() {
 
         if (error) {
             // Si la tabla no existe, usar categorías por defecto
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 console.warn('Tabla categories no existe, usando categorías por defecto');
                 categories = getDefaultCategories();
                 return categories;
@@ -23,6 +24,7 @@ export async function loadCategories() {
         }
 
         categories = data || [];
+        console.log(`✅ ${categories.length} categorías cargadas`);
         return categories;
     } catch (error) {
         console.error('Error al cargar categorías:', error);
@@ -66,7 +68,7 @@ export async function addCategory(name) {
             console.error('Error al agregar categoría:', error);
             
             // Si hay error de tabla, agregar al array local
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 const newCategory = {
                     id: Date.now(),
                     name: name.trim(),
@@ -106,7 +108,7 @@ export async function deleteCategory(id) {
                 .eq('category_id', id)
                 .limit(1);
 
-            if (checkError && checkError.code !== 'PGRST205' && checkError.code !== '42P01') {
+            if (checkError && checkError.code !== 'PGRST204' && checkError.code !== '42P01') {
                 throw checkError;
             }
 
@@ -128,7 +130,7 @@ export async function deleteCategory(id) {
             console.error('Error al eliminar categoría:', error);
             
             // Si hay error de tabla, eliminar del array local
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 categories = categories.filter(cat => cat.id !== id);
                 showNotification('Categoría eliminada (modo demostración)', 'success');
                 return true;
@@ -167,7 +169,7 @@ export async function updateCategory(id, name) {
             console.error('Error al actualizar categoría:', error);
             
             // Si hay error de tabla, actualizar en el array local
-            if (error.code === 'PGRST205' || error.code === '42P01') {
+            if (error.code === 'PGRST204' || error.code === '42P01') {
                 const index = categories.findIndex(cat => cat.id === id);
                 if (index !== -1) {
                     categories[index].name = name.trim();
