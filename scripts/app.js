@@ -3,7 +3,7 @@ import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { renderProductsGrid } from './components/product-card.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
-import { checkAuth, initializeAuth, setupAuthEventListeners } from './auth.js';
+import { checkAuth, initializeAuth, setupAuthEventListeners, handleAuthChange } from './auth.js';
 import { loadProducts, getProducts, filterProducts as filterProductsUtil } from './products.js';
 import { loadCategories, getCategories } from './categories.js';
 import { initModals } from './modals.js';
@@ -62,22 +62,28 @@ export const initializeApp = async () => {
 // Cargar datos iniciales
 const loadInitialData = async () => {
     try {
-        // Cargar en paralelo para mejor rendimiento
-        const [products, categories] = await Promise.all([
-            loadProducts().catch(error => {
-                console.error('Error loading products:', error);
-                showNotification('Error al cargar productos', 'error');
-                return [];
-            }),
-            loadCategories().catch(error => {
-                console.error('Error loading categories:', error);
-                showNotification('Error al cargar categorías', 'error');
-                return [];
-            })
+        // Cargar en paralelo pero manejar errores individualmente
+        const [productsResult, categoriesResult] = await Promise.allSettled([
+            loadProducts(),
+            loadCategories()
         ]);
 
-        allProducts = products;
-        allCategories = categories;
+        // Manejar resultados
+        if (productsResult.status === 'fulfilled') {
+            allProducts = productsResult.value;
+        } else {
+            console.error('Error loading products:', productsResult.reason);
+            allProducts = [];
+            showNotification('Error al cargar productos', 'error');
+        }
+
+        if (categoriesResult.status === 'fulfilled') {
+            allCategories = categoriesResult.value;
+        } else {
+            console.error('Error loading categories:', categoriesResult.reason);
+            allCategories = getDefaultCategories();
+            showNotification('Error al cargar categorías', 'error');
+        }
 
         // Actualizar filtro de categorías
         updateCategoryFilter();
@@ -87,9 +93,40 @@ const loadInitialData = async () => {
 
     } catch (error) {
         console.error('Error loading initial data:', error);
-        throw error;
+        // Usar datos de ejemplo en caso de error crítico
+        allProducts = getSampleProducts();
+        allCategories = getDefaultCategories();
+        updateCategoryFilter();
+        renderProductsGrid(allProducts, 'productsGrid');
+        showNotification('Usando datos de demostración', 'info');
     }
 };
+
+// Datos de ejemplo
+function getSampleProducts() {
+    return [
+        {
+            id: '1',
+            name: 'Diseño de Logo Profesional',
+            description: 'Diseño de logo moderno y profesional para tu marca',
+            category: 'diseño',
+            photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Básico', price_soles: 199, price_dollars: 50 },
+                { name: 'Premium', price_soles: 399, price_dollars: 100 }
+            ]
+        }
+    ];
+}
+
+function getDefaultCategories() {
+    return [
+        { id: 1, name: 'diseño' },
+        { id: 2, name: 'marketing' },
+        { id: 3, name: 'software' },
+        { id: 4, name: 'consultoria' }
+    ];
+}
 
 // Actualizar filtro de categorías
 const updateCategoryFilter = () => {
@@ -203,7 +240,9 @@ const filterProducts = () => {
     // Filtrar por categoría
     if (category !== 'all') {
         filteredProducts = filteredProducts.filter(product => 
-            product.category_id === category || product.category === category
+            product.category_id == category || 
+            product.category === category ||
+            (product.category && product.category.toLowerCase() === category.toLowerCase())
         );
     }
 
@@ -264,12 +303,6 @@ const hideLoadingState = () => {
 export const reinitializeApp = async () => {
     isAppInitialized = false;
     await initializeApp();
-};
-
-// Manejar cambios de autenticación
-export const handleAuthChange = async () => {
-    await refreshData();
-    updateHeader();
 };
 
 // Exportar funciones para uso global
