@@ -1,17 +1,17 @@
-// scripts/products.js - VERSIÓN PARA category_id
+// scripts/products.js - VERSIÓN PROFESIONAL CON FOREIGN KEY
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency } from './utils.js';
 import { renderProductCard } from './components/product-card.js';
 
 let products = [];
 
-// Cargar productos desde Supabase
+// Cargar productos desde Supabase CON JOIN
 export async function loadProducts() {
     try {
-        console.log('Cargando productos desde Supabase...');
+        console.log('Cargando productos desde Supabase con JOIN...');
         
-        // Intentar cargar con JOIN a categories (porque ahora tenemos category_id)
-        let query = supabase
+        // Cargar productos con JOIN a categories (ahora hay foreign key)
+        const { data, error } = await supabase
             .from('products')
             .select(`
                 *,
@@ -19,46 +19,33 @@ export async function loadProducts() {
             `)
             .order('created_at', { ascending: false });
 
-        const { data, error } = await query;
-
         if (error) {
-            console.log('Error con join, intentando sin relación:', error);
+            console.error('Error al cargar productos con JOIN:', error);
             
-            // Si hay error de relación, intentar sin el join
-            if (error.code === 'PGRST201' || error.code === '42703' || error.message.includes('relationship') || error.message.includes('column')) {
-                console.warn('Relación no encontrada, cargando productos sin categorías');
-                const { data: simpleData, error: simpleError } = await supabase
-                    .from('products')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-                
-                if (simpleError) {
-                    // Si la tabla products no existe, usar datos de muestra
-                    if (simpleError.code === 'PGRST204' || simpleError.code === '42P01') {
-                        console.warn('Tabla products no existe, usando datos de muestra');
-                        products = getSampleProducts();
-                        return products;
-                    }
-                    throw simpleError;
+            // Si hay error, intentar sin JOIN como fallback
+            console.warn('Intentando cargar productos sin JOIN...');
+            const { data: simpleData, error: simpleError } = await supabase
+                .from('products')
+                .select('*')
+                .order('created_at', { ascending: false });
+            
+            if (simpleError) {
+                // Si la tabla products no existe, usar datos de muestra
+                if (simpleError.code === 'PGRST204' || simpleError.code === '42P01') {
+                    console.warn('Tabla products no existe, usando datos de muestra');
+                    products = getSampleProducts();
+                    return products;
                 }
-                
-                products = simpleData || [];
-                console.log('Productos cargados (sin categorías):', products);
-                return products;
+                throw simpleError;
             }
             
-            // Si la tabla no existe, usar datos de muestra
-            if (error.code === 'PGRST204' || error.code === '42P01') {
-                console.warn('Tabla products no existe, usando datos de muestra');
-                products = getSampleProducts();
-                return products;
-            }
-            
-            throw error;
+            products = simpleData || [];
+            console.log('Productos cargados (sin JOIN):', products);
+            return products;
         }
 
         products = data || [];
-        console.log('Productos cargados con categorías:', products);
+        console.log('Productos cargados con JOIN:', products);
         return products;
     } catch (error) {
         console.error('Error al cargar productos:', error);
@@ -77,7 +64,8 @@ function getSampleProducts() {
             id: '1',
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
-            category_id: 1, // ← Ahora usa category_id
+            category_id: 1,
+            categories: { id: 1, name: 'diseño' },
             photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
@@ -89,11 +77,25 @@ function getSampleProducts() {
             id: '2', 
             name: 'Sitio Web Responsive',
             description: 'Desarrollo de sitio web moderno y responsive',
-            category_id: 3, // ← Ahora usa category_id
+            category_id: 3,
+            categories: { id: 3, name: 'software' },
             photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
+            ],
+            created_at: new Date().toISOString()
+        },
+        {
+            id: '3',
+            name: 'Campaña de Marketing Digital',
+            description: 'Campaña completa de marketing para redes sociales',
+            category_id: 2,
+            categories: { id: 2, name: 'marketing' },
+            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Básica', price_soles: 999, price_dollars: 250 },
+                { name: 'Completa', price_soles: 1999, price_dollars: 500 }
             ],
             created_at: new Date().toISOString()
         }
@@ -112,13 +114,15 @@ export function getProducts() {
 export function filterProducts(categoryId = 'all', searchTerm = '') {
     let filtered = [...products];
 
-    // Filtrar por categoría
+    // Filtrar por categoría (usando category_id O el nombre de la categoría)
     if (categoryId !== 'all') {
         filtered = filtered.filter(product => {
-            // Buscar por ID de categoría (category_id)
             const productCategoryId = product.category_id;
+            const productCategoryName = product.categories?.name;
+            
             return (
-                productCategoryId == categoryId
+                productCategoryId == categoryId || 
+                (productCategoryName && productCategoryName.toLowerCase() === categoryId.toLowerCase())
             );
         });
     }
@@ -177,7 +181,7 @@ export async function addProduct(productData) {
             created_at: new Date().toISOString()
         };
 
-        // Agregar category_id (no category)
+        // Agregar category_id (foreign key)
         if (productData.category_id) {
             productToInsert.category_id = productData.category_id;
         }
@@ -185,7 +189,10 @@ export async function addProduct(productData) {
         const { data, error } = await supabase
             .from('products')
             .insert([productToInsert])
-            .select();
+            .select(`
+                *,
+                categories (*)
+            `);
 
         if (error) {
             console.error('Error al agregar producto:', error);
@@ -253,7 +260,7 @@ export async function updateProduct(id, productData) {
             updated_at: new Date().toISOString()
         };
 
-        // Agregar category_id (no category)
+        // Agregar category_id (foreign key)
         if (productData.category_id) {
             updateData.category_id = productData.category_id;
         }
@@ -262,7 +269,10 @@ export async function updateProduct(id, productData) {
             .from('products')
             .update(updateData)
             .eq('id', id)
-            .select();
+            .select(`
+                *,
+                categories (*)
+            `);
 
         if (error) {
             console.error('Error al actualizar producto:', error);
