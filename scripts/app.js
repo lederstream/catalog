@@ -277,8 +277,8 @@ const filterProducts = () => {
     renderProductsGrid(filteredProducts, 'productsGrid');
 };
 
-// Recargar datos
-const refreshData = async () => {
+// Recargar datos - AHORA EXPORTADA
+export const refreshData = async () => {
     try {
         showNotification('Actualizando datos...', 'info');
         
