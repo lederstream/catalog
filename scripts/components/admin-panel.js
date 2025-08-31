@@ -27,8 +27,8 @@ export function initAdminPanel() {
     setupProductForm();
 }
 
-// Configurar el formulario de producto
-function setupProductForm() {
+// Configurar el formulario de producto (ahora exportada)
+export function setupProductForm() {
     const productForm = document.getElementById('productForm');
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -176,7 +176,7 @@ async function handleProductSubmit(e) {
 }
 
 // Resetear formulario
-function resetForm() {
+export function resetForm() {
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.reset();
@@ -300,7 +300,7 @@ export function editProduct(id) {
     }
 }
 
-// Helper function para mostrar notificaciones (CORREGIDO - solo una declaración)
+// Helper function para mostrar notificaciones
 function showNotification(message, type = 'info') {
     if (typeof window.showNotification === 'function') {
         window.showNotification(message, type);
