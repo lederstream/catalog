@@ -278,7 +278,7 @@ const filterProducts = () => {
 };
 
 // Recargar datos
-export const refreshData = async () => {
+const refreshData = async () => {
     try {
         showNotification('Actualizando datos...', 'info');
         
@@ -331,13 +331,13 @@ const hideLoadingState = () => {
 };
 
 // Función para reinicializar la aplicación
-export const reinitializeApp = async () => {
+const reinitializeApp = async () => {
     isAppInitialized = false;
     await initializeApp();
 };
 
 // Manejar cambios de autenticación
-export const handleAppAuthChange = async () => {
+const handleAppAuthChange = async () => {
     try {
         await refreshData();
         updateHeader();
@@ -375,13 +375,11 @@ if (document.readyState === 'loading') {
     initializeApp();
 }
 
-// Exportar para tests
+// Exportar para tests - SOLO LAS FUNCIONES PRINCIPALES
 export { 
     allProducts, 
     allCategories, 
     isAppInitialized,
     initializeApp,
-    refreshData,
-    reinitializeApp,
     filterProducts
 };
