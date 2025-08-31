@@ -1,6 +1,5 @@
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency } from './utils.js';
-import { renderProductCard } from './components/product-card.js';
 
 let products = [];
 
@@ -9,7 +8,6 @@ export async function loadProducts() {
     try {
         console.log('Cargando productos desde Supabase con JOIN...');
         
-        // Cargar productos con JOIN a categories (ahora hay foreign key)
         const { data, error } = await supabase
             .from('products')
             .select(`
@@ -21,7 +19,6 @@ export async function loadProducts() {
         if (error) {
             console.error('Error al cargar productos con JOIN:', error);
             
-            // Si hay error, intentar sin JOIN como fallback
             console.warn('Intentando cargar productos sin JOIN...');
             const { data: simpleData, error: simpleError } = await supabase
                 .from('products')
@@ -29,7 +26,6 @@ export async function loadProducts() {
                 .order('created_at', { ascending: false });
             
             if (simpleError) {
-                // Si la tabla products no existe, usar datos de muestra
                 if (simpleError.code === 'PGRST204' || simpleError.code === '42P01') {
                     console.warn('Tabla products no existe, usando datos de muestra');
                     products = getSampleProducts();
@@ -49,7 +45,6 @@ export async function loadProducts() {
     } catch (error) {
         console.error('Error al cargar productos:', error);
         
-        // En caso de error, usar datos de muestra
         products = getSampleProducts();
         showNotification('Usando datos de demostración', 'info');
         return products;
@@ -113,7 +108,6 @@ export function getProducts() {
 export function filterProducts(categoryId = 'all', searchTerm = '') {
     let filtered = [...products];
 
-    // Filtrar por categoría (usando category_id O el nombre de la categoría)
     if (categoryId !== 'all') {
         filtered = filtered.filter(product => {
             const productCategoryId = product.category_id;
@@ -126,7 +120,6 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
         });
     }
 
-    // Filtrar por término de búsqueda
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(product => {
@@ -150,19 +143,16 @@ export function getProductById(id) {
 // Agregar un nuevo producto
 export async function addProduct(productData) {
     try {
-        // Validar datos del producto
         if (!productData.name || !productData.description || !productData.photo_url) {
             showNotification('Todos los campos obligatorios deben estar completos', 'error');
             return null;
         }
 
-        // Validar que haya al menos un plan
         if (!productData.plans || productData.plans.length === 0) {
             showNotification('Debe agregar al menos un plan al producto', 'error');
             return null;
         }
 
-        // Validar que cada plan tenga nombre y al menos un precio
         const invalidPlan = productData.plans.find(plan => 
             !plan.name || (!plan.price_soles && !plan.price_dollars)
         );
@@ -180,9 +170,7 @@ export async function addProduct(productData) {
             created_at: new Date().toISOString()
         };
 
-        // Agregar category_id (foreign key) - AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
         if (productData.category_id) {
-            // Convertir a número entero para evitar el error de foreign key
             productToInsert.category_id = parseInt(productData.category_id);
         }
 
@@ -197,7 +185,6 @@ export async function addProduct(productData) {
         if (error) {
             console.error('Error al agregar producto:', error);
             
-            // Si hay error de tabla, agregar al array local
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 const newProduct = {
                     id: Date.now().toString(),
@@ -230,19 +217,16 @@ export async function addProduct(productData) {
 // Actualizar un producto
 export async function updateProduct(id, productData) {
     try {
-        // Validar datos del producto
         if (!productData.name || !productData.description || !productData.photo_url) {
             showNotification('Todos los campos obligatorios deben estar completos', 'error');
             return null;
         }
 
-        // Validar que haya al menos un plan
         if (!productData.plans || productData.plans.length === 0) {
             showNotification('Debe agregar al menos un plan al producto', 'error');
             return null;
         }
 
-        // Validar que cada plan tenga nombre y al menos un precio
         const invalidPlan = productData.plans.find(plan => 
             !plan.name || (!plan.price_soles && !plan.price_dollars)
         );
@@ -260,7 +244,6 @@ export async function updateProduct(id, productData) {
             updated_at: new Date().toISOString()
         };
 
-        // Agregar category_id (foreign key) - AQUÍ TAMBIÉN LA CORRECCIÓN
         if (productData.category_id) {
             updateData.category_id = parseInt(productData.category_id);
         }
@@ -277,7 +260,6 @@ export async function updateProduct(id, productData) {
         if (error) {
             console.error('Error al actualizar producto:', error);
             
-            // Si hay error de tabla, actualizar en el array local
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 const index = products.findIndex(product => product.id === id);
                 if (index !== -1) {
@@ -292,7 +274,6 @@ export async function updateProduct(id, productData) {
         }
 
         if (data && data.length > 0) {
-            // Actualizar en la lista local
             const index = products.findIndex(product => product.id === id);
             if (index !== -1) {
                 products[index] = data[0];
@@ -320,7 +301,6 @@ export async function deleteProduct(id) {
         if (error) {
             console.error('Error al eliminar producto:', error);
             
-            // Si hay error de tabla, eliminar del array local
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 products = products.filter(product => product.id !== id);
                 showNotification('Producto eliminado (modo demostración)', 'success');
@@ -331,7 +311,6 @@ export async function deleteProduct(id) {
             return false;
         }
 
-        // Eliminar de la lista local
         products = products.filter(product => product.id !== id);
         showNotification('Producto eliminado correctamente', 'success');
         return true;
@@ -358,7 +337,9 @@ export function renderProductsGrid(productsToRender, containerId) {
         return;
     }
 
-    container.innerHTML = productsToRender.map(product => renderProductCard(product)).join('');
+    if (typeof window.renderProductCard === 'function') {
+        container.innerHTML = productsToRender.map(product => window.renderProductCard(product)).join('');
+    }
 }
 
 // Renderizar lista de productos en el panel de administración
@@ -427,7 +408,6 @@ export function renderAdminProductsList(productsToRender, container) {
             if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
                 deleteProduct(id).then(success => {
                     if (success) {
-                        // Recargar la lista de productos
                         loadProducts().then(() => {
                             if (typeof window.renderAdminProductsList === 'function') {
                                 const adminList = document.getElementById('adminProductsList');
@@ -468,9 +448,8 @@ function getCategoryName(product) {
 // Hacer funciones disponibles globalmente
 window.loadProducts = loadProducts;
 window.loadAdminProducts = loadProducts;
-window.renderProductsGrid = renderProductsGrid;
-window.renderAdminProductsList = renderAdminProductsList;
 window.addProduct = addProduct;
 window.updateProduct = updateProduct;
 window.deleteProduct = deleteProduct;
 window.getProductById = getProductById;
+window.renderAdminProductsList = renderAdminProductsList;
