@@ -15,6 +15,42 @@ let allProducts = [];
 let allCategories = [];
 let isAppInitialized = false;
 
+// Función de diagnóstico para verificar la base de datos
+export const checkDatabaseConnection = async () => {
+    try {
+        console.log('🔍 Verificando conexión con la base de datos...');
+        
+        // Verificar si existe la tabla products
+        const { data: products, error: productsError } = await supabase
+            .from('products')
+            .select('count')
+            .limit(1);
+        
+        // Verificar si existe la tabla categories
+        const { data: categories, error: categoriesError } = await supabase
+            .from('categories')
+            .select('count')
+            .limit(1);
+        
+        if (productsError && productsError.code === '42P01') {
+            console.error('❌ La tabla products no existe en la base de datos');
+            return false;
+        }
+        
+        if (categoriesError && categoriesError.code === '42P01') {
+            console.error('❌ La tabla categories no existe en la base de datos');
+            return false;
+        }
+        
+        console.log('✅ Tablas verificadas correctamente');
+        return true;
+        
+    } catch (error) {
+        console.error('❌ Error verificando base de datos:', error);
+        return false;
+    }
+};
+
 // Inicializar la aplicación
 export const initializeApp = async () => {
     if (isAppInitialized) {
@@ -25,6 +61,12 @@ export const initializeApp = async () => {
     try {
         // Mostrar estado de carga
         showLoadingState();
+
+        // 0. Verificar conexión con la base de datos
+        const dbConnected = await checkDatabaseConnection();
+        if (!dbConnected) {
+            showNotification('Base de datos no configurada. Usando modo demostración.', 'warning');
+        }
 
         // 1. Renderizar componentes estáticos
         renderHeader();
@@ -62,6 +104,8 @@ export const initializeApp = async () => {
 // Cargar datos iniciales
 const loadInitialData = async () => {
     try {
+        console.log('📦 Cargando datos iniciales...');
+        
         // Cargar en paralelo pero manejar errores individualmente
         const [productsResult, categoriesResult] = await Promise.allSettled([
             loadProducts(),
@@ -71,18 +115,20 @@ const loadInitialData = async () => {
         // Manejar resultados
         if (productsResult.status === 'fulfilled') {
             allProducts = productsResult.value;
+            console.log(`✅ ${allProducts.length} productos cargados`);
         } else {
             console.error('Error loading products:', productsResult.reason);
-            allProducts = [];
-            showNotification('Error al cargar productos', 'error');
+            allProducts = getSampleProducts();
+            showNotification('Error al cargar productos, usando datos demo', 'error');
         }
 
         if (categoriesResult.status === 'fulfilled') {
             allCategories = categoriesResult.value;
+            console.log(`✅ ${allCategories.length} categorías cargadas`);
         } else {
             console.error('Error loading categories:', categoriesResult.reason);
             allCategories = getDefaultCategories();
-            showNotification('Error al cargar categorías', 'error');
+            showNotification('Error al cargar categorías, usando datos demo', 'error');
         }
 
         // Actualizar filtro de categorías
@@ -98,7 +144,7 @@ const loadInitialData = async () => {
         allCategories = getDefaultCategories();
         updateCategoryFilter();
         renderProductsGrid(allProducts, 'productsGrid');
-        showNotification('Usando datos de demostración', 'info');
+        showNotification('Usando datos de demostración por error crítico', 'info');
     }
 };
 
@@ -257,20 +303,28 @@ const filterProducts = () => {
 
     // Filtrar por categoría
     if (category !== 'all') {
-        filteredProducts = filteredProducts.filter(product => 
-            product.category_id == category || 
-            product.category === category ||
-            (product.category && product.category.toLowerCase() === category.toLowerCase())
-        );
+        filteredProducts = filteredProducts.filter(product => {
+            const productCategoryId = product.category_id || product.categories?.id;
+            const productCategoryName = product.category || product.categories?.name;
+            
+            return (
+                productCategoryId == category || 
+                productCategoryName === category ||
+                (productCategoryName && productCategoryName.toLowerCase() === category.toLowerCase())
+            );
+        });
     }
 
     // Filtrar por texto de búsqueda
     if (searchText) {
-        filteredProducts = filteredProducts.filter(product => 
-            (product.name && product.name.toLowerCase().includes(searchText)) || 
-            (product.description && product.description.toLowerCase().includes(searchText)) ||
-            (product.category && product.category.toLowerCase().includes(searchText))
-        );
+        filteredProducts = filteredProducts.filter(product => {
+            const categoryName = product.category || product.categories?.name;
+            return (
+                (product.name && product.name.toLowerCase().includes(searchText)) || 
+                (product.description && product.description.toLowerCase().includes(searchText)) ||
+                (categoryName && categoryName.toLowerCase().includes(searchText))
+            );
+        });
     }
 
     // Renderizar productos filtrados
@@ -346,6 +400,37 @@ const handleAppAuthChange = async () => {
         console.error('Error handling auth change:', error);
         showNotification('Error al actualizar sesión', 'error');
     }
+};
+
+// Función de diagnóstico para depuración
+window.debugApp = async () => {
+    console.log('=== 🐛 DIAGNÓSTICO DE LA APLICACIÓN ===');
+    
+    // 1. Verificar autenticación
+    console.log('1. 🔐 Estado de autenticación:');
+    const { data: session } = await supabase.auth.getSession();
+    console.log('Sesión:', session);
+    console.log('Usuario actual:', await getCurrentUser());
+    
+    // 2. Verificar base de datos
+    console.log('2. 🗄️ Verificando base de datos...');
+    await checkDatabaseConnection();
+    
+    // 3. Verificar productos
+    console.log('3. 📦 Productos en memoria:', allProducts.length);
+    console.log('Productos:', allProducts);
+    
+    // 4. Verificar categorías
+    console.log('4. 🏷️ Categorías en memoria:', allCategories.length);
+    console.log('Categorías:', allCategories);
+    
+    // 5. Verificar elementos del DOM
+    console.log('5. 🎯 Elementos del DOM:');
+    console.log('Category Filter:', document.getElementById('categoryFilter'));
+    console.log('Products Grid:', document.getElementById('productsGrid'));
+    console.log('Search Input:', document.getElementById('searchInput'));
+    
+    console.log('=== ✅ FIN DIAGNÓSTICO ===');
 };
 
 // Exportar funciones para uso global
