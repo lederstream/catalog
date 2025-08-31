@@ -1,21 +1,14 @@
-import { logout } from './auth.js';
-import { editProduct } from './components/admin-panel.js';
-
 // Configurar todos los event listeners globales
 export function setupGlobalEventListeners() {
-    // Logout
-    window.logout = logout;
-    
-    // Editar producto
-    window.editProduct = editProduct;
-    
     // Otros listeners globales
     document.addEventListener('click', function(e) {
         // Logout buttons
         if (e.target.closest('#logoutBtn') || 
             e.target.closest('#mobileLogoutBtn') || 
             e.target.closest('.mobile-logout-btn')) {
-            logout();
+            if (typeof window.logout === 'function') {
+                window.logout();
+            }
         }
         
         // Delete product buttons
@@ -33,6 +26,14 @@ export function setupGlobalEventListeners() {
             const id = e.target.closest('.edit-product').dataset.id;
             if (window.editProduct) {
                 window.editProduct(id);
+            }
+        }
+        
+        // View details buttons
+        if (e.target.closest('.view-details-btn')) {
+            const id = e.target.closest('.view-details-btn').dataset.id;
+            if (window.showProductDetails) {
+                window.showProductDetails(id);
             }
         }
     });
