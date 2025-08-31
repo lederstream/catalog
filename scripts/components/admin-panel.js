@@ -1,6 +1,6 @@
-// scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList } from '../categories.js';
 import { openCategoriesModal } from '../modals.js';
+import { showNotification } from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
@@ -142,7 +142,7 @@ async function handleProductSubmit(e) {
     const productData = {
         name,
         description,
-        category_id: category,
+        category_id: category, // Esta es la clave foránea (debe ser número)
         photo_url,
         plans
     };
@@ -283,15 +283,8 @@ export function prepareEditForm(product) {
     }
 }
 
-// Helper function para mostrar notificaciones
-function showNotification(message, type = 'info') {
-    if (typeof window.showNotification === 'function') {
-        window.showNotification(message, type);
-    } else {
-        console.log(`${type}: ${message}`);
-    }
-}
-
 // Hacer funciones disponibles globalmente
 window.prepareEditForm = prepareEditForm;
 window.resetProductForm = resetForm;
+window.initAdminPanel = initAdminPanel;
+window.setupProductForm = setupProductForm;
