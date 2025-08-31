@@ -352,7 +352,6 @@ const handleAppAuthChange = async () => {
 window.filterProducts = filterProducts;
 window.refreshData = refreshData;
 window.reinitializeApp = reinitializeApp;
-window.handleAuthChange = handleAuthChange;
 window.handleAppAuthChange = handleAppAuthChange;
 
 // Hacer variables globales disponibles para depuración
@@ -374,14 +373,3 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
-
-// SOLO PARA TESTS - Si necesitas exportar para pruebas, comenta/elimina esta sección
-// ya que initializeApp ya está exportado individualmente al principio
-/*
-export { 
-    allProducts, 
-    allCategories, 
-    isAppInitialized,
-    filterProducts
-};
-*/
