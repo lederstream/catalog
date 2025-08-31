@@ -448,8 +448,19 @@ function getCategoryName(product) {
     if (product.categories && product.categories.name) {
         return product.categories.name;
     }
-    if (product.category_id) {
-        return `Categoría ${product.category_id}`;
+    if (product.category_id && typeof window.getCategories === 'function') {
+        try {
+            const categories = window.getCategories();
+            if (categories && Array.isArray(categories)) {
+                const category = categories.find(cat => cat.id == product.category_id);
+                return category ? category.name : `Categoría ${product.category_id}`;
+            }
+        } catch (error) {
+            console.error('Error obteniendo categorías:', error);
+        }
+    }
+    if (product.category) {
+        return product.category;
     }
     return 'Sin categoría';
 }
