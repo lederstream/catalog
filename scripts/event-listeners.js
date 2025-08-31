@@ -1,3 +1,6 @@
+// scripts/event-listeners.js
+import { showNotification } from './utils.js';
+
 export function setupGlobalEventListeners() {
     // Event delegation para todos los botones de la aplicación
     document.addEventListener('click', function(e) {
@@ -90,7 +93,7 @@ function handleContactForm(form) {
     const data = Object.fromEntries(formData.entries());
     
     // Validación básica
-    if (!data.name || !data.email || !data.message) {
+    if (!data.contactName || !data.contactEmail || !data.contactMessage) {
         showNotification('Por favor completa todos los campos obligatorios', 'error');
         return;
     }
