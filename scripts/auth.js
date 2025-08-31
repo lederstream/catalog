@@ -3,6 +3,8 @@ import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
 import { loadProducts } from './products.js';
 import { loadCategories } from './categories.js';
+import { updateHeader } from './components/header.js';
+import { refreshData } from './app.js';
 
 // Estado de autenticación
 let currentUser = null;
@@ -63,11 +65,18 @@ export const handleLogin = async () => {
         await showAdminPanel();
         showNotification('Sesión iniciada correctamente', 'success');
         
+        // Disparar evento personalizado para cambios de autenticación
+        window.dispatchEvent(new CustomEvent('authStateChanged', { 
+            detail: { user: currentUser, isAuthenticated: true } 
+        }));
+        
     } catch (error) {
         console.error('Error logging in:', error);
         
         if (error.message.includes('Invalid login credentials')) {
             showNotification('Credenciales inválidas', 'error');
+        } else if (error.message.includes('Email not confirmed')) {
+            showNotification('Por favor confirma tu email antes de iniciar sesión', 'warning');
         } else {
             showNotification('Error al iniciar sesión: ' + error.message, 'error');
         }
@@ -120,11 +129,19 @@ export const handleRegister = async () => {
             email: email,
             password: password,
             options: {
-                emailRedirectTo: window.location.origin
+                emailRedirectTo: window.location.origin,
+                data: {
+                    role: 'admin'
+                }
             }
         });
         
         if (error) throw error;
+        
+        if (data.user?.identities?.length === 0) {
+            showNotification('Este email ya está registrado', 'warning');
+            return;
+        }
         
         showNotification('Cuenta creada exitosamente. Revisa tu email para confirmar.', 'success');
         showLoginForm();
@@ -136,6 +153,8 @@ export const handleRegister = async () => {
             showNotification('Este usuario ya está registrado', 'error');
         } else if (error.message.includes('Password should be at least 6 characters')) {
             showNotification('La contraseña debe tener al menos 6 caracteres', 'error');
+        } else if (error.message.includes('Invalid email')) {
+            showNotification('El formato del email no es válido', 'error');
         } else {
             showNotification('Error al crear la cuenta: ' + error.message, 'error');
         }
@@ -160,6 +179,11 @@ export const handleLogout = async () => {
         showLoginForm();
         showNotification('Sesión cerrada correctamente', 'success');
         
+        // Disparar evento personalizado para cambios de autenticación
+        window.dispatchEvent(new CustomEvent('authStateChanged', { 
+            detail: { user: null, isAuthenticated: false } 
+        }));
+        
     } catch (error) {
         console.error('Error logging out:', error);
         showNotification('Error al cerrar sesión', 'error');
@@ -181,7 +205,6 @@ const showAdminPanel = async () => {
         await loadProducts();
         await loadCategories();
         
-        // Forzar renderizado de productos en admin si existe la función
         if (typeof window.renderAdminProductsList === 'function') {
             const adminProductsList = document.getElementById('adminProductsList');
             if (adminProductsList) {
@@ -232,18 +255,51 @@ export const isAuthenticated = () => {
     return currentUser !== null;
 };
 
-// Alias para compatibilidad (lo que header.js necesita)
+// Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Escuchar cambios de autenticación
+// Manejar cambios de autenticación
+export const handleAuthChange = async () => {
+    try {
+        await refreshData();
+        if (typeof updateHeader === 'function') {
+            updateHeader();
+        }
+        
+        // Disparar evento personalizado
+        window.dispatchEvent(new CustomEvent('authStateChanged', { 
+            detail: { 
+                user: currentUser, 
+                isAuthenticated: isAuthenticated() 
+            } 
+        }));
+        
+    } catch (error) {
+        console.error('Error handling auth change:', error);
+        showNotification('Error al actualizar datos de autenticación', 'error');
+    }
+};
+
+// Escuchar cambios de autenticación de Supabase
 supabase.auth.onAuthStateChange(async (event, session) => {
+    console.log('Auth state changed:', event, session);
+    
     if (event === 'SIGNED_IN') {
         currentUser = session.user;
         await showAdminPanel();
+        await handleAuthChange();
     } else if (event === 'SIGNED_OUT') {
         currentUser = null;
         hideAdminPanel();
         showLoginForm();
+        await handleAuthChange();
+    } else if (event === 'USER_UPDATED') {
+        currentUser = session.user;
+        await handleAuthChange();
+    } else if (event === 'PASSWORD_RECOVERY') {
+        showNotification('Proceso de recuperación de contraseña iniciado', 'info');
+    } else if (event === 'TOKEN_REFRESHED') {
+        console.log('Token refreshed successfully');
     }
 });
 
@@ -261,7 +317,7 @@ export const resetPassword = async (email) => {
         
         if (error) throw error;
         
-        showNotification('Email de restablecimiento enviado', 'success');
+        showNotification('Email de restablecimiento enviado. Revisa tu bandeja de entrada.', 'success');
         return true;
     } catch (error) {
         console.error('Error resetting password:', error);
@@ -272,7 +328,7 @@ export const resetPassword = async (email) => {
 
 // Actualizar contraseña
 export const updatePassword = async (newPassword) => {
-    if (newPassword.length < 6) {
+    if (!newPassword || newPassword.length < 6) {
         showNotification('La contraseña debe tener al menos 6 caracteres', 'error');
         return false;
     }
@@ -296,6 +352,11 @@ export const updatePassword = async (newPassword) => {
 // Actualizar perfil de usuario
 export const updateProfile = async (updates) => {
     try {
+        if (!updates || Object.keys(updates).length === 0) {
+            showNotification('No hay datos para actualizar', 'warning');
+            return false;
+        }
+        
         const { error } = await supabase.auth.updateUser(updates);
         
         if (error) throw error;
@@ -317,6 +378,11 @@ export const hasRole = (role) => {
 // Obtener metadata del usuario
 export const getUserMetadata = () => {
     return currentUser ? currentUser.user_metadata : null;
+};
+
+// Verificar si el usuario es administrador
+export const isAdmin = () => {
+    return hasRole('admin') || (currentUser && currentUser.email?.endsWith('@admin.com'));
 };
 
 // Configurar event listeners de autenticación
@@ -357,32 +423,20 @@ export const setupAuthEventListeners = () => {
     }
     
     // Enter key en formularios
-    const passwordInput = document.getElementById('password');
-    if (passwordInput) {
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleLogin();
-            }
-        });
-    }
+    const setupEnterKey = (inputElement, handler) => {
+        if (inputElement) {
+            inputElement.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handler();
+                }
+            });
+        }
+    };
     
-    const registerPasswordInput = document.getElementById('registerPassword');
-    if (registerPasswordInput) {
-        registerPasswordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleRegister();
-            }
-        });
-    }
-    
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    if (confirmPasswordInput) {
-        confirmPasswordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleRegister();
-            }
-        });
-    }
+    setupEnterKey(document.getElementById('password'), handleLogin);
+    setupEnterKey(document.getElementById('registerPassword'), handleRegister);
+    setupEnterKey(document.getElementById('confirmPassword'), handleRegister);
+    setupEnterKey(document.getElementById('email'), handleLogin);
 };
 
 // Inicializar auth
@@ -390,15 +444,40 @@ export const initializeAuth = async () => {
     try {
         await checkAuth();
         setupAuthEventListeners();
+        
+        window.addEventListener('authStateChanged', (event) => {
+            console.log('Auth state changed event:', event.detail);
+        });
+        
     } catch (error) {
         console.error('Error initializing auth:', error);
         showNotification('Error al inicializar autenticación', 'error');
     }
 };
 
-// Hacer funciones disponibles globalmente si es necesario
+// Función para obtener el token de acceso
+export const getAccessToken = async () => {
+    try {
+        const { data: { session } } = await supabase.auth.getSession();
+        return session?.access_token || null;
+    } catch (error) {
+        console.error('Error getting access token:', error);
+        return null;
+    }
+};
+
+// Función para verificar si el email está confirmado
+export const isEmailConfirmed = () => {
+    return currentUser?.email_confirmed_at !== null;
+};
+
+// Hacer funciones disponibles globalmente
 window.handleLogin = handleLogin;
 window.handleLogout = handleLogout;
+window.handleRegister = handleRegister;
 window.showLoginForm = showLoginForm;
 window.showRegisterForm = showRegisterForm;
 window.logout = handleLogout;
+window.getCurrentUser = getCurrentUser;
+window.isAuthenticated = isAuthenticated;
+window.handleAuthChange = handleAuthChange;
