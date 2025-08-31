@@ -1,4 +1,3 @@
-// scripts/products.js - VERSIÓN PROFESIONAL CON FOREIGN KEY
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency } from './utils.js';
 import { renderProductCard } from './components/product-card.js';
@@ -181,9 +180,10 @@ export async function addProduct(productData) {
             created_at: new Date().toISOString()
         };
 
-        // Agregar category_id (foreign key)
+        // Agregar category_id (foreign key) - AQUÍ ESTÁ LA CORRECCIÓN PRINCIPAL
         if (productData.category_id) {
-            productToInsert.category_id = productData.category_id;
+            // Convertir a número entero para evitar el error de foreign key
+            productToInsert.category_id = parseInt(productData.category_id);
         }
 
         const { data, error } = await supabase
@@ -260,9 +260,9 @@ export async function updateProduct(id, productData) {
             updated_at: new Date().toISOString()
         };
 
-        // Agregar category_id (foreign key)
+        // Agregar category_id (foreign key) - AQUÍ TAMBIÉN LA CORRECCIÓN
         if (productData.category_id) {
-            updateData.category_id = productData.category_id;
+            updateData.category_id = parseInt(productData.category_id);
         }
 
         const { data, error } = await supabase
