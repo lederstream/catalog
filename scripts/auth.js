@@ -2,24 +2,72 @@
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired, debounce } from './utils.js';
 
-// Estado de autenticación
-let currentUser = null;
-let authInitialized = false;
+// Estado de autenticación con persistencia
+class AuthState {
+    constructor() {
+        this.currentUser = null;
+        this.authInitialized = false;
+        this.session = null;
+    }
+    
+    static getInstance() {
+        if (!AuthState.instance) {
+            AuthState.instance = new AuthState();
+        }
+        return AuthState.instance;
+    }
+    
+    setUser(user) {
+        this.currentUser = user;
+        // Persistir en localStorage para recuperación
+        if (user) {
+            localStorage.setItem('authUser', JSON.stringify({
+                id: user.id,
+                email: user.email,
+                lastLogin: new Date().toISOString()
+            }));
+        } else {
+            localStorage.removeItem('authUser');
+        }
+    }
+    
+    restoreUser() {
+        try {
+            const savedUser = localStorage.getItem('authUser');
+            if (savedUser) {
+                const userData = JSON.parse(savedUser);
+                this.currentUser = { id: userData.id, email: userData.email };
+                return true;
+            }
+        } catch (error) {
+            console.warn('Error restoring user from localStorage:', error);
+        }
+        return false;
+    }
+}
 
 // Verificar autenticación al cargar
 export const checkAuth = async () => {
+    const authState = AuthState.getInstance();
+    
     try {
         console.log('🔐 Verificando autenticación...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
             console.error('Error obteniendo sesión:', error);
+            // Intentar restaurar desde localStorage
+            if (authState.restoreUser()) {
+                console.log('✅ Usuario restaurado desde almacenamiento local');
+                return true;
+            }
             return false;
         }
         
         if (session) {
-            currentUser = session.user;
-            console.log('✅ Usuario autenticado:', currentUser.email);
+            authState.setUser(session.user);
+            authState.session = session;
+            console.log('✅ Usuario autenticado:', session.user.email);
             await showAdminPanel();
             return true;
         }
@@ -34,18 +82,17 @@ export const checkAuth = async () => {
 };
 
 // Manejar login
-export const handleLogin = async () => {
-    const email = document.getElementById('email')?.value;
-    const password = document.getElementById('password')?.value;
+export const handleLogin = async (email, password) => {
+    const authState = AuthState.getInstance();
     
     if (!validateRequired(email) || !validateRequired(password)) {
         showNotification('Por favor completa todos los campos', 'error');
-        return;
+        return false;
     }
     
     if (!validateEmail(email)) {
         showNotification('Por favor ingresa un email válido', 'error');
-        return;
+        return false;
     }
     
     try {
@@ -64,14 +111,16 @@ export const handleLogin = async () => {
         
         if (error) throw error;
         
-        currentUser = data.user;
+        authState.setUser(data.user);
+        authState.session = data.session;
         await showAdminPanel();
         showNotification('Sesión iniciada correctamente', 'success');
         
         window.dispatchEvent(new CustomEvent('authStateChanged', { 
-            detail: { user: currentUser, isAuthenticated: true } 
+            detail: { user: data.user, isAuthenticated: true } 
         }));
         
+        return true;
     } catch (error) {
         console.error('Error logging in:', error);
         
@@ -84,6 +133,8 @@ export const handleLogin = async () => {
         } else {
             showNotification('Error al iniciar sesión: ' + error.message, 'error');
         }
+        
+        return false;
     } finally {
         const loginBtn = document.getElementById('loginBtn');
         if (loginBtn) {
