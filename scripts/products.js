@@ -1,4 +1,4 @@
-// scripts/product.js
+// scripts/products.js
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency, validateUrl, validateRequired, validateNumber } from './utils.js';
 
@@ -56,7 +56,7 @@ export async function loadProducts() {
 function getSampleProducts() {
     return [
         {
-            id: '1',
+            id: 'demo-1',
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
             category_id: 1,
@@ -66,10 +66,11 @@ function getSampleProducts() {
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
                 { name: 'Premium', price_soles: 399, price_dollars: 100 }
             ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         },
         {
-            id: '2', 
+            id: 'demo-2', 
             name: 'Sitio Web Responsive',
             description: 'Desarrollo de sitio web moderno y responsive',
             category_id: 3,
@@ -79,10 +80,11 @@ function getSampleProducts() {
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
             ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         },
         {
-            id: '3',
+            id: 'demo-3',
             name: 'Campaña de Marketing Digital',
             description: 'Campaña completa de marketing para redes sociales',
             category_id: 2,
@@ -92,7 +94,8 @@ function getSampleProducts() {
                 { name: 'Básica', price_soles: 999, price_dollars: 250 },
                 { name: 'Completa', price_soles: 1999, price_dollars: 500 }
             ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         }
     ];
 }
@@ -501,3 +504,4 @@ window.updateProduct = updateProduct;
 window.deleteProduct = deleteProduct;
 window.getProductById = getProductById;
 window.renderAdminProductsList = renderAdminProductsList;
+window.filterProducts = filterProducts;
