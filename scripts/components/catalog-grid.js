@@ -11,8 +11,10 @@ export function initCatalogGrid() {
     if (!categoryFilter || !searchInput || !productsGrid) return;
 
     // Cargar y renderizar productos
-    if (typeof window.loadPublicProducts === 'function') {
-        window.loadPublicProducts();
+    if (typeof window.loadProducts === 'function') {
+        window.loadProducts().then(() => {
+            filterAndRenderProducts();
+        });
     }
 
     // Event listeners para filtros
@@ -38,6 +40,9 @@ function filterAndRenderProducts() {
 
     if (typeof window.filterProducts === 'function' && typeof window.renderProductsGrid === 'function') {
         const filteredProducts = window.filterProducts(categoryId, searchTerm);
-        window.renderProductsGrid(filteredProducts, productsGrid);
+        window.renderProductsGrid(filteredProducts, 'productsGrid');
     }
 }
+
+// Hacer funciones disponibles globalmente
+window.initCatalogGrid = initCatalogGrid;
