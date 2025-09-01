@@ -309,9 +309,7 @@ const showProductModal = (product) => {
 };
 
 // Exportar función de renderizado para compatibilidad
-export const renderProductCard = (product) => {
-    return createProductCard(product);
-};
+export const renderProductCard = createProductCard;
 
 // Hacer funciones disponibles globalmente
 window.showProductDetails = showProductDetails;
