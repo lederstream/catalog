@@ -3,13 +3,13 @@ import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
 import { initializeAuth, isUserLoggedIn, setupAuthEventListeners } from './auth.js';
-import { loadProducts, getProducts } from './products.js';
-import { loadCategories } from './categories.js';
+import { loadProducts, getProducts, filterProducts, renderProductsGrid } from './products.js';
+import { loadCategories, getCategories } from './categories.js';
 import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
 import { showNotification, debounce } from './utils.js';
 
-// Estado global de la aplicación con patrón Singleton
+// Estado global de la aplicación
 class AppState {
     constructor() {
         this.products = [];
@@ -27,7 +27,6 @@ class AppState {
         return AppState.instance;
     }
     
-    // Métodos de utilidad para el estado
     updateProducts(products) {
         this.products = products;
         this._persistState();
@@ -81,7 +80,7 @@ export const initializeApp = async () => {
         showLoadingState();
         console.log('🚀 Inicializando aplicación DigitalCatalog...');
         
-        // Restaurar estado previo si existe
+        // Restaurar estado previo
         appState._restoreState();
         
         // Configurar monitoreo de conexión
@@ -91,11 +90,14 @@ export const initializeApp = async () => {
         renderHeader();
         initModals();
 
-        // ✅ INICIALIZAR AUTENTICACIÓN - SOLO UNA VEZ
-        console.log('🔄 Inicializando autenticación desde app.js...');
+        // Inicializar autenticación PRIMERO
+        console.log('🔄 Inicializando autenticación...');
         await initializeAuth();
         
-        // Cargar datos iniciales (solo si estamos online)
+        // Configurar event listeners de autenticación
+        setupAuthEventListeners();
+        
+        // Cargar datos iniciales
         if (appState.isOnline) {
             await loadInitialData();
         } else {
@@ -181,7 +183,7 @@ const loadInitialData = async () => {
 
         // Actualizar UI
         updateCategoryFilter();
-        filterProducts();
+        filterAndRenderProducts();
         
     } catch (error) {
         console.error('Error loading initial data:', error);
@@ -201,9 +203,7 @@ const loadDemoData = () => {
     appState.updateCategories(getDefaultCategories());
     
     updateCategoryFilter();
-    if (typeof window.renderProductsGrid === 'function') {
-        window.renderProductsGrid(appState.products, 'productsGrid');
-    }
+    filterAndRenderProducts();
 };
 
 // Datos de ejemplo
@@ -279,7 +279,6 @@ const setupGlobalEventListeners = () => {
     setupSearchAndFilter();
     setupSmoothNavigation();
     setupGlobalHandlers();
-    setupGlobalEventListenersFromFile();
 };
 
 // Configurar búsqueda y filtros
@@ -289,13 +288,13 @@ const setupSearchAndFilter = () => {
 
     if (searchInput) {
         searchInput.addEventListener('input', debounce(() => {
-            filterProducts();
+            filterAndRenderProducts();
         }, 300));
     }
 
     if (categoryFilter) {
         categoryFilter.addEventListener('change', () => {
-            filterProducts();
+            filterAndRenderProducts();
         });
     }
 };
@@ -344,11 +343,6 @@ const setupGlobalHandlers = () => {
         e.preventDefault();
     });
 
-    window.addEventListener('authStateChanged', (event) => {
-        console.log('Estado de autenticación cambiado:', event.detail);
-        updateHeader();
-    });
-
     // Prevenir recarga accidental con Ctrl+R
     window.addEventListener('beforeunload', (e) => {
         if (appState.currentUser) {
@@ -359,8 +353,8 @@ const setupGlobalHandlers = () => {
     });
 };
 
-// Función para filtrar productos
-const filterProducts = () => {
+// Función para filtrar y renderizar productos
+const filterAndRenderProducts = () => {
     const appState = AppState.getInstance();
     const searchInput = document.getElementById('searchInput');
     const categoryFilter = document.getElementById('categoryFilter');
@@ -374,32 +368,9 @@ const filterProducts = () => {
     // Guardar estado actual de filtros
     appState.currentFilter = { category, search: searchText };
 
-    let filteredProducts = appState.products;
+    let filteredProducts = filterProducts(category, searchText);
 
-    if (category !== 'all') {
-        filteredProducts = filteredProducts.filter(product => {
-            const productCategoryId = product.category_id || product.categories?.id;
-            const productCategoryName = product.category || product.categories?.name;
-            
-            return (
-                productCategoryId == category || 
-                productCategoryName === category ||
-                (productCategoryName && productCategoryName.toLowerCase() === category.toLowerCase())
-            );
-        });
-    }
-
-    if (searchText) {
-        filteredProducts = filteredProducts.filter(product => {
-            const categoryName = product.category || product.categories?.name;
-            const searchableText = `${product.name || ''} ${product.description || ''} ${categoryName || ''}`.toLowerCase();
-            return searchableText.includes(searchText);
-        });
-    }
-
-    if (typeof window.renderProductsGrid === 'function') {
-        window.renderProductsGrid(filteredProducts, 'productsGrid');
-    }
+    renderProductsGrid(filteredProducts, 'productsGrid');
 };
 
 // Recargar datos
@@ -423,7 +394,7 @@ export const refreshData = async () => {
         appState.updateCategories(categories);
 
         updateCategoryFilter();
-        filterProducts();
+        filterAndRenderProducts();
         
         showNotification('Datos actualizados correctamente', 'success');
         
@@ -465,53 +436,9 @@ const hideLoadingState = () => {
     });
 };
 
-// Función para reinicializar la aplicación
-const reinitializeApp = async () => {
-    const appState = AppState.getInstance();
-    appState.isInitialized = false;
-    await initializeApp();
-};
-
-// Función de diagnóstico
-window.debugApp = async () => {
-    console.log('=== 🐛 DIAGNÓSTICO DE LA APLICACIÓN ===');
-    
-    const { data: session } = await supabase.auth.getSession();
-    console.log('Sesión:', session);
-    
-    const appState = AppState.getInstance();
-    console.log('Usuario actual:', appState.currentUser);
-    
-    console.log('Productos en memoria:', appState.products.length);
-    console.log('Categorías en memoria:', appState.categories.length);
-    console.log('Estado de conexión:', appState.isOnline ? 'Online' : 'Offline');
-    
-    console.log('Category Filter:', document.getElementById('categoryFilter'));
-    console.log('Products Grid:', document.getElementById('productsGrid'));
-    console.log('Search Input:', document.getElementById('searchInput'));
-    
-    console.log('=== ✅ FIN DIAGNÓSTICO ===');
-};
-
 // Exportar funciones para uso global
-window.filterProducts = filterProducts;
+window.filterAndRenderProducts = filterAndRenderProducts;
 window.refreshData = refreshData;
-window.reinitializeApp = reinitializeApp;
-
-// Hacer variables globales disponibles para depuración
-window.appState = {
-    getState: () => {
-        const appState = AppState.getInstance();
-        return {
-            products: appState.products,
-            categories: appState.categories,
-            isInitialized: appState.isInitialized,
-            user: appState.currentUser,
-            filters: appState.currentFilter,
-            isOnline: appState.isOnline
-        };
-    }
-};
 
 // Inicializar la aplicación cuando el DOM esté listo
 if (document.readyState === 'loading') {
@@ -524,109 +451,6 @@ if (document.readyState === 'loading') {
 window.addEventListener('popstate', () => {
     const appState = AppState.getInstance();
     if (appState.isInitialized) {
-        filterProducts();
+        filterAndRenderProducts();
     }
 });
-
-// Función para cargar event listeners desde archivo externo
-function setupGlobalEventListenersFromFile() {
-    // Event delegation para todos los botones de la aplicación
-    document.addEventListener('click', function(e) {
-        // Logout buttons
-        if (e.target.closest('#logoutBtn') || 
-            e.target.closest('#mobileLogoutBtn') || 
-            e.target.closest('.mobile-logout-btn')) {
-            e.preventDefault();
-            if (typeof window.logout === 'function') {
-                window.logout();
-            }
-        }
-        
-        // Delete product buttons
-        if (e.target.closest('.delete-product')) {
-            e.preventDefault();
-            const id = e.target.closest('.delete-product').dataset.id;
-            if (confirm('¿Estás seguro de eliminar este producto?')) {
-                if (window.deleteProduct) {
-                    window.deleteProduct(id);
-                }
-            }
-        }
-        
-        // Edit product buttons
-        if (e.target.closest('.edit-product')) {
-            e.preventDefault();
-            const id = e.target.closest('.edit-product').dataset.id;
-            if (window.editProduct) {
-                window.editProduct(id);
-            }
-        }
-        
-        // View details buttons
-        if (e.target.closest('.view-details-btn')) {
-            e.preventDefault();
-            const id = e.target.closest('.view-details-btn').dataset.id;
-            if (window.showProductDetails) {
-                window.showProductDetails(id);
-            }
-        }
-        
-        // Toggle mobile menu
-        if (e.target.closest('#mobileMenuBtn')) {
-            e.preventDefault();
-            const mobileMenu = document.getElementById('mobileMenu');
-            if (mobileMenu) {
-                mobileMenu.classList.toggle('hidden');
-            }
-        }
-    });
-
-    // Manejar envío de formularios
-    document.addEventListener('submit', function(e) {
-        const form = e.target;
-        
-        // Formulario de contacto
-        if (form.id === 'contactForm') {
-            e.preventDefault();
-            handleContactForm(form);
-        }
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl+K para buscar
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.focus();
-            }
-        }
-        
-        // Escape para cerrar modales
-        if (e.key === 'Escape') {
-            const openModals = document.querySelectorAll('.modal:not(.hidden)');
-            if (openModals.length > 0) {
-                openModals.forEach(modal => {
-                    modal.classList.add('hidden');
-                });
-            }
-        }
-    });
-}
-
-// Manejar formulario de contacto
-function handleContactForm(form) {
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-    
-    // Validación básica
-    if (!data.contactName || !data.contactEmail || !data.contactMessage) {
-        showNotification('Por favor completa todos los campos obligatorios', 'error');
-        return;
-    }
-    
-    // Simular envío (en una app real, aquí harías una petición a tu backend)
-    showNotification('Mensaje enviado correctamente. Te contactaremos pronto.', 'success');
-    form.reset();
-}
