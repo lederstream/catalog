@@ -2,9 +2,9 @@
 import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
-import { initializeAuth, setupAuthEventListeners, handleAuthChange, isUserLoggedIn } from './auth.js';
-import { loadProducts, getProducts, filterProducts as filterProductsUtil } from './products.js';
-import { loadCategories, getCategories } from './categories.js';
+import { initializeAuth, isUserLoggedIn } from './auth.js';
+import { loadProducts, getProducts } from './products.js';
+import { loadCategories } from './categories.js';
 import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
 import { showNotification, debounce } from './utils.js';
@@ -471,18 +471,6 @@ const reinitializeApp = async () => {
     await initializeApp();
 };
 
-// Manejar cambios de autenticación
-const handleAppAuthChange = async () => {
-    try {
-        await refreshData();
-        updateHeader();
-        showNotification('Sesión actualizada', 'success');
-    } catch (error) {
-        console.error('Error handling auth change:', error);
-        showNotification('Error al actualizar sesión', 'error');
-    }
-};
-
 // Función de diagnóstico
 window.debugApp = async () => {
     console.log('=== 🐛 DIAGNÓSTICO DE LA APLICACIÓN ===');
@@ -508,7 +496,6 @@ window.debugApp = async () => {
 window.filterProducts = filterProducts;
 window.refreshData = refreshData;
 window.reinitializeApp = reinitializeApp;
-window.handleAppAuthChange = handleAppAuthChange;
 
 // Hacer variables globales disponibles para depuración
 window.appState = {
