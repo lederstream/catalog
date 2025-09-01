@@ -345,11 +345,15 @@ export const isUserLoggedIn = isAuthenticated;
 
 // Configurar event listeners de autenticación
 export const setupAuthEventListeners = () => {
+    console.log('🔧 Configurando event listeners de autenticación...');
+    
     // Login
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
+        console.log('✅ Botón de login encontrado');
         loginBtn.addEventListener('click', (e) => {
             e.preventDefault();
+            console.log('🖱️ Click en botón de login detectado');
             const email = document.getElementById('email')?.value;
             const password = document.getElementById('password')?.value;
             if (email && password) {
@@ -358,6 +362,8 @@ export const setupAuthEventListeners = () => {
                 showNotification('Por favor ingresa email y contraseña', 'error');
             }
         });
+    } else {
+        console.error('❌ Botón de login NO encontrado');
     }
     
     // Registro
@@ -434,6 +440,7 @@ export const initializeAuth = async () => {
     }
     
     try {
+        console.log('🔄 Inicializando autenticación...');
         await checkAuth();
         setupAuthEventListeners();
         
@@ -472,3 +479,21 @@ window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.isUserLoggedIn = isUserLoggedIn;
 window.initializeAuth = initializeAuth;
+
+// Inicializar auth cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM cargado, inicializando autenticación...');
+    initializeAuth().catch(error => {
+        console.error('Error al inicializar autenticación:', error);
+    });
+});
+
+// También inicializar si el DOM ya está listo
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(() => {
+        console.log('DOM ya listo, inicializando autenticación...');
+        initializeAuth().catch(error => {
+            console.error('Error al inicializar autenticación:', error);
+        });
+    }, 100);
+}
