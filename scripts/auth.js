@@ -1,5 +1,6 @@
 // scripts/auth.js
 import { supabase } from './supabase.js';
+import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
 
 // Estado de autenticación con persistencia
@@ -479,21 +480,3 @@ window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.isUserLoggedIn = isUserLoggedIn;
 window.initializeAuth = initializeAuth;
-
-// Inicializar auth cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado, inicializando autenticación...');
-    initializeAuth().catch(error => {
-        console.error('Error al inicializar autenticación:', error);
-    });
-});
-
-// También inicializar si el DOM ya está listo
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(() => {
-        console.log('DOM ya listo, inicializando autenticación...');
-        initializeAuth().catch(error => {
-            console.error('Error al inicializar autenticación:', error);
-        });
-    }, 100);
-}
