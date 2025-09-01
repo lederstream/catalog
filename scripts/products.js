@@ -382,6 +382,15 @@ export function renderProductsGrid(productsToRender, containerId) {
 
             images.forEach(img => imageObserver.observe(img));
         }
+    } else {
+        console.error('renderProductCard function not available');
+        container.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-exclamation-triangle fa-3x text-yellow-400 mb-4"></i>
+                <p class="text-gray-500 text-lg">Error al renderizar productos</p>
+                <p class="text-sm text-gray-400">Función de renderizado no disponible</p>
+            </div>
+        `;
     }
 }
 
@@ -505,3 +514,4 @@ window.deleteProduct = deleteProduct;
 window.getProductById = getProductById;
 window.renderAdminProductsList = renderAdminProductsList;
 window.filterProducts = filterProducts;
+window.renderProductsGrid = renderProductsGrid;
