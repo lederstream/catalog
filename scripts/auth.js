@@ -1,6 +1,6 @@
 // scripts/auth.js
 import { supabase } from './supabase.js';
-import { showNotification, validateEmail, validateRequired, debounce } from './utils.js';
+import { showNotification, validateEmail, validateRequired } from './utils.js';
 
 // Estado de autenticación con persistencia
 class AuthState {
@@ -46,6 +46,10 @@ class AuthState {
     }
 }
 
+// Variables globales para compatibilidad
+let currentUser = null;
+let authInitialized = false;
+
 // Verificar autenticación al cargar
 export const checkAuth = async () => {
     const authState = AuthState.getInstance();
@@ -59,6 +63,7 @@ export const checkAuth = async () => {
             // Intentar restaurar desde localStorage
             if (authState.restoreUser()) {
                 console.log('✅ Usuario restaurado desde almacenamiento local');
+                currentUser = authState.currentUser;
                 return true;
             }
             return false;
@@ -67,6 +72,7 @@ export const checkAuth = async () => {
         if (session) {
             authState.setUser(session.user);
             authState.session = session;
+            currentUser = session.user;
             console.log('✅ Usuario autenticado:', session.user.email);
             await showAdminPanel();
             return true;
@@ -113,6 +119,7 @@ export const handleLogin = async (email, password) => {
         
         authState.setUser(data.user);
         authState.session = data.session;
+        currentUser = data.user;
         await showAdminPanel();
         showNotification('Sesión iniciada correctamente', 'success');
         
@@ -230,6 +237,8 @@ export const handleLogout = async () => {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
         
+        const authState = AuthState.getInstance();
+        authState.setUser(null);
         currentUser = null;
         hideAdminPanel();
         showLoginForm();
@@ -267,9 +276,13 @@ const showAdminPanel = async () => {
         if (typeof window.renderAdminProductsList === 'function') {
             const adminProductsList = document.getElementById('adminProductsList');
             if (adminProductsList) {
-                const products = await window.loadProducts();
+                const products = window.getProducts ? window.getProducts() : [];
                 window.renderAdminProductsList(products, adminProductsList);
             }
+        }
+        
+        if (typeof window.setupProductForm === 'function') {
+            window.setupProductForm();
         }
     } catch (error) {
         console.error('Error loading admin data:', error);
@@ -372,17 +385,21 @@ export const handleAuthChange = async () => {
 // Escuchar cambios de autenticación de Supabase
 supabase.auth.onAuthStateChange(async (event, session) => {
     console.log('Auth state changed:', event, session);
+    const authState = AuthState.getInstance();
     
     if (event === 'SIGNED_IN') {
+        authState.setUser(session.user);
         currentUser = session.user;
         await showAdminPanel();
         await handleAuthChange();
     } else if (event === 'SIGNED_OUT') {
+        authState.setUser(null);
         currentUser = null;
         hideAdminPanel();
         showLoginForm();
         await handleAuthChange();
     } else if (event === 'USER_UPDATED') {
+        authState.setUser(session.user);
         currentUser = session.user;
         await handleAuthChange();
     } else if (event === 'PASSWORD_RECOVERY') {
@@ -479,7 +496,11 @@ export const setupAuthEventListeners = () => {
     // Login
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', handleLogin);
+        loginBtn.addEventListener('click', () => {
+            const email = document.getElementById('email')?.value;
+            const password = document.getElementById('password')?.value;
+            handleLogin(email, password);
+        });
     }
     
     // Registro
@@ -522,10 +543,19 @@ export const setupAuthEventListeners = () => {
         }
     };
     
-    setupEnterKey(document.getElementById('password'), handleLogin);
+    setupEnterKey(document.getElementById('password'), () => {
+        const email = document.getElementById('email')?.value;
+        const password = document.getElementById('password')?.value;
+        handleLogin(email, password);
+    });
+    
     setupEnterKey(document.getElementById('registerPassword'), handleRegister);
     setupEnterKey(document.getElementById('confirmPassword'), handleRegister);
-    setupEnterKey(document.getElementById('email'), handleLogin);
+    setupEnterKey(document.getElementById('email'), () => {
+        const email = document.getElementById('email')?.value;
+        const password = document.getElementById('password')?.value;
+        handleLogin(email, password);
+    });
     
     // Prevenir envío de formularios con Enter
     const authForms = document.querySelectorAll('#loginForm, #registerForm');
@@ -590,3 +620,5 @@ window.logout = handleLogout;
 window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.handleAuthChange = handleAuthChange;
+window.isUserLoggedIn = isUserLoggedIn;
+window.initializeAuth = initializeAuth;
