@@ -2,7 +2,7 @@
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
 
-// Estado de autenticación con persistencia
+// Estado de autenticación
 class AuthState {
     constructor() {
         this.currentUser = null;
@@ -19,7 +19,6 @@ class AuthState {
     
     setUser(user) {
         this.currentUser = user;
-        // Persistir en localStorage para recuperación
         if (user) {
             localStorage.setItem('authUser', JSON.stringify({
                 id: user.id,
@@ -443,30 +442,6 @@ export const initializeAuth = async () => {
     try {
         console.log('🔄 Inicializando autenticación...');
         await checkAuth();
-        
-        // Esperar a que el DOM esté completamente cargado antes de configurar event listeners
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupAuthEventListeners);
-        } else {
-            // DOM ya está listo
-            setupAuthEventListeners();
-        }
-        
-        window.addEventListener('authStateChanged', (event) => {
-            console.log('Auth state changed event:', event.detail);
-            if (typeof window.updateHeader === 'function') {
-                window.updateHeader();
-            }
-            
-            // Cuando cambia el estado de autenticación, recargar productos
-            if (typeof window.loadProducts === 'function') {
-                window.loadProducts().then(() => {
-                    if (typeof window.filterProducts === 'function') {
-                        window.filterProducts();
-                    }
-                });
-            }
-        });
         
         authInitialized = true;
         console.log('✅ Auth inicializado correctamente');
