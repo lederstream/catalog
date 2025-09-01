@@ -347,11 +347,10 @@ export const isUserLoggedIn = isAuthenticated;
 export const setupAuthEventListeners = () => {
     console.log('🔧 Configurando event listeners de autenticación...');
     
-    // Login
-    const loginBtn = document.getElementById('loginBtn');
-    if (loginBtn) {
-        console.log('✅ Botón de login encontrado');
-        loginBtn.addEventListener('click', (e) => {
+    // Login - Usar event delegation para manejar elementos que puedan no existir todavía
+    document.addEventListener('click', (e) => {
+        // Login button
+        if (e.target.id === 'loginBtn' || e.target.closest('#loginBtn')) {
             e.preventDefault();
             console.log('🖱️ Click en botón de login detectado');
             const email = document.getElementById('email')?.value;
@@ -361,45 +360,32 @@ export const setupAuthEventListeners = () => {
             } else {
                 showNotification('Por favor ingresa email y contraseña', 'error');
             }
-        });
-    } else {
-        console.error('❌ Botón de login NO encontrado');
-    }
-    
-    // Registro
-    const registerBtn = document.getElementById('registerBtn');
-    if (registerBtn) {
-        registerBtn.addEventListener('click', (e) => {
+        }
+        
+        // Register button
+        if (e.target.id === 'registerBtn' || e.target.closest('#registerBtn')) {
             e.preventDefault();
             handleRegister();
-        });
-    }
-    
-    // Logout
-    const logoutBtn = document.getElementById('logoutBtn');
-    if (logoutBtn) {
-        logoutBtn.addEventListener('click', (e) => {
+        }
+        
+        // Logout button
+        if (e.target.id === 'logoutBtn' || e.target.closest('#logoutBtn')) {
             e.preventDefault();
             handleLogout();
-        });
-    }
-    
-    // Cambiar entre login y registro
-    const showRegisterLink = document.getElementById('showRegister');
-    if (showRegisterLink) {
-        showRegisterLink.addEventListener('click', (e) => {
+        }
+        
+        // Show register link
+        if (e.target.id === 'showRegister' || e.target.closest('#showRegister')) {
             e.preventDefault();
             showRegisterForm();
-        });
-    }
-    
-    const showLoginLink = document.getElementById('showLogin');
-    if (showLoginLink) {
-        showLoginLink.addEventListener('click', (e) => {
+        }
+        
+        // Show login link
+        if (e.target.id === 'showLogin' || e.target.closest('#showLogin')) {
             e.preventDefault();
             showLoginForm();
-        });
-    }
+        }
+    });
     
     // Enter key en formularios
     const setupEnterKey = (inputElement, handler) => {
@@ -413,23 +399,38 @@ export const setupAuthEventListeners = () => {
         }
     };
     
-    setupEnterKey(document.getElementById('password'), () => {
-        const email = document.getElementById('email')?.value;
-        const password = document.getElementById('password')?.value;
-        if (email && password) {
-            handleLogin(email, password);
-        }
-    });
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const registerPasswordInput = document.getElementById('registerPassword');
+    const confirmPasswordInput = document.getElementById('confirmPassword');
     
-    setupEnterKey(document.getElementById('registerPassword'), handleRegister);
-    setupEnterKey(document.getElementById('confirmPassword'), handleRegister);
-    setupEnterKey(document.getElementById('email'), () => {
-        const email = document.getElementById('email')?.value;
-        const password = document.getElementById('password')?.value;
-        if (email && password) {
-            handleLogin(email, password);
-        }
-    });
+    if (passwordInput) {
+        setupEnterKey(passwordInput, () => {
+            const email = emailInput?.value;
+            const password = passwordInput?.value;
+            if (email && password) {
+                handleLogin(email, password);
+            }
+        });
+    }
+    
+    if (registerPasswordInput) {
+        setupEnterKey(registerPasswordInput, handleRegister);
+    }
+    
+    if (confirmPasswordInput) {
+        setupEnterKey(confirmPasswordInput, handleRegister);
+    }
+    
+    if (emailInput) {
+        setupEnterKey(emailInput, () => {
+            const email = emailInput?.value;
+            const password = passwordInput?.value;
+            if (email && password) {
+                handleLogin(email, password);
+            }
+        });
+    }
 };
 
 // Inicializar auth
@@ -442,7 +443,14 @@ export const initializeAuth = async () => {
     try {
         console.log('🔄 Inicializando autenticación...');
         await checkAuth();
-        setupAuthEventListeners();
+        
+        // Esperar a que el DOM esté completamente cargado antes de configurar event listeners
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', setupAuthEventListeners);
+        } else {
+            // DOM ya está listo
+            setupAuthEventListeners();
+        }
         
         window.addEventListener('authStateChanged', (event) => {
             console.log('Auth state changed event:', event.detail);
@@ -479,4 +487,3 @@ window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.isUserLoggedIn = isUserLoggedIn;
 window.initializeAuth = initializeAuth;
-
