@@ -342,11 +342,11 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Configurar event listeners de autenticación
+// Configurar event listeners de autenticación - ¡ESTA ES LA PARTE CRÍTICA!
 export const setupAuthEventListeners = () => {
     console.log('🔧 Configurando event listeners de autenticación...');
     
-    // Login - Usar event delegation para manejar elementos que puedan no existir todavía
+    // **EVENT DELEGATION** - La solución al problema
     document.addEventListener('click', (e) => {
         // Login button
         if (e.target.id === 'loginBtn' || e.target.closest('#loginBtn')) {
@@ -359,30 +359,35 @@ export const setupAuthEventListeners = () => {
             } else {
                 showNotification('Por favor ingresa email y contraseña', 'error');
             }
+            return;
         }
         
         // Register button
         if (e.target.id === 'registerBtn' || e.target.closest('#registerBtn')) {
             e.preventDefault();
             handleRegister();
+            return;
         }
         
         // Logout button
         if (e.target.id === 'logoutBtn' || e.target.closest('#logoutBtn')) {
             e.preventDefault();
             handleLogout();
+            return;
         }
         
         // Show register link
         if (e.target.id === 'showRegister' || e.target.closest('#showRegister')) {
             e.preventDefault();
             showRegisterForm();
+            return;
         }
         
         // Show login link
         if (e.target.id === 'showLogin' || e.target.closest('#showLogin')) {
             e.preventDefault();
             showLoginForm();
+            return;
         }
     });
     
@@ -398,38 +403,41 @@ export const setupAuthEventListeners = () => {
         }
     };
     
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const registerPasswordInput = document.getElementById('registerPassword');
-    const confirmPasswordInput = document.getElementById('confirmPassword');
-    
-    if (passwordInput) {
-        setupEnterKey(passwordInput, () => {
-            const email = emailInput?.value;
-            const password = passwordInput?.value;
-            if (email && password) {
-                handleLogin(email, password);
-            }
-        });
-    }
-    
-    if (registerPasswordInput) {
-        setupEnterKey(registerPasswordInput, handleRegister);
-    }
-    
-    if (confirmPasswordInput) {
-        setupEnterKey(confirmPasswordInput, handleRegister);
-    }
-    
-    if (emailInput) {
-        setupEnterKey(emailInput, () => {
-            const email = emailInput?.value;
-            const password = passwordInput?.value;
-            if (email && password) {
-                handleLogin(email, password);
-            }
-        });
-    }
+    // Configurar Enter key para formularios
+    setTimeout(() => {
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const registerPasswordInput = document.getElementById('registerPassword');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        
+        if (passwordInput) {
+            setupEnterKey(passwordInput, () => {
+                const email = emailInput?.value;
+                const password = passwordInput?.value;
+                if (email && password) {
+                    handleLogin(email, password);
+                }
+            });
+        }
+        
+        if (registerPasswordInput) {
+            setupEnterKey(registerPasswordInput, handleRegister);
+        }
+        
+        if (confirmPasswordInput) {
+            setupEnterKey(confirmPasswordInput, handleRegister);
+        }
+        
+        if (emailInput) {
+            setupEnterKey(emailInput, () => {
+                const email = emailInput?.value;
+                const password = passwordInput?.value;
+                if (email && password) {
+                    handleLogin(email, password);
+                }
+            });
+        }
+    }, 1000); // Pequeño delay para asegurar que los inputs existan
 };
 
 // Inicializar auth
@@ -442,6 +450,15 @@ export const initializeAuth = async () => {
     try {
         console.log('🔄 Inicializando autenticación...');
         await checkAuth();
+        
+        // Configurar event listeners DESPUÉS de que el DOM esté completamente cargado
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(setupAuthEventListeners, 100);
+            });
+        } else {
+            setTimeout(setupAuthEventListeners, 100);
+        }
         
         authInitialized = true;
         console.log('✅ Auth inicializado correctamente');
