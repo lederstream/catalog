@@ -152,38 +152,29 @@ const loadInitialData = async () => {
     try {
         console.log('📦 Cargando datos del catálogo...');
         
-        const [productsResult, categoriesResult] = await Promise.allSettled([
-            loadProducts(),
-            loadCategories()
-        ]);
-
-        // Procesar resultados de productos
-        if (productsResult.status === 'fulfilled') {
-            appState.updateProducts(productsResult.value);
-            console.log(`✅ ${appState.products.length} productos cargados`);
-        } else {
-            console.error('Error loading products:', productsResult.reason);
-            if (appState.products.length === 0) {
-                appState.updateProducts(getSampleProducts());
-                showNotification('Error al cargar productos, usando datos demo', 'error');
-            }
+        // Cargar categorías primero
+        let categories = [];
+        if (typeof window.loadCategories === 'function') {
+            categories = await window.loadCategories();
+            appState.updateCategories(categories);
+            console.log(`✅ ${categories.length} categorías cargadas`);
         }
 
-        // Procesar resultados de categorías
-        if (categoriesResult.status === 'fulfilled') {
-            appState.updateCategories(categoriesResult.value);
-            console.log(`✅ ${appState.categories.length} categorías cargadas`);
-        } else {
-            console.error('Error loading categories:', categoriesResult.reason);
-            if (appState.categories.length === 0) {
-                appState.updateCategories(getDefaultCategories());
-                showNotification('Error al cargar categorías, usando datos demo', 'error');
-            }
+        // Luego cargar productos
+        let products = [];
+        if (typeof window.loadProducts === 'function') {
+            products = await window.loadProducts();
+            appState.updateProducts(products);
+            console.log(`✅ ${products.length} productos cargados`);
         }
 
         // Actualizar UI
         updateCategoryFilter();
-        filterAndRenderProducts();
+        
+        // Renderizar productos inmediatamente
+        if (typeof window.renderProductsGrid === 'function') {
+            window.renderProductsGrid(products, 'productsGrid');
+        }
         
     } catch (error) {
         console.error('Error loading initial data:', error);
