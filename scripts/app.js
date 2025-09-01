@@ -2,7 +2,7 @@
 import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
-import { initializeAuth, isUserLoggedIn } from './auth.js';
+import { initializeAuth, isUserLoggedIn, setupAuthEventListeners } from './auth.js';
 import { loadProducts, getProducts } from './products.js';
 import { loadCategories } from './categories.js';
 import { initModals } from './modals.js';
@@ -630,20 +630,3 @@ function handleContactForm(form) {
     form.reset();
 }
 
-// Inicializar la aplicación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM cargado, inicializando aplicación...');
-    initializeApp().catch(error => {
-        console.error('Error al inicializar la aplicación:', error);
-    });
-});
-
-// También inicializar si el DOM ya está listo
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(() => {
-        console.log('DOM ya listo, inicializando aplicación...');
-        initializeApp().catch(error => {
-            console.error('Error al inicializar la aplicación:', error);
-        });
-    }, 100);
-}
