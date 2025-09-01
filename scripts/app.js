@@ -158,6 +158,8 @@ const loadInitialData = async () => {
             categories = await window.loadCategories();
             appState.updateCategories(categories);
             console.log(`✅ ${categories.length} categorías cargadas`);
+        } else {
+            console.error('loadCategories function not available');
         }
 
         // Luego cargar productos
@@ -166,14 +168,21 @@ const loadInitialData = async () => {
             products = await window.loadProducts();
             appState.updateProducts(products);
             console.log(`✅ ${products.length} productos cargados`);
+        } else {
+            console.error('loadProducts function not available');
         }
 
         // Actualizar UI
         updateCategoryFilter();
         
-        // Renderizar productos inmediatamente
+        // Renderizar productos INMEDIATAMENTE después de cargar
         if (typeof window.renderProductsGrid === 'function') {
+            console.log('🎨 Renderizando productos...');
             window.renderProductsGrid(products, 'productsGrid');
+        } else {
+            console.error('renderProductsGrid function not available');
+            // Fallback: mostrar mensaje de productos
+            showNoProductsMessage();
         }
         
     } catch (error) {
