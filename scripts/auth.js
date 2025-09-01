@@ -342,102 +342,178 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Configurar event listeners de autenticación - ¡ESTA ES LA PARTE CRÍTICA!
-export const setupAuthEventListeners = () => {
-    console.log('🔧 Configurando event listeners de autenticación...');
+// NUEVA FUNCIÓN: Configurar event listeners de manera más robusta
+const attachEventListener = (elementId, event, handler) => {
+    // Buscar el elemento de manera continua hasta encontrarlo
+    const tryAttach = () => {
+        const element = document.getElementById(elementId);
+        if (element && !element.dataset.listenerAttached) {
+            element.addEventListener(event, handler);
+            element.dataset.listenerAttached = 'true';
+            console.log(`✅ Event listener attached to ${elementId}`);
+            return true;
+        }
+        return false;
+    };
     
-    // **EVENT DELEGATION** - La solución al problema
-    document.addEventListener('click', (e) => {
-        // Login button
-        if (e.target.id === 'loginBtn' || e.target.closest('#loginBtn')) {
-            e.preventDefault();
-            console.log('🖱️ Click en botón de login detectado');
-            const email = document.getElementById('email')?.value;
-            const password = document.getElementById('password')?.value;
-            if (email && password) {
-                handleLogin(email, password);
-            } else {
-                showNotification('Por favor ingresa email y contraseña', 'error');
-            }
-            return;
-        }
-        
-        // Register button
-        if (e.target.id === 'registerBtn' || e.target.closest('#registerBtn')) {
-            e.preventDefault();
-            handleRegister();
-            return;
-        }
-        
-        // Logout button
-        if (e.target.id === 'logoutBtn' || e.target.closest('#logoutBtn')) {
-            e.preventDefault();
-            handleLogout();
-            return;
-        }
-        
-        // Show register link
-        if (e.target.id === 'showRegister' || e.target.closest('#showRegister')) {
-            e.preventDefault();
-            showRegisterForm();
-            return;
-        }
-        
-        // Show login link
-        if (e.target.id === 'showLogin' || e.target.closest('#showLogin')) {
-            e.preventDefault();
-            showLoginForm();
-            return;
+    // Intentar inmediatamente
+    if (tryAttach()) return;
+    
+    // Si no funciona, usar observer
+    const observer = new MutationObserver(() => {
+        if (tryAttach()) {
+            observer.disconnect();
         }
     });
     
-    // Enter key en formularios
-    const setupEnterKey = (inputElement, handler) => {
-        if (inputElement) {
-            inputElement.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    handler();
-                    e.preventDefault();
-                }
-            });
-        }
-    };
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
     
-    // Configurar Enter key para formularios
+    // Fallback con timeout
     setTimeout(() => {
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const registerPasswordInput = document.getElementById('registerPassword');
-        const confirmPasswordInput = document.getElementById('confirmPassword');
+        tryAttach();
+        observer.disconnect();
+    }, 2000);
+};
+
+// Configurar event listeners de autenticación - VERSIÓN CORREGIDA
+export const setupAuthEventListeners = () => {
+    console.log('🔧 Configurando event listeners de autenticación...');
+    
+    // Método 1: Event Delegation (más confiable)
+    document.removeEventListener('click', handleGlobalClick); // Remover listener previo si existe
+    document.addEventListener('click', handleGlobalClick);
+    
+    // Método 2: Listeners directos con observer
+    attachEventListener('loginBtn', 'click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Login button clicked');
         
-        if (passwordInput) {
-            setupEnterKey(passwordInput, () => {
-                const email = emailInput?.value;
-                const password = passwordInput?.value;
-                if (email && password) {
-                    handleLogin(email, password);
-                }
-            });
+        const email = document.getElementById('email')?.value;
+        const password = document.getElementById('password')?.value;
+        
+        if (!email || !password) {
+            showNotification('Por favor ingresa email y contraseña', 'error');
+            return;
         }
         
-        if (registerPasswordInput) {
-            setupEnterKey(registerPasswordInput, handleRegister);
+        await handleLogin(email, password);
+    });
+    
+    attachEventListener('registerBtn', 'click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Register button clicked');
+        await handleRegister();
+    });
+    
+    attachEventListener('logoutBtn', 'click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Logout button clicked');
+        await handleLogout();
+    });
+    
+    attachEventListener('showRegister', 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showRegisterForm();
+    });
+    
+    attachEventListener('showLogin', 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showLoginForm();
+    });
+    
+    // Configurar tecla Enter
+    setupEnterKeyHandlers();
+    
+    console.log('✅ Event listeners de auth configurados');
+};
+
+// Manejador global de clicks
+function handleGlobalClick(e) {
+    const target = e.target;
+    const button = target.closest('button');
+    
+    if (!button) return;
+    
+    console.log('🖱️ Global click detected on:', button.id || button.className);
+    
+    switch (button.id) {
+        case 'loginBtn':
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔑 Handling login...');
+            
+            const email = document.getElementById('email')?.value;
+            const password = document.getElementById('password')?.value;
+            
+            if (!email || !password) {
+                showNotification('Por favor ingresa email y contraseña', 'error');
+                return;
+            }
+            
+            handleLogin(email, password);
+            break;
+            
+        case 'registerBtn':
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('📝 Handling register...');
+            handleRegister();
+            break;
+            
+        case 'logoutBtn':
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🚪 Handling logout...');
+            handleLogout();
+            break;
+            
+        case 'showRegister':
+            e.preventDefault();
+            e.stopPropagation();
+            showRegisterForm();
+            break;
+            
+        case 'showLogin':
+            e.preventDefault();
+            e.stopPropagation();
+            showLoginForm();
+            break;
+    }
+}
+
+// Configurar manejadores de tecla Enter
+const setupEnterKeyHandlers = () => {
+    // Usar event delegation para los campos de entrada
+    document.addEventListener('keypress', (e) => {
+        if (e.key !== 'Enter') return;
+        
+        const target = e.target;
+        
+        // Login form
+        if (target.id === 'email' || target.id === 'password') {
+            const email = document.getElementById('email')?.value;
+            const password = document.getElementById('password')?.value;
+            
+            if (email && password) {
+                e.preventDefault();
+                handleLogin(email, password);
+            }
         }
         
-        if (confirmPasswordInput) {
-            setupEnterKey(confirmPasswordInput, handleRegister);
+        // Register form
+        if (target.id === 'registerEmail' || target.id === 'registerPassword' || target.id === 'confirmPassword') {
+            e.preventDefault();
+            handleRegister();
         }
-        
-        if (emailInput) {
-            setupEnterKey(emailInput, () => {
-                const email = emailInput?.value;
-                const password = passwordInput?.value;
-                if (email && password) {
-                    handleLogin(email, password);
-                }
-            });
-        }
-    }, 1000); // Pequeño delay para asegurar que los inputs existan
+    });
 };
 
 // Inicializar auth
@@ -449,22 +525,19 @@ export const initializeAuth = async () => {
     
     try {
         console.log('🔄 Inicializando autenticación...');
-        await checkAuth();
         
-        // Configurar event listeners DESPUÉS de que el DOM esté completamente cargado
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                setTimeout(setupAuthEventListeners, 100);
-            });
-        } else {
-            setTimeout(setupAuthEventListeners, 100);
-        }
+        // Configurar listeners INMEDIATAMENTE
+        setupAuthEventListeners();
+        
+        // Luego verificar auth
+        await checkAuth();
         
         authInitialized = true;
         console.log('✅ Auth inicializado correctamente');
         
     } catch (error) {
         console.error('Error initializing auth:', error);
+        showNotification('Error al inicializar autenticación', 'error');
     }
 };
 
