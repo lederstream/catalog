@@ -4,44 +4,29 @@ import { showNotification, formatCurrency, validateUrl, validateRequired, valida
 
 let products = [];
 
-// Cargar productos desde Supabase CON JOIN
+// Cargar productos desde Supabase
 export async function loadProducts() {
     try {
-        console.log('📦 Cargando productos desde Supabase con JOIN...');
+        console.log('📦 Cargando productos desde Supabase...');
         
         const { data, error } = await supabase
             .from('products')
-            .select(`
-                *,
-                categories (*)
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.error('Error al cargar productos con JOIN:', error);
+            console.error('Error al cargar productos:', error);
             
-            console.warn('Intentando cargar productos sin JOIN...');
-            const { data: simpleData, error: simpleError } = await supabase
-                .from('products')
-                .select('*')
-                .order('created_at', { ascending: false });
-            
-            if (simpleError) {
-                if (simpleError.code === 'PGRST204' || simpleError.code === '42P01') {
-                    console.warn('Tabla products no existe, usando datos de muestra');
-                    products = getSampleProducts();
-                    return products;
-                }
-                throw simpleError;
+            if (error.code === 'PGRST204' || error.code === '42P01') {
+                console.warn('Tabla products no existe, usando datos de muestra');
+                products = getSampleProducts();
+                return products;
             }
-            
-            products = simpleData || [];
-            console.log('Productos cargados (sin JOIN):', products.length);
-            return products;
+            throw error;
         }
 
         products = data || [];
-        console.log(`✅ ${products.length} productos cargados con JOIN`);
+        console.log(`✅ ${products.length} productos cargados`);
         return products;
     } catch (error) {
         console.error('Error al cargar productos:', error);
@@ -60,7 +45,6 @@ function getSampleProducts() {
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
             category_id: 1,
-            categories: { id: 1, name: 'diseño' },
             photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
@@ -74,25 +58,10 @@ function getSampleProducts() {
             name: 'Sitio Web Responsive',
             description: 'Desarrollo de sitio web moderno y responsive',
             category_id: 3,
-            categories: { id: 3, name: 'software' },
             photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
-            ],
-            created_at: new Date().toISOString(),
-            isDemo: true
-        },
-        {
-            id: 'demo-3',
-            name: 'Campaña de Marketing Digital',
-            description: 'Campaña completa de marketing para redes sociales',
-            category_id: 2,
-            categories: { id: 2, name: 'marketing' },
-            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
-            plans: [
-                { name: 'Básica', price_soles: 999, price_dollars: 250 },
-                { name: 'Completa', price_soles: 1999, price_dollars: 500 }
             ],
             created_at: new Date().toISOString(),
             isDemo: true
@@ -115,20 +84,14 @@ export function filterProducts(categoryId = 'all', searchTerm = '') {
     if (categoryId !== 'all') {
         filtered = filtered.filter(product => {
             const productCategoryId = product.category_id;
-            const productCategoryName = product.categories?.name;
-            
-            return (
-                productCategoryId == categoryId || 
-                (productCategoryName && productCategoryName.toLowerCase() === categoryId.toLowerCase())
-            );
+            return productCategoryId == categoryId;
         });
     }
 
     if (searchTerm) {
         const term = searchTerm.toLowerCase();
         filtered = filtered.filter(product => {
-            const categoryName = product.categories?.name;
-            const searchableText = `${product.name || ''} ${product.description || ''} ${categoryName || ''}`.toLowerCase();
+            const searchableText = `${product.name || ''} ${product.description || ''}`.toLowerCase();
             return searchableText.includes(term);
         });
     }
@@ -206,10 +169,7 @@ export async function addProduct(productData) {
         const { data, error } = await supabase
             .from('products')
             .insert([productToInsert])
-            .select(`
-                *,
-                categories (*)
-            `);
+            .select();
 
         if (error) {
             console.error('Error al agregar producto:', error);
@@ -217,10 +177,7 @@ export async function addProduct(productData) {
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 const newProduct = {
                     id: Date.now().toString(),
-                    ...productToInsert,
-                    categories: productData.category_id ? 
-                        { id: productData.category_id, name: 'Categoría ' + productData.category_id } : 
-                        { name: 'General' }
+                    ...productToInsert
                 };
                 products.unshift(newProduct);
                 showNotification('Producto agregado (modo demostración)', 'success');
@@ -275,10 +232,7 @@ export async function updateProduct(id, productData) {
             .from('products')
             .update(updateData)
             .eq('id', id)
-            .select(`
-                *,
-                categories (*)
-            `);
+            .select();
 
         if (error) {
             console.error('Error al actualizar producto:', error);
@@ -485,9 +439,6 @@ export function renderAdminProductsList(productsToRender, container) {
 
 // Helper para obtener nombre de categoría
 function getCategoryName(product) {
-    if (product.categories && product.categories.name) {
-        return product.categories.name;
-    }
     if (product.category_id && typeof window.getCategories === 'function') {
         try {
             const categories = window.getCategories();
@@ -498,9 +449,6 @@ function getCategoryName(product) {
         } catch (error) {
             console.error('Error obteniendo categorías:', error);
         }
-    }
-    if (product.category) {
-        return product.category;
     }
     return 'Sin categoría';
 }
