@@ -1,6 +1,5 @@
 // scripts/auth.js
 import { supabase } from './supabase.js';
-import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
 
 // Estado de autenticación con persistencia
@@ -480,3 +479,4 @@ window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.isUserLoggedIn = isUserLoggedIn;
 window.initializeAuth = initializeAuth;
+
