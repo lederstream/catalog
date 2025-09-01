@@ -265,6 +265,7 @@ const showAdminPanel = async () => {
     if (adminPanel) adminPanel.classList.remove('hidden');
     
     try {
+        // Cargar datos de administración
         if (typeof window.loadProducts === 'function') {
             await window.loadProducts();
         }
@@ -273,6 +274,7 @@ const showAdminPanel = async () => {
             await window.loadCategories();
         }
         
+        // Renderizar lista de productos en el panel de administración
         if (typeof window.renderAdminProductsList === 'function') {
             const adminProductsList = document.getElementById('adminProductsList');
             if (adminProductsList) {
@@ -281,6 +283,7 @@ const showAdminPanel = async () => {
             }
         }
         
+        // Configurar formulario de productos
         if (typeof window.setupProductForm === 'function') {
             window.setupProductForm();
         }
@@ -340,179 +343,39 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Función auxiliar para recargar datos
-const refreshAuthData = async () => {
-    try {
-        showNotification('Actualizando datos de autenticación...', 'info');
-        
-        if (typeof window.loadProducts === 'function') {
-            await window.loadProducts();
-        }
-        
-        if (typeof window.loadCategories === 'function') {
-            await window.loadCategories();
-        }
-        
-        if (typeof window.updateHeader === 'function') {
-            window.updateHeader();
-        }
-        
-        showNotification('Datos de autenticación actualizados', 'success');
-    } catch (error) {
-        console.error('Error refreshing auth data:', error);
-        showNotification('Error al actualizar datos de autenticación', 'error');
-    }
-};
-
-// Manejar cambios de autenticación
-export const handleAuthChange = async () => {
-    try {
-        await refreshAuthData();
-        
-        window.dispatchEvent(new CustomEvent('authStateChanged', { 
-            detail: { 
-                user: currentUser, 
-                isAuthenticated: isAuthenticated() 
-            } 
-        }));
-        
-    } catch (error) {
-        console.error('Error handling auth change:', error);
-        showNotification('Error al actualizar datos de autenticación', 'error');
-    }
-};
-
-// Escuchar cambios de autenticación de Supabase
-supabase.auth.onAuthStateChange(async (event, session) => {
-    console.log('Auth state changed:', event, session);
-    const authState = AuthState.getInstance();
-    
-    if (event === 'SIGNED_IN') {
-        authState.setUser(session.user);
-        currentUser = session.user;
-        await showAdminPanel();
-        await handleAuthChange();
-    } else if (event === 'SIGNED_OUT') {
-        authState.setUser(null);
-        currentUser = null;
-        hideAdminPanel();
-        showLoginForm();
-        await handleAuthChange();
-    } else if (event === 'USER_UPDATED') {
-        authState.setUser(session.user);
-        currentUser = session.user;
-        await handleAuthChange();
-    } else if (event === 'PASSWORD_RECOVERY') {
-        showNotification('Proceso de recuperación de contraseña iniciado', 'info');
-    } else if (event === 'TOKEN_REFRESHED') {
-        console.log('Token refreshed successfully');
-    }
-});
-
-// Restablecer contraseña
-export const resetPassword = async (email) => {
-    if (!validateEmail(email)) {
-        showNotification('Por favor ingresa un email válido', 'error');
-        return false;
-    }
-    
-    try {
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password.html`
-        });
-        
-        if (error) throw error;
-        
-        showNotification('Email de restablecimiento enviado. Revisa tu bandeja de entrada.', 'success');
-        return true;
-    } catch (error) {
-        console.error('Error resetting password:', error);
-        showNotification('Error al enviar email de restablecimiento', 'error');
-        return false;
-    }
-};
-
-// Actualizar contraseña
-export const updatePassword = async (newPassword) => {
-    if (!newPassword || newPassword.length < 6) {
-        showNotification('La contraseña debe tener al menos 6 caracteres', 'error');
-        return false;
-    }
-    
-    try {
-        const { error } = await supabase.auth.updateUser({
-            password: newPassword
-        });
-        
-        if (error) throw error;
-        
-        showNotification('Contraseña actualizada correctamente', 'success');
-        return true;
-    } catch (error) {
-        console.error('Error updating password:', error);
-        showNotification('Error al actualizar la contraseña', 'error');
-        return false;
-    }
-};
-
-// Actualizar perfil de usuario
-export const updateProfile = async (updates) => {
-    try {
-        if (!updates || Object.keys(updates).length === 0) {
-            showNotification('No hay datos para actualizar', 'warning');
-            return false;
-        }
-        
-        const { error } = await supabase.auth.updateUser(updates);
-        
-        if (error) throw error;
-        
-        showNotification('Perfil actualizado correctamente', 'success');
-        return true;
-    } catch (error) {
-        console.error('Error updating profile:', error);
-        showNotification('Error al actualizar el perfil', 'error');
-        return false;
-    }
-};
-
-// Verificar si el usuario tiene un rol específico
-export const hasRole = (role) => {
-    return currentUser && currentUser.user_metadata?.role === role;
-};
-
-// Obtener metadata del usuario
-export const getUserMetadata = () => {
-    return currentUser ? currentUser.user_metadata : null;
-};
-
-// Verificar si el usuario es administrador
-export const isAdmin = () => {
-    return hasRole('admin') || (currentUser && currentUser.email?.endsWith('@admin.com'));
-};
-
 // Configurar event listeners de autenticación
 export const setupAuthEventListeners = () => {
     // Login
     const loginBtn = document.getElementById('loginBtn');
     if (loginBtn) {
-        loginBtn.addEventListener('click', () => {
+        loginBtn.addEventListener('click', (e) => {
+            e.preventDefault();
             const email = document.getElementById('email')?.value;
             const password = document.getElementById('password')?.value;
-            handleLogin(email, password);
+            if (email && password) {
+                handleLogin(email, password);
+            } else {
+                showNotification('Por favor ingresa email y contraseña', 'error');
+            }
         });
     }
     
     // Registro
     const registerBtn = document.getElementById('registerBtn');
     if (registerBtn) {
-        registerBtn.addEventListener('click', handleRegister);
+        registerBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleRegister();
+        });
     }
     
     // Logout
     const logoutBtn = document.getElementById('logoutBtn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', handleLogout);
+        logoutBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            handleLogout();
+        });
     }
     
     // Cambiar entre login y registro
@@ -538,6 +401,7 @@ export const setupAuthEventListeners = () => {
             inputElement.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
                     handler();
+                    e.preventDefault();
                 }
             });
         }
@@ -546,7 +410,9 @@ export const setupAuthEventListeners = () => {
     setupEnterKey(document.getElementById('password'), () => {
         const email = document.getElementById('email')?.value;
         const password = document.getElementById('password')?.value;
-        handleLogin(email, password);
+        if (email && password) {
+            handleLogin(email, password);
+        }
     });
     
     setupEnterKey(document.getElementById('registerPassword'), handleRegister);
@@ -554,17 +420,9 @@ export const setupAuthEventListeners = () => {
     setupEnterKey(document.getElementById('email'), () => {
         const email = document.getElementById('email')?.value;
         const password = document.getElementById('password')?.value;
-        handleLogin(email, password);
-    });
-    
-    // Prevenir envío de formularios con Enter
-    const authForms = document.querySelectorAll('#loginForm, #registerForm');
-    authForms.forEach(form => {
-        form.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-            }
-        });
+        if (email && password) {
+            handleLogin(email, password);
+        }
     });
 };
 
@@ -584,6 +442,15 @@ export const initializeAuth = async () => {
             if (typeof window.updateHeader === 'function') {
                 window.updateHeader();
             }
+            
+            // Cuando cambia el estado de autenticación, recargar productos
+            if (typeof window.loadProducts === 'function') {
+                window.loadProducts().then(() => {
+                    if (typeof window.filterProducts === 'function') {
+                        window.filterProducts();
+                    }
+                });
+            }
         });
         
         authInitialized = true;
@@ -592,22 +459,6 @@ export const initializeAuth = async () => {
     } catch (error) {
         console.error('Error initializing auth:', error);
     }
-};
-
-// Función para obtener el token de acceso
-export const getAccessToken = async () => {
-    try {
-        const { data: { session } } = await supabase.auth.getSession();
-        return session?.access_token || null;
-    } catch (error) {
-        console.error('Error getting access token:', error);
-        return null;
-    }
-};
-
-// Función para verificar si el email está confirmado
-export const isEmailConfirmed = () => {
-    return currentUser?.email_confirmed_at !== null;
 };
 
 // Hacer funciones disponibles globalmente
@@ -619,6 +470,5 @@ window.showRegisterForm = showRegisterForm;
 window.logout = handleLogout;
 window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
-window.handleAuthChange = handleAuthChange;
 window.isUserLoggedIn = isUserLoggedIn;
 window.initializeAuth = initializeAuth;
