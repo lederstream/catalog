@@ -91,7 +91,8 @@ export const initializeApp = async () => {
         renderHeader();
         initModals();
 
-        // Inicializar autenticación
+        // ✅ INICIALIZAR AUTENTICACIÓN - SOLO UNA VEZ
+        console.log('🔄 Inicializando autenticación desde app.js...');
         await initializeAuth();
         
         // Cargar datos iniciales (solo si estamos online)
@@ -278,7 +279,7 @@ const setupGlobalEventListeners = () => {
     setupSearchAndFilter();
     setupSmoothNavigation();
     setupGlobalHandlers();
-    setupGlobalEventListenersFromFile(); // Desde el archivo event-listeners.js
+    setupGlobalEventListenersFromFile();
 };
 
 // Configurar búsqueda y filtros
@@ -629,4 +630,3 @@ function handleContactForm(form) {
     showNotification('Mensaje enviado correctamente. Te contactaremos pronto.', 'success');
     form.reset();
 }
-
