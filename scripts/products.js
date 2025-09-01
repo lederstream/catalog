@@ -309,45 +309,62 @@ export function renderProductsGrid(productsToRender, containerId) {
     if (!productsToRender || productsToRender.length === 0) {
         container.innerHTML = `
             <div class="col-span-full text-center py-12">
-                <i class="fas fa-search fa-3x text-gray-300 mb-4"></i>
-                <p class="text-gray-500 text-lg">No se encontraron productos</p>
-                <p class="text-sm text-gray-400">Intenta con otros filtros de búsqueda</p>
+                <i class="fas fa-box-open text-4xl text-gray-400 mb-4"></i>
+                <p class="text-gray-600">No se encontraron productos</p>
+                <p class="text-sm text-gray-500 mt-1">Agrega productos desde el panel de administración</p>
             </div>
         `;
         return;
     }
 
-    if (typeof window.renderProductCard === 'function') {
-        container.innerHTML = productsToRender.map(product => window.renderProductCard(product)).join('');
-        
-        // Configurar lazy loading para imágenes
-        const images = container.querySelectorAll('img[data-src]');
-        if (images.length > 0 && 'IntersectionObserver' in window) {
-            const imageObserver = new IntersectionObserver((entries, observer) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        const img = entry.target;
-                        img.src = img.dataset.src;
-                        img.classList.remove('lazy');
-                        imageObserver.unobserve(img);
-                    }
-                });
-            });
-
-            images.forEach(img => imageObserver.observe(img));
-        }
-    } else {
-        console.error('renderProductCard function not available');
-        container.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <i class="fas fa-exclamation-triangle fa-3x text-yellow-400 mb-4"></i>
-                <p class="text-gray-500 text-lg">Error al renderizar productos</p>
-                <p class="text-sm text-gray-400">Función de renderizado no disponible</p>
+    // Renderizado básico de productos
+    container.innerHTML = productsToRender.map(product => `
+        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+            <div class="h-48 bg-gray-100 overflow-hidden">
+                <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}" 
+                     alt="${product.name}" 
+                     class="w-full h-full object-cover"
+                     onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
             </div>
-        `;
-    }
-}
+            <div class="p-4">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">${product.name || 'Producto sin nombre'}</h3>
+                <p class="text-gray-600 text-sm mb-3">${product.description || 'Sin descripción'}</p>
+                
+                <div class="mb-3">
+                    <h4 class="font-medium text-gray-700 text-sm mb-2">Planes:</h4>
+                    ${product.plans && product.plans.length > 0 ? 
+                        product.plans.slice(0, 2).map(plan => `
+                            <div class="flex justify-between text-sm mb-1">
+                                <span>${plan.name}</span>
+                                <div>
+                                    ${plan.price_soles ? `<span class="text-green-600 font-bold">S/ ${plan.price_soles}</span>` : ''}
+                                    ${plan.price_soles && plan.price_dollars ? ' • ' : ''}
+                                    ${plan.price_dollars ? `<span class="text-blue-600">$ ${plan.price_dollars}</span>` : ''}
+                                </div>
+                            </div>
+                        `).join('') : 
+                        '<span class="text-gray-500 text-sm">No hay planes</span>'
+                    }
+                </div>
+                
+                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 view-details-btn" 
+                        data-product-id="${product.id}">
+                    Ver detalles
+                </button>
+            </div>
+        </div>
+    `).join('');
 
+    // Agregar event listeners
+    container.querySelectorAll('.view-details-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.target.dataset.productId;
+            if (productId && typeof window.showProductDetails === 'function') {
+                window.showProductDetails(productId);
+            }
+        });
+    });
+}
 // Renderizar lista de productos en el panel de administración
 export function renderAdminProductsList(productsToRender, container) {
     if (!container) return;
