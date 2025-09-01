@@ -359,5 +359,48 @@
     <script type="module" src="scripts/components/admin-panel.js"></script>
     <script type="module" src="scripts/components/catalog-grid.js"></script>
     <script type="module" src="scripts/app.js"></script>
+    <script>
+    // Script de diagnóstico
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('=== 🐛 DIAGNÓSTICO INICIADO ===');
+        
+        // Verificar que todos los scripts se cargaron
+        const scripts = Array.from(document.querySelectorAll('script[src]'));
+        console.log('Scripts cargados:', scripts.map(s => s.src));
+        
+        // Verificar que el botón de login existe
+        const loginBtn = document.getElementById('loginBtn');
+        console.log('Botón login encontrado:', !!loginBtn);
+        
+        if (loginBtn) {
+            // Agregar event listener temporal para debug
+            loginBtn.addEventListener('click', function(e) {
+                console.log('✅ Click en loginBtn detectado');
+                e.preventDefault();
+                
+                const email = document.getElementById('email')?.value;
+                const password = document.getElementById('password')?.value;
+                
+                console.log('Email:', email);
+                console.log('Password:', password ? '***' : 'vacío');
+                
+                if (email && password) {
+                    console.log('Intentando iniciar sesión...');
+                    if (typeof handleLogin === 'function') {
+                        handleLogin(email, password);
+                    } else {
+                        console.error('ERROR: handleLogin no es una función');
+                        alert('Error: Función de login no disponible. Revisa la consola.');
+                    }
+                } else {
+                    console.error('ERROR: Campos vacíos');
+                    alert('Por favor completa ambos campos');
+                }
+            });
+        }
+        
+        console.log('=== ✅ DIAGNÓSTICO COMPLETADO ===');
+    });
+    </script>
 </body>
 </html>
