@@ -50,8 +50,7 @@ function getSampleProducts() {
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
                 { name: 'Premium', price_soles: 399, price_dollars: 100 }
             ],
-            created_at: new Date().toISOString(),
-            isDemo: true
+            created_at: new Date().toISOString()
         },
         {
             id: 'demo-2', 
@@ -63,8 +62,19 @@ function getSampleProducts() {
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
             ],
-            created_at: new Date().toISOString(),
-            isDemo: true
+            created_at: new Date().toISOString()
+        },
+        {
+            id: 'demo-3',
+            name: 'Marketing Digital',
+            description: 'Estrategias de marketing digital para tu negocio',
+            category_id: 2,
+            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
+            plans: [
+                { name: 'Básico', price_soles: 299, price_dollars: 75 },
+                { name: 'Completo', price_soles: 599, price_dollars: 150 }
+            ],
+            created_at: new Date().toISOString()
         }
     ];
 }
@@ -317,9 +327,9 @@ export function renderProductsGrid(productsToRender, containerId) {
         return;
     }
 
-    // Renderizado básico de productos
+    // Renderizado de productos
     container.innerHTML = productsToRender.map(product => `
-        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
             <div class="h-48 bg-gray-100 overflow-hidden">
                 <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}" 
                      alt="${product.name}" 
@@ -355,16 +365,17 @@ export function renderProductsGrid(productsToRender, containerId) {
         </div>
     `).join('');
 
-    // Agregar event listeners
+    // Agregar event listeners a los botones
     container.querySelectorAll('.view-details-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const productId = e.target.dataset.productId;
+            const productId = e.currentTarget.getAttribute('data-product-id');
             if (productId && typeof window.showProductDetails === 'function') {
                 window.showProductDetails(productId);
             }
         });
     });
 }
+
 // Renderizar lista de productos en el panel de administración
 export function renderAdminProductsList(productsToRender, container) {
     if (!container) return;
