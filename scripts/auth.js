@@ -45,18 +45,21 @@ class AuthState {
     }
 }
 
-const authState = AuthState.getInstance();
+// Variables globales para compatibilidad
 let currentUser = null;
 let authInitialized = false;
 
 // Verificar autenticación al cargar
 export const checkAuth = async () => {
+    const authState = AuthState.getInstance();
+    
     try {
         console.log('🔐 Verificando autenticación...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
             console.error('Error obteniendo sesión:', error);
+            // Intentar restaurar desde localStorage
             if (authState.restoreUser()) {
                 console.log('✅ Usuario restaurado desde almacenamiento local');
                 currentUser = authState.currentUser;
@@ -85,6 +88,8 @@ export const checkAuth = async () => {
 
 // Manejar login
 export const handleLogin = async (email, password) => {
+    const authState = AuthState.getInstance();
+    
     if (!validateRequired(email) || !validateRequired(password)) {
         showNotification('Por favor completa todos los campos', 'error');
         return false;
@@ -116,6 +121,10 @@ export const handleLogin = async (email, password) => {
         currentUser = data.user;
         await showAdminPanel();
         showNotification('Sesión iniciada correctamente', 'success');
+        
+        window.dispatchEvent(new CustomEvent('authStateChanged', { 
+            detail: { user: data.user, isAuthenticated: true } 
+        }));
         
         return true;
     } catch (error) {
@@ -227,11 +236,16 @@ export const handleLogout = async () => {
         const { error } = await supabase.auth.signOut();
         if (error) throw error;
         
+        const authState = AuthState.getInstance();
         authState.setUser(null);
         currentUser = null;
         hideAdminPanel();
         showLoginForm();
         showNotification('Sesión cerrada correctamente', 'success');
+        
+        window.dispatchEvent(new CustomEvent('authStateChanged', { 
+            detail: { user: null, isAuthenticated: false } 
+        }));
         
     } catch (error) {
         console.error('Error logging out:', error);
@@ -259,6 +273,19 @@ const showAdminPanel = async () => {
             await window.loadCategories();
         }
         
+        // Renderizar lista de productos en el panel de administración
+        if (typeof window.renderAdminProductsList === 'function') {
+            const adminProductsList = document.getElementById('adminProductsList');
+            if (adminProductsList) {
+                const products = window.getProducts ? window.getProducts() : [];
+                window.renderAdminProductsList(products, adminProductsList);
+            }
+        }
+        
+        // Configurar formulario de productos
+        if (typeof window.setupProductForm === 'function') {
+            window.setupProductForm();
+        }
     } catch (error) {
         console.error('Error loading admin data:', error);
         showNotification('Error al cargar datos de administración', 'error');
@@ -315,81 +342,178 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Configurar event listeners de autenticación
+// NUEVA FUNCIÓN: Configurar event listeners de manera más robusta
+const attachEventListener = (elementId, event, handler) => {
+    // Buscar el elemento de manera continua hasta encontrarlo
+    const tryAttach = () => {
+        const element = document.getElementById(elementId);
+        if (element && !element.dataset.listenerAttached) {
+            element.addEventListener(event, handler);
+            element.dataset.listenerAttached = 'true';
+            console.log(`✅ Event listener attached to ${elementId}`);
+            return true;
+        }
+        return false;
+    };
+    
+    // Intentar inmediatamente
+    if (tryAttach()) return;
+    
+    // Si no funciona, usar observer
+    const observer = new MutationObserver(() => {
+        if (tryAttach()) {
+            observer.disconnect();
+        }
+    });
+    
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // Fallback con timeout
+    setTimeout(() => {
+        tryAttach();
+        observer.disconnect();
+    }, 2000);
+};
+
+// Configurar event listeners de autenticación - VERSIÓN CORREGIDA
 export const setupAuthEventListeners = () => {
     console.log('🔧 Configurando event listeners de autenticación...');
     
-    // Usar delegación de eventos
-    document.addEventListener('click', function(e) {
+    // Método 1: Event Delegation (más confiable)
+    document.removeEventListener('click', handleGlobalClick); // Remover listener previo si existe
+    document.addEventListener('click', handleGlobalClick);
+    
+    // Método 2: Listeners directos con observer
+    attachEventListener('loginBtn', 'click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Login button clicked');
+        
+        const email = document.getElementById('email')?.value;
+        const password = document.getElementById('password')?.value;
+        
+        if (!email || !password) {
+            showNotification('Por favor ingresa email y contraseña', 'error');
+            return;
+        }
+        
+        await handleLogin(email, password);
+    });
+    
+    attachEventListener('registerBtn', 'click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Register button clicked');
+        await handleRegister();
+    });
+    
+    attachEventListener('logoutBtn', 'click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        console.log('🖱️ Logout button clicked');
+        await handleLogout();
+    });
+    
+    attachEventListener('showRegister', 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showRegisterForm();
+    });
+    
+    attachEventListener('showLogin', 'click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        showLoginForm();
+    });
+    
+    // Configurar tecla Enter
+    setupEnterKeyHandlers();
+    
+    console.log('✅ Event listeners de auth configurados');
+};
+
+// Manejador global de clicks
+function handleGlobalClick(e) {
+    const target = e.target;
+    const button = target.closest('button');
+    
+    if (!button) return;
+    
+    console.log('🖱️ Global click detected on:', button.id || button.className);
+    
+    switch (button.id) {
+        case 'loginBtn':
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🔑 Handling login...');
+            
+            const email = document.getElementById('email')?.value;
+            const password = document.getElementById('password')?.value;
+            
+            if (!email || !password) {
+                showNotification('Por favor ingresa email y contraseña', 'error');
+                return;
+            }
+            
+            handleLogin(email, password);
+            break;
+            
+        case 'registerBtn':
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('📝 Handling register...');
+            handleRegister();
+            break;
+            
+        case 'logoutBtn':
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('🚪 Handling logout...');
+            handleLogout();
+            break;
+            
+        case 'showRegister':
+            e.preventDefault();
+            e.stopPropagation();
+            showRegisterForm();
+            break;
+            
+        case 'showLogin':
+            e.preventDefault();
+            e.stopPropagation();
+            showLoginForm();
+            break;
+    }
+}
+
+// Configurar manejadores de tecla Enter
+const setupEnterKeyHandlers = () => {
+    // Usar event delegation para los campos de entrada
+    document.addEventListener('keypress', (e) => {
+        if (e.key !== 'Enter') return;
+        
         const target = e.target;
         
-        // Login button
-        if (target.closest('#loginBtn')) {
-            e.preventDefault();
+        // Login form
+        if (target.id === 'email' || target.id === 'password') {
             const email = document.getElementById('email')?.value;
             const password = document.getElementById('password')?.value;
             
             if (email && password) {
+                e.preventDefault();
                 handleLogin(email, password);
-            } else {
-                showNotification('Por favor ingresa email y contraseña', 'error');
             }
-            return;
         }
         
-        // Register button
-        if (target.closest('#registerBtn')) {
+        // Register form
+        if (target.id === 'registerEmail' || target.id === 'registerPassword' || target.id === 'confirmPassword') {
             e.preventDefault();
             handleRegister();
-            return;
-        }
-        
-        // Logout buttons
-        if (target.closest('#logoutBtn') || target.closest('.mobile-logout-btn')) {
-            e.preventDefault();
-            handleLogout();
-            return;
-        }
-        
-        // Show register form
-        if (target.closest('#showRegister')) {
-            e.preventDefault();
-            showRegisterForm();
-            return;
-        }
-        
-        // Show login form
-        if (target.closest('#showLogin')) {
-            e.preventDefault();
-            showLoginForm();
-            return;
         }
     });
-    
-    // Manejar tecla Enter
-    document.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            // Login form
-            if (e.target.id === 'email' || e.target.id === 'password') {
-                e.preventDefault();
-                const email = document.getElementById('email')?.value;
-                const password = document.getElementById('password')?.value;
-                
-                if (email && password) {
-                    handleLogin(email, password);
-                }
-            }
-            
-            // Register form
-            if (e.target.id === 'registerEmail' || e.target.id === 'registerPassword' || 
-                e.target.id === 'confirmPassword') {
-                e.preventDefault();
-                handleRegister();
-            }
-        }
-    });
-    
-    console.log('✅ Event listeners de auth configurados');
 };
 
 // Inicializar auth
@@ -402,10 +526,10 @@ export const initializeAuth = async () => {
     try {
         console.log('🔄 Inicializando autenticación...');
         
-        // Configurar listeners
+        // Configurar listeners INMEDIATAMENTE
         setupAuthEventListeners();
         
-        // Verificar auth
+        // Luego verificar auth
         await checkAuth();
         
         authInitialized = true;
@@ -427,4 +551,4 @@ window.logout = handleLogout;
 window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.isUserLoggedIn = isUserLoggedIn;
-window.initializeAuth = initializeAuth;s
+window.initializeAuth = initializeAuth;
