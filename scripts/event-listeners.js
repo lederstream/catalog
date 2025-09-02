@@ -1,50 +1,47 @@
 // scripts/event-listeners.js
 import { showNotification } from './utils.js';
 
-export function setupGlobalEventListeners() {
-    // Event delegation para todos los botones de la aplicación
+// Configurar todos los event listeners globales
+export function setupAllEventListeners() {
+    console.log('🔧 Configurando todos los event listeners...');
+    
+    // Event delegation para toda la aplicación
     document.addEventListener('click', function(e) {
-        // Logout buttons
-        if (e.target.closest('#logoutBtn') || 
-            e.target.closest('#mobileLogoutBtn') || 
-            e.target.closest('.mobile-logout-btn')) {
-            e.preventDefault();
-            if (typeof window.logout === 'function') {
-                window.logout();
-            }
-        }
+        const target = e.target;
         
-        // Delete product buttons
-        if (e.target.closest('.delete-product')) {
+        // Botones de productos en admin
+        if (target.classList.contains('delete-product') || target.closest('.delete-product')) {
             e.preventDefault();
-            const id = e.target.closest('.delete-product').dataset.id;
-            if (confirm('¿Estás seguro de eliminar este producto?')) {
-                if (window.deleteProduct) {
+            const button = target.classList.contains('delete-product') ? target : target.closest('.delete-product');
+            const id = button.dataset.id;
+            if (id && confirm('¿Estás seguro de eliminar este producto?')) {
+                if (typeof window.deleteProduct === 'function') {
                     window.deleteProduct(id);
                 }
             }
         }
         
-        // Edit product buttons
-        if (e.target.closest('.edit-product')) {
+        if (target.classList.contains('edit-product') || target.closest('.edit-product')) {
             e.preventDefault();
-            const id = e.target.closest('.edit-product').dataset.id;
-            if (window.editProduct) {
+            const button = target.classList.contains('edit-product') ? target : target.closest('.edit-product');
+            const id = button.dataset.id;
+            if (id && typeof window.editProduct === 'function') {
                 window.editProduct(id);
             }
         }
         
-        // View details buttons
-        if (e.target.closest('.view-details-btn')) {
+        // Botones de ver detalles
+        if (target.classList.contains('view-details-btn') || target.closest('.view-details-btn')) {
             e.preventDefault();
-            const id = e.target.closest('.view-details-btn').dataset.id;
-            if (window.showProductDetails) {
+            const button = target.classList.contains('view-details-btn') ? target : target.closest('.view-details-btn');
+            const id = button.dataset.productId;
+            if (id && typeof window.showProductDetails === 'function') {
                 window.showProductDetails(id);
             }
         }
         
-        // Toggle mobile menu
-        if (e.target.closest('#mobileMenuBtn')) {
+        // Menú móvil
+        if (target.id === 'mobileMenuBtn' || target.closest('#mobileMenuBtn')) {
             e.preventDefault();
             const mobileMenu = document.getElementById('mobileMenu');
             if (mobileMenu) {
@@ -52,63 +49,26 @@ export function setupGlobalEventListeners() {
             }
         }
     });
-
-    // Manejar envío de formularios
-    document.addEventListener('submit', function(e) {
-        const form = e.target;
-        
-        // Formulario de contacto
-        if (form.id === 'contactForm') {
-            e.preventDefault();
-            handleContactForm(form);
-        }
-    });
-
-    // Keyboard shortcuts
-    document.addEventListener('keydown', function(e) {
-        // Ctrl+K para buscar
-        if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-            e.preventDefault();
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) {
-                searchInput.focus();
-            }
-        }
-        
-        // Escape para cerrar modales
-        if (e.key === 'Escape') {
-            const openModals = document.querySelectorAll('.modal:not(.hidden)');
-            if (openModals.length > 0) {
-                openModals.forEach(modal => {
-                    modal.classList.add('hidden');
-                });
-            }
-        }
-    });
-}
-
-// Manejar formulario de contacto
-function handleContactForm(form) {
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
     
-    // Validación básica
-    if (!data.contactName || !data.contactEmail || !data.contactMessage) {
-        showNotification('Por favor completa todos los campos obligatorios', 'error');
-        return;
+    // Formulario de contacto
+    const contactForm = document.getElementById('contactForm');
+    if (contactForm) {
+        contactForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            showNotification('Mensaje enviado correctamente. Te contactaremos pronto.', 'success');
+            this.reset();
+        });
     }
     
-    // Simular envío (en una app real, aquí harías una petición a tu backend)
-    showNotification('Mensaje enviado correctamente. Te contactaremos pronto.', 'success');
-    form.reset();
+    console.log('✅ Todos los event listeners configurados');
+}
+
+// Inicializar cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupAllEventListeners);
+} else {
+    setupAllEventListeners();
 }
 
 // Hacer disponible globalmente
-window.setupGlobalEventListeners = setupGlobalEventListeners;
-
-// Inicializar event listeners cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupGlobalEventListeners);
-} else {
-    setupGlobalEventListeners();
-}
+window.setupAllEventListeners = setupAllEventListeners;
