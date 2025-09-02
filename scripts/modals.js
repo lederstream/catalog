@@ -1,28 +1,31 @@
-// scripts/modals.js
+// scripts/modals.js - Modales mejorados y corregidos
 import { showNotification, debounce } from './utils.js';
 
-// Modal de búsqueda de imágenes
-const imageSearchModal = document.getElementById('imageSearchModal');
-const imageSearchQuery = document.getElementById('imageSearchQuery');
-const imageSearchResults = document.getElementById('imageSearchResults');
-const performSearch = document.getElementById('performSearch');
-const closeModal = document.getElementById('closeModal');
-
-// Modal de categorías
-const categoriesModal = document.getElementById('categoriesModal');
-const newCategoryName = document.getElementById('newCategoryName');
-const addCategoryBtn = document.getElementById('addCategoryBtn');
-const categoriesList = document.getElementById('categoriesList');
-const closeCategoriesModal = document.getElementById('closeCategoriesModal');
+// Variables globales para modales
+let imageSearchModal, imageSearchQuery, imageSearchResults, performSearch, closeModal;
+let categoriesModal, newCategoryName, addCategoryBtn, categoriesList, closeCategoriesModal;
 
 // Inicializar modales
 export function initModals() {
+    console.log('🔧 Inicializando modales...');
+    
     // Modal de búsqueda de imágenes
-    if (performSearch) {
-        performSearch.addEventListener('click', searchImages);
-    }
+    imageSearchModal = document.getElementById('imageSearchModal');
+    imageSearchQuery = document.getElementById('imageSearchQuery');
+    imageSearchResults = document.getElementById('imageSearchResults');
+    performSearch = document.getElementById('performSearch');
+    closeModal = document.getElementById('closeModal');
 
-    if (imageSearchQuery) {
+    // Modal de categorías
+    categoriesModal = document.getElementById('categoriesModal');
+    newCategoryName = document.getElementById('newCategoryName');
+    addCategoryBtn = document.getElementById('addCategoryBtn');
+    categoriesList = document.getElementById('categoriesList');
+    closeCategoriesModal = document.getElementById('closeCategoriesModal');
+
+    // Inicializar solo si los elementos existen
+    if (performSearch && imageSearchQuery) {
+        performSearch.addEventListener('click', searchImages);
         imageSearchQuery.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
                 searchImages();
@@ -30,61 +33,71 @@ export function initModals() {
         });
     }
 
-    if (closeModal) {
-        closeModal.addEventListener('click', () => {
-            closeImageSearchModal();
+    if (closeModal && imageSearchModal) {
+        closeModal.addEventListener('click', closeImageSearchModal);
+        imageSearchModal.addEventListener('click', (e) => {
+            if (e.target === imageSearchModal) {
+                closeImageSearchModal();
+            }
         });
     }
 
-    // Cerrar modal al hacer clic fuera del contenido
-    imageSearchModal.addEventListener('click', (e) => {
-        if (e.target === imageSearchModal) {
-            closeImageSearchModal();
-        }
-    });
-
-    // Modal de categorías
-    if (closeCategoriesModal) {
-        closeCategoriesModal.addEventListener('click', () => {
-            closeCategoriesModalFunc();
+    if (closeCategoriesModal && categoriesModal) {
+        closeCategoriesModal.addEventListener('click', closeCategoriesModalFunc);
+        categoriesModal.addEventListener('click', (e) => {
+            if (e.target === categoriesModal) {
+                closeCategoriesModalFunc();
+            }
         });
     }
-
-    categoriesModal.addEventListener('click', (e) => {
-        if (e.target === categoriesModal) {
-            closeCategoriesModalFunc();
-        }
-    });
     
     // Cerrar modales con tecla Escape
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            if (!imageSearchModal.classList.contains('hidden')) {
+            if (imageSearchModal && !imageSearchModal.classList.contains('hidden')) {
                 closeImageSearchModal();
             }
-            if (!categoriesModal.classList.contains('hidden')) {
+            if (categoriesModal && !categoriesModal.classList.contains('hidden')) {
                 closeCategoriesModalFunc();
             }
         }
     });
+    
+    console.log('✅ Modales inicializados correctamente');
 }
 
 // Abrir modal de búsqueda de imágenes con animación
 export function openImageSearchModal() {
+    if (!imageSearchModal) {
+        console.error('Modal de búsqueda de imágenes no encontrado');
+        return;
+    }
+    
     imageSearchModal.classList.remove('hidden');
     setTimeout(() => {
         imageSearchModal.classList.remove('opacity-0');
-        imageSearchModal.querySelector('.modal-content').classList.remove('scale-95');
+        const modalContent = imageSearchModal.querySelector('.modal-content');
+        if (modalContent) modalContent.classList.remove('scale-95');
     }, 10);
-    imageSearchQuery.value = '';
-    imageSearchResults.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Realiza una búsqueda para ver resultados</p>';
-    imageSearchQuery.focus();
+    
+    if (imageSearchQuery) {
+        imageSearchQuery.value = '';
+        imageSearchQuery.focus();
+    }
+    
+    if (imageSearchResults) {
+        imageSearchResults.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Realiza una búsqueda para ver resultados</p>';
+    }
 }
 
 // Cerrar modal de búsqueda de imágenes con animación
 function closeImageSearchModal() {
+    if (!imageSearchModal) return;
+    
     imageSearchModal.classList.add('opacity-0');
-    imageSearchModal.querySelector('.modal-content').classList.add('scale-95');
+    const modalContent = imageSearchModal.querySelector('.modal-content');
+    if (modalContent) modalContent.classList.add('scale-95');
+    
     setTimeout(() => {
         imageSearchModal.classList.add('hidden');
     }, 300);
@@ -92,8 +105,13 @@ function closeImageSearchModal() {
 
 // Buscar imágenes (usando Unsplash API como ejemplo)
 async function searchImages() {
+    if (!imageSearchQuery || !imageSearchResults) return;
+    
     const query = imageSearchQuery.value.trim();
-    if (!query) return;
+    if (!query) {
+        showNotification('Ingresa un término de búsqueda', 'warning');
+        return;
+    }
 
     // Animación de carga
     imageSearchResults.innerHTML = `
@@ -106,31 +124,31 @@ async function searchImages() {
     `;
 
     try {
-        // En una implementación real, aquí harías una llamada a la API de Unsplash, Pexels, etc.
-        // Por ahora, simularemos una respuesta con imágenes de placeholder
+        // Simular resultados de búsqueda (en producción, usar API real)
         setTimeout(() => {
-            // Simular resultados de búsqueda
             const simulatedResults = [
-                { id: 1, url: `https://source.unsplash.com/300x200/?${query}`, alt: query },
-                { id: 2, url: `https://source.unsplash.com/300x201/?${query}`, alt: query },
-                { id: 3, url: `https://source.unsplash.com/300x202/?${query}`, alt: query },
-                { id: 4, url: `https://source.unsplash.com/300x203/?${query}`, alt: query },
-                { id: 5, url: `https://source.unsplash.com/300x204/?${query}`, alt: query },
-                { id: 6, url: `https://source.unsplash.com/300x205/?${query}`, alt: query },
-                { id: 7, url: `https://source.unsplash.com/300x206/?${query}`, alt: query },
-                { id: 8, url: `https://source.unsplash.com/300x207/?${query}`, alt: query }
+                { id: 1, url: `https://source.unsplash.com/300x200/?${encodeURIComponent(query)}`, alt: query },
+                { id: 2, url: `https://source.unsplash.com/300x201/?${encodeURIComponent(query)}`, alt: query },
+                { id: 3, url: `https://source.unsplash.com/300x202/?${encodeURIComponent(query)}`, alt: query },
+                { id: 4, url: `https://source.unsplash.com/300x203/?${encodeURIComponent(query)}`, alt: query },
+                { id: 5, url: `https://source.unsplash.com/300x204/?${encodeURIComponent(query)}`, alt: query },
+                { id: 6, url: `https://source.unsplash.com/300x205/?${encodeURIComponent(query)}`, alt: query }
             ];
 
             renderImageResults(simulatedResults);
         }, 1500);
     } catch (error) {
         console.error('Error al buscar imágenes:', error);
-        imageSearchResults.innerHTML = '<p class="text-red-500 col-span-full text-center py-8">Error al buscar imágenes. Intenta nuevamente.</p>';
+        if (imageSearchResults) {
+            imageSearchResults.innerHTML = '<p class="text-red-500 col-span-full text-center py-8">Error al buscar imágenes. Intenta nuevamente.</p>';
+        }
     }
 }
 
 // Renderizar resultados de búsqueda de imágenes
 function renderImageResults(images) {
+    if (!imageSearchResults) return;
+    
     if (!images || images.length === 0) {
         imageSearchResults.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">No se encontraron imágenes</p>';
         return;
@@ -161,8 +179,11 @@ function renderImageResults(images) {
     imageSearchResults.querySelectorAll('.select-image').forEach(button => {
         button.addEventListener('click', (e) => {
             const url = e.currentTarget.dataset.url;
-            document.getElementById('photo_url').value = url;
-            updateImagePreview(url);
+            const photoUrlInput = document.getElementById('photo_url');
+            if (photoUrlInput) {
+                photoUrlInput.value = url;
+                updateImagePreview(url);
+            }
             closeImageSearchModal();
             showNotification('Imagen seleccionada correctamente', 'success');
         });
@@ -181,7 +202,8 @@ export function updateImagePreview(url) {
         if (url && url.trim() !== '') {
             preview.innerHTML = `
                 <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
-                    <img src="${url}" alt="Vista previa" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                    <img src="${url}" alt="Vista previa" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                         onerror="this.onerror=null;this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
                 </div>
             `;
         } else {
@@ -202,19 +224,37 @@ export function updateImagePreview(url) {
 
 // Abrir modal de categorías con animación
 export function openCategoriesModal() {
+    if (!categoriesModal) {
+        console.error('Modal de categorías no encontrado');
+        return;
+    }
+    
     categoriesModal.classList.remove('hidden');
     setTimeout(() => {
         categoriesModal.classList.remove('opacity-0');
-        categoriesModal.querySelector('.modal-content').classList.remove('scale-95');
+        const modalContent = categoriesModal.querySelector('.modal-content');
+        if (modalContent) modalContent.classList.remove('scale-95');
     }, 10);
-    newCategoryName.value = '';
-    newCategoryName.focus();
+    
+    if (newCategoryName) {
+        newCategoryName.value = '';
+        newCategoryName.focus();
+    }
+    
+    // Cargar y renderizar categorías si existe la función
+    if (typeof window.renderCategoriesList === 'function' && categoriesList) {
+        window.renderCategoriesList(categoriesList);
+    }
 }
 
 // Cerrar modal de categorías con animación
 function closeCategoriesModalFunc() {
+    if (!categoriesModal) return;
+    
     categoriesModal.classList.add('opacity-0');
-    categoriesModal.querySelector('.modal-content').classList.add('scale-95');
+    const modalContent = categoriesModal.querySelector('.modal-content');
+    if (modalContent) modalContent.classList.add('scale-95');
+    
     setTimeout(() => {
         categoriesModal.classList.add('hidden');
     }, 300);
@@ -222,52 +262,66 @@ function closeCategoriesModalFunc() {
 
 // Inicializar funcionalidad de categorías
 export function initCategories(renderCategoriesCallback) {
-    if (addCategoryBtn) {
-        addCategoryBtn.addEventListener('click', async () => {
-            const name = newCategoryName.value.trim();
-            if (!name) {
-                showNotification('El nombre de la categoría no puede estar vacío', 'error');
-                return;
+    if (!addCategoryBtn || !newCategoryName) {
+        console.warn('Elementos de categorías no encontrados');
+        return;
+    }
+
+    addCategoryBtn.addEventListener('click', async () => {
+        const name = newCategoryName.value.trim();
+        if (!name) {
+            showNotification('El nombre de la categoría no puede estar vacío', 'error');
+            return;
+        }
+
+        // Animación de carga
+        const originalHtml = addCategoryBtn.innerHTML;
+        addCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        addCategoryBtn.disabled = true;
+
+        try {
+            if (renderCategoriesCallback) {
+                await renderCategoriesCallback(name);
+                newCategoryName.value = '';
             }
+        } catch (error) {
+            console.error('Error al agregar categoría:', error);
+            showNotification('Error al agregar categoría', 'error');
+        } finally {
+            // Restaurar botón
+            addCategoryBtn.innerHTML = originalHtml;
+            addCategoryBtn.disabled = false;
+        }
+    });
+
+    newCategoryName.addEventListener('keypress', async (e) => {
+        if (e.key === 'Enter') {
+            const name = newCategoryName.value.trim();
+            if (!name) return;
 
             // Animación de carga
             const originalHtml = addCategoryBtn.innerHTML;
             addCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
             addCategoryBtn.disabled = true;
 
-            // Esta función debería ser proporcionada por el módulo que llama
-            if (renderCategoriesCallback) {
-                await renderCategoriesCallback(name);
-                newCategoryName.value = '';
-                
+            try {
+                if (renderCategoriesCallback) {
+                    await renderCategoriesCallback(name);
+                    newCategoryName.value = '';
+                }
+            } catch (error) {
+                console.error('Error al agregar categoría:', error);
+                showNotification('Error al agregar categoría', 'error');
+            } finally {
                 // Restaurar botón
                 addCategoryBtn.innerHTML = originalHtml;
                 addCategoryBtn.disabled = false;
             }
-        });
-    }
-
-    if (newCategoryName) {
-        newCategoryName.addEventListener('keypress', async (e) => {
-            if (e.key === 'Enter') {
-                const name = newCategoryName.value.trim();
-                if (!name) return;
-
-                // Animación de carga
-                const originalHtml = addCategoryBtn.innerHTML;
-                addCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-                addCategoryBtn.disabled = true;
-
-                // Esta función debería ser proporcionada por el módulo que llama
-                if (renderCategoriesCallback) {
-                    await renderCategoriesCallback(name);
-                    newCategoryName.value = '';
-                    
-                    // Restaurar botón
-                    addCategoryBtn.innerHTML = originalHtml;
-                    addCategoryBtn.disabled = false;
-                }
-            }
-        });
-    }
+        }
+    });
 }
+
+// Hacer funciones disponibles globalmente
+window.openImageSearchModal = openImageSearchModal;
+window.openCategoriesModal = openCategoriesModal;
+window.updateImagePreview = updateImagePreview;
