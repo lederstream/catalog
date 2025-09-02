@@ -1,5 +1,5 @@
 // scripts/modals.js
-import { showNotification } from './utils.js';
+import { showNotification, debounce } from './utils.js';
 
 // Modal de búsqueda de imágenes
 const imageSearchModal = document.getElementById('imageSearchModal');
@@ -32,37 +32,62 @@ export function initModals() {
 
     if (closeModal) {
         closeModal.addEventListener('click', () => {
-            imageSearchModal.classList.add('hidden');
+            closeImageSearchModal();
         });
     }
 
     // Cerrar modal al hacer clic fuera del contenido
     imageSearchModal.addEventListener('click', (e) => {
         if (e.target === imageSearchModal) {
-            imageSearchModal.classList.add('hidden');
+            closeImageSearchModal();
         }
     });
 
     // Modal de categorías
     if (closeCategoriesModal) {
         closeCategoriesModal.addEventListener('click', () => {
-            categoriesModal.classList.add('hidden');
+            closeCategoriesModalFunc();
         });
     }
 
     categoriesModal.addEventListener('click', (e) => {
         if (e.target === categoriesModal) {
-            categoriesModal.classList.add('hidden');
+            closeCategoriesModalFunc();
+        }
+    });
+    
+    // Cerrar modales con tecla Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            if (!imageSearchModal.classList.contains('hidden')) {
+                closeImageSearchModal();
+            }
+            if (!categoriesModal.classList.contains('hidden')) {
+                closeCategoriesModalFunc();
+            }
         }
     });
 }
 
-// Abrir modal de búsqueda de imágenes
+// Abrir modal de búsqueda de imágenes con animación
 export function openImageSearchModal() {
     imageSearchModal.classList.remove('hidden');
+    setTimeout(() => {
+        imageSearchModal.classList.remove('opacity-0');
+        imageSearchModal.querySelector('.modal-content').classList.remove('scale-95');
+    }, 10);
     imageSearchQuery.value = '';
     imageSearchResults.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Realiza una búsqueda para ver resultados</p>';
     imageSearchQuery.focus();
+}
+
+// Cerrar modal de búsqueda de imágenes con animación
+function closeImageSearchModal() {
+    imageSearchModal.classList.add('opacity-0');
+    imageSearchModal.querySelector('.modal-content').classList.add('scale-95');
+    setTimeout(() => {
+        imageSearchModal.classList.add('hidden');
+    }, 300);
 }
 
 // Buscar imágenes (usando Unsplash API como ejemplo)
@@ -70,7 +95,15 @@ async function searchImages() {
     const query = imageSearchQuery.value.trim();
     if (!query) return;
 
-    imageSearchResults.innerHTML = '<p class="text-gray-500 col-span-full text-center py-8">Buscando imágenes...</p>';
+    // Animación de carga
+    imageSearchResults.innerHTML = `
+        <div class="col-span-full text-center py-8">
+            <div class="inline-flex items-center">
+                <i class="fas fa-spinner fa-spin text-blue-500 mr-2"></i>
+                <span class="text-gray-500">Buscando imágenes...</span>
+            </div>
+        </div>
+    `;
 
     try {
         // En una implementación real, aquí harías una llamada a la API de Unsplash, Pexels, etc.
@@ -89,7 +122,7 @@ async function searchImages() {
             ];
 
             renderImageResults(simulatedResults);
-        }, 1000);
+        }, 1500);
     } catch (error) {
         console.error('Error al buscar imágenes:', error);
         imageSearchResults.innerHTML = '<p class="text-red-500 col-span-full text-center py-8">Error al buscar imágenes. Intenta nuevamente.</p>';
@@ -103,16 +136,26 @@ function renderImageResults(images) {
         return;
     }
 
-    imageSearchResults.innerHTML = images.map(image => `
-        <div class="relative group">
-            <img src="${image.url}" alt="${image.alt}" class="w-full h-32 object-cover rounded-lg cursor-pointer">
-            <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-lg">
-                <button class="select-image bg-white text-black px-3 py-1 rounded text-sm" data-url="${image.url}">
-                    Seleccionar
+    imageSearchResults.innerHTML = images.map((image, index) => `
+        <div class="relative group opacity-0 transform scale-95 transition-all duration-300" style="transition-delay: ${index * 50}ms">
+            <img src="${image.url}" alt="${image.alt}" class="w-full h-32 object-cover rounded-lg cursor-pointer shadow-md group-hover:shadow-xl transition-all duration-300">
+            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 rounded-lg">
+                <button class="select-image bg-white text-black px-4 py-2 rounded-lg font-medium transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:scale-105 flex items-center" data-url="${image.url}">
+                    <i class="fas fa-check mr-2"></i> Seleccionar
                 </button>
             </div>
         </div>
     `).join('');
+
+    // Animar la entrada de las imágenes
+    setTimeout(() => {
+        const imageElements = imageSearchResults.querySelectorAll('div');
+        imageElements.forEach((element, index) => {
+            setTimeout(() => {
+                element.classList.remove('opacity-0', 'scale-95');
+            }, index * 50);
+        });
+    }, 10);
 
     // Agregar event listeners a los botones de selección
     imageSearchResults.querySelectorAll('.select-image').forEach(button => {
@@ -120,7 +163,7 @@ function renderImageResults(images) {
             const url = e.currentTarget.dataset.url;
             document.getElementById('photo_url').value = url;
             updateImagePreview(url);
-            imageSearchModal.classList.add('hidden');
+            closeImageSearchModal();
             showNotification('Imagen seleccionada correctamente', 'success');
         });
     });
@@ -131,18 +174,50 @@ export function updateImagePreview(url) {
     const preview = document.getElementById('imagePreview');
     if (!preview) return;
 
-    if (url && url.trim() !== '') {
-        preview.innerHTML = `<img src="${url}" alt="Vista previa" class="w-full h-full object-contain">`;
-    } else {
-        preview.innerHTML = '<p class="text-gray-500">La imagen aparecerá aquí</p>';
-    }
+    // Animación de desvanecimiento
+    preview.style.opacity = '0';
+    
+    setTimeout(() => {
+        if (url && url.trim() !== '') {
+            preview.innerHTML = `
+                <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                    <img src="${url}" alt="Vista previa" class="w-full h-full object-cover transition-transform duration-500 hover:scale-110">
+                </div>
+            `;
+        } else {
+            preview.innerHTML = `
+                <div class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded-lg text-gray-500">
+                    <i class="fas fa-image text-3xl mb-2 opacity-50"></i>
+                    <p class="text-sm">La imagen aparecerá aquí</p>
+                </div>
+            `;
+        }
+        
+        // Restaurar opacidad con animación
+        setTimeout(() => {
+            preview.style.opacity = '1';
+        }, 50);
+    }, 300);
 }
 
-// Abrir modal de categorías
+// Abrir modal de categorías con animación
 export function openCategoriesModal() {
     categoriesModal.classList.remove('hidden');
+    setTimeout(() => {
+        categoriesModal.classList.remove('opacity-0');
+        categoriesModal.querySelector('.modal-content').classList.remove('scale-95');
+    }, 10);
     newCategoryName.value = '';
     newCategoryName.focus();
+}
+
+// Cerrar modal de categorías con animación
+function closeCategoriesModalFunc() {
+    categoriesModal.classList.add('opacity-0');
+    categoriesModal.querySelector('.modal-content').classList.add('scale-95');
+    setTimeout(() => {
+        categoriesModal.classList.add('hidden');
+    }, 300);
 }
 
 // Inicializar funcionalidad de categorías
@@ -155,10 +230,19 @@ export function initCategories(renderCategoriesCallback) {
                 return;
             }
 
+            // Animación de carga
+            const originalHtml = addCategoryBtn.innerHTML;
+            addCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            addCategoryBtn.disabled = true;
+
             // Esta función debería ser proporcionada por el módulo que llama
             if (renderCategoriesCallback) {
                 await renderCategoriesCallback(name);
                 newCategoryName.value = '';
+                
+                // Restaurar botón
+                addCategoryBtn.innerHTML = originalHtml;
+                addCategoryBtn.disabled = false;
             }
         });
     }
@@ -169,10 +253,19 @@ export function initCategories(renderCategoriesCallback) {
                 const name = newCategoryName.value.trim();
                 if (!name) return;
 
+                // Animación de carga
+                const originalHtml = addCategoryBtn.innerHTML;
+                addCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                addCategoryBtn.disabled = true;
+
                 // Esta función debería ser proporcionada por el módulo que llama
                 if (renderCategoriesCallback) {
                     await renderCategoriesCallback(name);
                     newCategoryName.value = '';
+                    
+                    // Restaurar botón
+                    addCategoryBtn.innerHTML = originalHtml;
+                    addCategoryBtn.disabled = false;
                 }
             }
         });
