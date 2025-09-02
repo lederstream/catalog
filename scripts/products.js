@@ -376,9 +376,9 @@ export function renderProductsGrid(productsToRender, containerId) {
                             <div class="flex justify-between text-sm mb-1">
                                 <span>${plan.name}</span>
                                 <div class="flex items-center">
-                                    ${plan.price_soles ? `<span class="text-green-600 font-bold">S/ ${formatCurrency(plan.price_soles)}</span>` : ''}
+                                    ${plan.price_soles ? `<span class="text-green-600 font-bold"> ${formatCurrency(plan.price_soles)}</span>` : ''}
                                     ${plan.price_soles && plan.price_dollars ? '<span class="text-gray-400 mx-1">|</span>' : ''}
-                                    ${plan.price_dollars ? `<span class="text-blue-600">$ ${formatCurrency(plan.price_dollars)}</span>` : ''}
+                                    ${plan.price_dollars ? `<span class="text-blue-600"> ${formatCurrency(plan.price_dollars)}</span>` : ''}
                                 </div>
                             </div>
                         `).join('') : 
