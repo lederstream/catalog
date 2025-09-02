@@ -40,6 +40,43 @@ export function initAdminPanel() {
     }
 }
 
+// Cargar categorías en el selector del formulario
+async function loadCategoriesIntoSelect() {
+    const categorySelect = document.getElementById('category');
+    if (!categorySelect) return;
+
+    try {
+        // Obtener categorías
+        let categories = [];
+        if (typeof window.getCategories === 'function') {
+            categories = window.getCategories();
+        } else if (typeof window.loadCategories === 'function') {
+            categories = await window.loadCategories();
+        }
+
+        // Guardar la selección actual si existe
+        const currentValue = categorySelect.value;
+        
+        // Limpiar y poblar el selector
+        categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+        
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.name;
+            categorySelect.appendChild(option);
+        });
+        
+        // Restaurar la selección anterior si existe
+        if (currentValue) {
+            categorySelect.value = currentValue;
+        }
+    } catch (error) {
+        console.error('Error loading categories into select:', error);
+        showNotification('Error al cargar categorías', 'error');
+    }
+}
+
 // Configurar el formulario de producto
 export function setupProductForm() {
     const productForm = document.getElementById('productForm');
@@ -93,6 +130,9 @@ export function setupProductForm() {
         });
     }
     
+    // Cargar categorías en el selector
+    loadCategoriesIntoSelect();
+    
     console.log('✅ Formulario de producto configurado');
 }
 
@@ -144,7 +184,7 @@ function validateProductForm(formData) {
         errors.push('El nombre del producto es requerido');
     }
     
-    if (!validateRequired(formData.category)) {
+    if (!validateRequired(formData.category_id)) {
         errors.push('La categoría es requerida');
     }
     
@@ -285,6 +325,9 @@ export function resetForm() {
         
         updateImagePreview('');
         
+        // Recargar categorías en el selector
+        loadCategoriesIntoSelect();
+        
         // Enfocar el primer campo
         const firstInput = productForm.querySelector('input');
         if (firstInput) {
@@ -322,9 +365,15 @@ export function prepareEditForm(product) {
 
     document.getElementById('productId').value = product.id;
     document.getElementById('name').value = product.name || '';
-    document.getElementById('category').value = product.category_id || '';
     document.getElementById('description').value = product.description || '';
     document.getElementById('photo_url').value = product.photo_url || '';
+    
+    // Cargar categorías antes de establecer el valor
+    loadCategoriesIntoSelect().then(() => {
+        if (product.category_id) {
+            document.getElementById('category').value = product.category_id;
+        }
+    });
     
     const formTitle = document.getElementById('formTitle');
     const submitText = document.getElementById('submitText');
@@ -407,3 +456,4 @@ window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
+window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
