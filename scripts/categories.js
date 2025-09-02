@@ -1,13 +1,13 @@
-// scripts/categories.js
+// scripts/categories.js - Gestión de categorías mejorada
 import { supabase } from './supabase.js';
-import { showNotification, validateRequired } from './utils.js';
+import { showNotification, validateRequired, debounce } from './utils.js';
 
 let categories = [];
 
 // Cargar categorías desde Supabase
 export async function loadCategories() {
     try {
-        console.log('Cargando categorías desde Supabase...');
+        console.log('📂 Cargando categorías desde Supabase...');
         const { data, error } = await supabase
             .from('categories')
             .select('*')
@@ -87,11 +87,8 @@ export async function addCategory(name) {
                 categories.push(newCategory);
                 showNotification('Categoría agregada (modo demostración)', 'success');
                 
-                // Actualizar el selector de categorías en el formulario
-                if (typeof window.loadCategoriesIntoSelect === 'function') {
-                    window.loadCategoriesIntoSelect();
-                }
-                
+                // Actualizar el selector de categorías
+                updateCategorySelect();
                 return newCategory;
             }
             
@@ -103,11 +100,8 @@ export async function addCategory(name) {
             categories.push(data[0]);
             showNotification('Categoría agregada correctamente', 'success');
             
-            // Actualizar el selector de categorías en el formulario
-            if (typeof window.loadCategoriesIntoSelect === 'function') {
-                window.loadCategoriesIntoSelect();
-            }
-            
+            // Actualizar el selector de categorías
+            updateCategorySelect();
             return data[0];
         }
 
@@ -173,11 +167,8 @@ export async function deleteCategory(id) {
                 categories = categories.filter(cat => cat.id !== id);
                 showNotification('Categoría eliminada (modo demostración)', 'success');
                 
-                // Actualizar el selector de categorías en el formulario
-                if (typeof window.loadCategoriesIntoSelect === 'function') {
-                    window.loadCategoriesIntoSelect();
-                }
-                
+                // Actualizar el selector de categorías
+                updateCategorySelect();
                 return true;
             }
             
@@ -189,11 +180,8 @@ export async function deleteCategory(id) {
         categories = categories.filter(cat => cat.id !== id);
         showNotification('Categoría eliminada correctamente', 'success');
         
-        // Actualizar el selector de categorías en el formulario
-        if (typeof window.loadCategoriesIntoSelect === 'function') {
-            window.loadCategoriesIntoSelect();
-        }
-        
+        // Actualizar el selector de categorías
+        updateCategorySelect();
         return true;
     } catch (error) {
         console.error('Error inesperado al eliminar categoría:', error);
@@ -235,11 +223,8 @@ export async function updateCategory(id, name) {
                     categories[index].name = name.trim();
                     showNotification('Categoría actualizada (modo demostración)', 'success');
                     
-                    // Actualizar el selector de categorías en el formulario
-                    if (typeof window.loadCategoriesIntoSelect === 'function') {
-                        window.loadCategoriesIntoSelect();
-                    }
-                    
+                    // Actualizar el selector de categorías
+                    updateCategorySelect();
                     return categories[index];
                 }
             }
@@ -256,11 +241,8 @@ export async function updateCategory(id, name) {
             }
             showNotification('Categoría actualizada correctamente', 'success');
             
-            // Actualizar el selector de categorías en el formulario
-            if (typeof window.loadCategoriesIntoSelect === 'function') {
-                window.loadCategoriesIntoSelect();
-            }
-            
+            // Actualizar el selector de categorías
+            updateCategorySelect();
             return data[0];
         }
 
@@ -272,9 +254,36 @@ export async function updateCategory(id, name) {
     }
 }
 
+// Actualizar selector de categorías en formularios
+function updateCategorySelect() {
+    const categorySelects = document.querySelectorAll('select[id="category"], select[name="category_id"]');
+    
+    categorySelects.forEach(select => {
+        const currentValue = select.value;
+        
+        // Limpiar y poblar el selector
+        select.innerHTML = '<option value="">Seleccionar categoría</option>';
+        
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat.id;
+            option.textContent = cat.name;
+            select.appendChild(option);
+        });
+        
+        // Restaurar la selección anterior si existe
+        if (currentValue) {
+            select.value = currentValue;
+        }
+    });
+}
+
 // Renderizar lista de categorías en el modal
 export function renderCategoriesList(container) {
-    if (!container) return;
+    if (!container) {
+        console.error('Contenedor de categorías no encontrado');
+        return;
+    }
 
     if (categories.length === 0) {
         container.innerHTML = `
@@ -355,6 +364,48 @@ export function renderCategoriesList(container) {
     });
 }
 
+// Cargar categorías en selector
+export function loadCategoriesIntoSelect() {
+    return new Promise(async (resolve) => {
+        const categorySelect = document.getElementById('category');
+        if (!categorySelect) {
+            console.warn('Selector de categorías no encontrado');
+            resolve();
+            return;
+        }
+
+        try {
+            // Asegurarse de que las categorías estén cargadas
+            if (categories.length === 0) {
+                await loadCategories();
+            }
+
+            // Guardar la selección actual si existe
+            const currentValue = categorySelect.value;
+            
+            // Limpiar y poblar el selector
+            categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+            
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
+            });
+            
+            // Restaurar la selección anterior si existe
+            if (currentValue) {
+                categorySelect.value = currentValue;
+            }
+            
+            resolve();
+        } catch (error) {
+            console.error('Error loading categories into select:', error);
+            resolve();
+        }
+    });
+}
+
 // Hacer funciones disponibles globalmente
 window.loadCategories = loadCategories;
 window.getCategories = getCategories;
@@ -362,3 +413,4 @@ window.addCategory = addCategory;
 window.deleteCategory = deleteCategory;
 window.updateCategory = updateCategory;
 window.renderCategoriesList = renderCategoriesList;
+window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
