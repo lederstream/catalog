@@ -1,3 +1,4 @@
+// scripts/auth.js
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
 
@@ -426,4 +427,4 @@ window.logout = handleLogout;
 window.getCurrentUser = getCurrentUser;
 window.isAuthenticated = isAuthenticated;
 window.isUserLoggedIn = isUserLoggedIn;
-window.initializeAuth = initializeAuth;
+window.initializeAuth = initializeAuth;s
