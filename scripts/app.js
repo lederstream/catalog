@@ -154,19 +154,42 @@ const loadInitialData = async () => {
         console.log('📦 Cargando datos del catálogo...');
         
         // Cargar categorías primero
-        const categories = await loadCategories();
-        appState.updateCategories(categories);
-        console.log(`✅ ${categories.length} categorías cargadas`);
-        
-        // Luego cargar productos
-        const products = await loadProducts();
-        appState.updateProducts(products);
-        console.log(`✅ ${products.length} productos cargados`);
+        let categories = [];
+        if (typeof window.loadCategories === 'function') {
+            categories = await window.loadCategories();
+            appState.updateCategories(categories);
+            console.log(`✅ ${categories.length} categorías cargadas`);
+            
+            // Actualizar el selector de categorías en el formulario si existe
+            if (document.getElementById('category') && typeof window.loadCategoriesIntoSelect === 'function') {
+                window.loadCategoriesIntoSelect();
+            }
+        } else {
+            console.error('loadCategories function not available');
+        }
 
-        // Actualizar UI y renderizar
+        // Luego cargar productos
+        let products = [];
+        if (typeof window.loadProducts === 'function') {
+            products = await window.loadProducts();
+            appState.updateProducts(products);
+            console.log(`✅ ${products.length} productos cargados`);
+        } else {
+            console.error('loadProducts function not available');
+        }
+
+        // Actualizar UI
         updateCategoryFilter();
-        console.log('🎨 Renderizando productos...');
-        renderProductsGrid(products, 'productsGrid');
+        
+        // Renderizar productos INMEDIATAMENTE después de cargar
+        if (typeof window.renderProductsGrid === 'function') {
+            console.log('🎨 Renderizando productos...');
+            window.renderProductsGrid(products, 'productsGrid');
+        } else {
+            console.error('renderProductsGrid function not available');
+            // Fallback: mostrar mensaje de productos
+            showNoProductsMessage();
+        }
         
     } catch (error) {
         console.error('Error loading initial data:', error);
