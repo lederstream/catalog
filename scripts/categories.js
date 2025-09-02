@@ -1,6 +1,6 @@
 // scripts/categories.js
 import { supabase } from './supabase.js';
-import { showNotification } from './utils.js';
+import { showNotification, validateRequired } from './utils.js';
 
 let categories = [];
 
@@ -39,10 +39,10 @@ export async function loadCategories() {
 // Categorías por defecto
 function getDefaultCategories() {
     return [
-        { id: 1, name: 'diseño', created_at: new Date().toISOString() },
-        { id: 2, name: 'marketing', created_at: new Date().toISOString() },
-        { id: 3, name: 'software', created_at: new Date().toISOString() },
-        { id: 4, name: 'consultoria', created_at: new Date().toISOString() }
+        { id: 1, name: 'Diseño', created_at: new Date().toISOString(), icon: 'fas fa-paint-brush' },
+        { id: 2, name: 'Marketing', created_at: new Date().toISOString(), icon: 'fas fa-chart-line' },
+        { id: 3, name: 'Desarrollo', created_at: new Date().toISOString(), icon: 'fas fa-code' },
+        { id: 4, name: 'Consultoría', created_at: new Date().toISOString(), icon: 'fas fa-handshake' }
     ];
 }
 
@@ -59,6 +59,15 @@ export async function addCategory(name) {
             return null;
         }
 
+        // Validar que no exista una categoría con el mismo nombre
+        const normalizedName = name.trim().toLowerCase();
+        const exists = categories.some(cat => cat.name.toLowerCase() === normalizedName);
+        
+        if (exists) {
+            showNotification('Ya existe una categoría con ese nombre', 'error');
+            return null;
+        }
+
         const { data, error } = await supabase
             .from('categories')
             .insert([{ name: name.trim() }])
@@ -72,7 +81,8 @@ export async function addCategory(name) {
                 const newCategory = {
                     id: Date.now(),
                     name: name.trim(),
-                    created_at: new Date().toISOString()
+                    created_at: new Date().toISOString(),
+                    icon: getCategoryIcon(name.trim())
                 };
                 categories.push(newCategory);
                 showNotification('Categoría agregada (modo demostración)', 'success');
@@ -107,6 +117,23 @@ export async function addCategory(name) {
         showNotification('Error al agregar categoría', 'error');
         return null;
     }
+}
+
+// Obtener icono para categoría
+function getCategoryIcon(categoryName) {
+    const name = categoryName.toLowerCase();
+    
+    if (name.includes('diseño') || name.includes('design')) return 'fas fa-paint-brush';
+    if (name.includes('marketing')) return 'fas fa-chart-line';
+    if (name.includes('desarrollo') || name.includes('development') || name.includes('software')) return 'fas fa-code';
+    if (name.includes('consultoría') || name.includes('consulting')) return 'fas fa-handshake';
+    if (name.includes('video') || name.includes('photo')) return 'fas fa-video';
+    if (name.includes('web')) return 'fas fa-globe';
+    if (name.includes('mobile')) return 'fas fa-mobile-alt';
+    if (name.includes('cloud')) return 'fas fa-cloud';
+    if (name.includes('data') || name.includes('analytics')) return 'fas fa-database';
+    
+    return 'fas fa-tag';
 }
 
 // Eliminar una categoría
@@ -183,6 +210,15 @@ export async function updateCategory(id, name) {
             return null;
         }
 
+        // Validar que no exista otra categoría con el mismo nombre
+        const normalizedName = name.trim().toLowerCase();
+        const exists = categories.some(cat => cat.id !== id && cat.name.toLowerCase() === normalizedName);
+        
+        if (exists) {
+            showNotification('Ya existe otra categoría con ese nombre', 'error');
+            return null;
+        }
+
         const { data, error } = await supabase
             .from('categories')
             .update({ name: name.trim() })
@@ -242,27 +278,41 @@ export function renderCategoriesList(container) {
 
     if (categories.length === 0) {
         container.innerHTML = `
-            <div class="text-center py-6">
+            <div class="text-center py-6 animate-pulse">
                 <i class="fas fa-tags text-2xl text-gray-300 mb-2"></i>
                 <p class="text-gray-500">No hay categorías</p>
+                <p class="text-sm text-gray-400 mt-1">Agrega tu primera categoría</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = categories.map(category => `
-        <div class="flex items-center justify-between p-3 border-b hover:bg-gray-50">
-            <span class="category-name font-medium">${category.name}</span>
-            <div class="flex space-x-2">
-                <button class="edit-category text-blue-500 hover:text-blue-700 p-1" data-id="${category.id}">
+    container.innerHTML = categories.map((category, index) => `
+        <div class="flex items-center justify-between p-3 border-b hover:bg-gray-50 transition-colors duration-200 opacity-0 transform -translate-x-4" style="transition: opacity 0.3s ease, transform 0.3s ease; transition-delay: ${index * 50}ms">
+            <div class="flex items-center">
+                <i class="${category.icon || 'fas fa-tag'} mr-3 text-blue-500"></i>
+                <span class="category-name font-medium">${category.name}</span>
+            </div>
+            <div class="flex space-x-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button class="edit-category text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200 transform hover:scale-110" data-id="${category.id}" title="Editar categoría">
                     <i class="fas fa-edit"></i>
                 </button>
-                <button class="delete-category text-red-500 hover:text-red-700 p-1" data-id="${category.id}">
+                <button class="delete-category text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-all duration-200 transform hover:scale-110" data-id="${category.id}" title="Eliminar categoría">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
         </div>
     `).join('');
+
+    // Animar la entrada de las categorías
+    setTimeout(() => {
+        const categoryElements = container.querySelectorAll('div');
+        categoryElements.forEach((element, index) => {
+            setTimeout(() => {
+                element.classList.remove('opacity-0', '-translate-x-4');
+            }, index * 50);
+        });
+    }, 10);
 
     // Agregar event listeners para los botones
     container.querySelectorAll('.edit-category').forEach(button => {
@@ -285,12 +335,21 @@ export function renderCategoriesList(container) {
     container.querySelectorAll('.delete-category').forEach(button => {
         button.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.id;
-            if (confirm('¿Estás seguro de que deseas eliminar esta categoría?')) {
-                deleteCategory(id).then(success => {
-                    if (success) {
-                        renderCategoriesList(container);
-                    }
-                });
+            const category = categories.find(cat => cat.id === id);
+            
+            if (confirm(`¿Estás seguro de que deseas eliminar la categoría "${category.name}"?`)) {
+                // Animación de eliminación
+                const element = e.currentTarget.closest('div');
+                element.style.opacity = '0';
+                element.style.transform = 'translateX(20px)';
+                
+                setTimeout(() => {
+                    deleteCategory(id).then(success => {
+                        if (success) {
+                            renderCategoriesList(container);
+                        }
+                    });
+                }, 300);
             }
         });
     });
