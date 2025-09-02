@@ -9,7 +9,6 @@ import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
 import { showNotification, debounce } from './utils.js';
 
-let appState = AppState.getInstance();
 
 // Estado global de la aplicación
 class AppState {
@@ -149,39 +148,53 @@ const setupConnectionMonitoring = () => {
 
 // Cargar datos iniciales
 const loadInitialData = async () => {
+    const appState = AppState.getInstance();
+    
     try {
         console.log('📦 Cargando datos del catálogo...');
         
-        // Cargar categorías
+        // Cargar categorías primero
         let categories = [];
         if (typeof window.loadCategories === 'function') {
             categories = await window.loadCategories();
             appState.updateCategories(categories);
             console.log(`✅ ${categories.length} categorías cargadas`);
+        } else {
+            console.error('loadCategories function not available');
         }
 
-        // Cargar productos
+        // Luego cargar productos
         let products = [];
         if (typeof window.loadProducts === 'function') {
             products = await window.loadProducts();
             appState.updateProducts(products);
             console.log(`✅ ${products.length} productos cargados`);
+        } else {
+            console.error('loadProducts function not available');
         }
 
         // Actualizar UI
         updateCategoryFilter();
         
-        // Renderizar productos
+        // Renderizar productos INMEDIATAMENTE después de cargar
         if (typeof window.renderProductsGrid === 'function') {
             console.log('🎨 Renderizando productos...');
             window.renderProductsGrid(products, 'productsGrid');
+        } else {
+            console.error('renderProductsGrid function not available');
+            // Fallback: mostrar mensaje de productos
+            showNoProductsMessage();
         }
         
     } catch (error) {
         console.error('Error loading initial data:', error);
-        throw error;
+        if (appState.products.length === 0) {
+            loadDemoData();
+        }
+        showNotification('Error al cargar datos. Verifica tu conexión.', 'error');
     }
 };
+
 // Cargar datos de demostración
 const loadDemoData = () => {
     const appState = AppState.getInstance();
