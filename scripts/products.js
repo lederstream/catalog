@@ -11,7 +11,10 @@ export async function loadProducts() {
         
         const { data, error } = await supabase
             .from('products')
-            .select('*')
+            .select(`
+                *,
+                categories:category_id (name)
+            `)
             .order('created_at', { ascending: false });
 
         if (error) {
@@ -43,12 +46,14 @@ function getSampleProducts() {
         {
             id: 'demo-1',
             name: 'Diseño de Logo Profesional',
-            description: 'Diseño de logo moderno y profesional para tu marca',
+            description: 'Diseño de logo moderno y profesional para tu marca. Incluye 3 propuestas iniciales y revisiones ilimitadas hasta quedar satisfecho.',
             category_id: 1,
-            photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
+            categories: { name: 'Diseño' },
+            photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=400&h=300&fit=crop',
             plans: [
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
-                { name: 'Premium', price_soles: 399, price_dollars: 100 }
+                { name: 'Premium', price_soles: 399, price_dollars: 100 },
+                { name: 'Enterprise', price_soles: 599, price_dollars: 150 }
             ],
             created_at: new Date().toISOString(),
             isDemo: true
@@ -56,12 +61,29 @@ function getSampleProducts() {
         {
             id: 'demo-2', 
             name: 'Sitio Web Responsive',
-            description: 'Desarrollo de sitio web moderno y responsive',
+            description: 'Desarrollo de sitio web moderno y responsive, optimizado para todos los dispositivos y motores de búsqueda.',
             category_id: 3,
-            photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
+            categories: { name: 'Desarrollo' },
+            photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=400&h=300&fit=crop',
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
-                { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
+                { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 },
+                { name: 'E-commerce', price_soles: 2999, price_dollars: 750 }
+            ],
+            created_at: new Date().toISOString(),
+            isDemo: true
+        },
+        {
+            id: 'demo-3', 
+            name: 'Consultoría Marketing Digital',
+            description: 'Estrategias personalizadas de marketing digital para aumentar tu presencia online y generar más leads.',
+            category_id: 2,
+            categories: { name: 'Marketing' },
+            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
+            plans: [
+                { name: 'Básico (4 horas)', price_soles: 399, price_dollars: 100 },
+                { name: 'Premium (8 horas)', price_soles: 699, price_dollars: 175 },
+                { name: 'Completo (16 horas)', price_soles: 1299, price_dollars: 325 }
             ],
             created_at: new Date().toISOString(),
             isDemo: true
@@ -169,7 +191,10 @@ export async function addProduct(productData) {
         const { data, error } = await supabase
             .from('products')
             .insert([productToInsert])
-            .select();
+            .select(`
+                *,
+                categories:category_id (name)
+            `);
 
         if (error) {
             console.error('Error al agregar producto:', error);
@@ -177,7 +202,8 @@ export async function addProduct(productData) {
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 const newProduct = {
                     id: Date.now().toString(),
-                    ...productToInsert
+                    ...productToInsert,
+                    categories: { name: getCategoryNameById(productData.category_id) }
                 };
                 products.unshift(newProduct);
                 showNotification('Producto agregado (modo demostración)', 'success');
@@ -232,7 +258,10 @@ export async function updateProduct(id, productData) {
             .from('products')
             .update(updateData)
             .eq('id', id)
-            .select();
+            .select(`
+                *,
+                categories:category_id (name)
+            `);
 
         if (error) {
             console.error('Error al actualizar producto:', error);
@@ -240,7 +269,11 @@ export async function updateProduct(id, productData) {
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 const index = products.findIndex(product => product.id === id);
                 if (index !== -1) {
-                    products[index] = { ...products[index], ...updateData };
+                    products[index] = { 
+                        ...products[index], 
+                        ...updateData,
+                        categories: { name: getCategoryNameById(productData.category_id) }
+                    };
                     showNotification('Producto actualizado (modo demostración)', 'success');
                     return products[index];
                 }
@@ -308,7 +341,7 @@ export function renderProductsGrid(productsToRender, containerId) {
 
     if (!productsToRender || productsToRender.length === 0) {
         container.innerHTML = `
-            <div class="col-span-full text-center py-12">
+            <div class="col-span-full text-center py-12 animate-fade-in">
                 <i class="fas fa-box-open text-4xl text-gray-400 mb-4"></i>
                 <p class="text-gray-600">No se encontraron productos</p>
                 <p class="text-sm text-gray-500 mt-1">Agrega productos desde el panel de administración</p>
@@ -317,39 +350,48 @@ export function renderProductsGrid(productsToRender, containerId) {
         return;
     }
 
-    // Renderizado básico de productos
+    // Renderizado mejorado de productos
     container.innerHTML = productsToRender.map(product => `
-        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-            <div class="h-48 bg-gray-100 overflow-hidden">
+        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 group">
+            <div class="h-48 bg-gray-100 overflow-hidden relative">
                 <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}" 
                      alt="${product.name}" 
-                     class="w-full h-full object-cover"
+                     class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
                      onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                <div class="absolute top-3 right-3">
+                    <span class="px-3 py-1 bg-blue-600 text-white text-xs rounded-full shadow-md">${getCategoryName(product)}</span>
+                </div>
             </div>
-            <div class="p-4">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">${product.name || 'Producto sin nombre'}</h3>
-                <p class="text-gray-600 text-sm mb-3">${product.description || 'Sin descripción'}</p>
+            <div class="p-5">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 group-hover:text-blue-600 transition-colors duration-200">${product.name || 'Producto sin nombre'}</h3>
+                <p class="text-gray-600 text-sm mb-3 line-clamp-2">${product.description || 'Sin descripción'}</p>
                 
                 <div class="mb-3">
-                    <h4 class="font-medium text-gray-700 text-sm mb-2">Planes:</h4>
+                    <h4 class="font-medium text-gray-700 text-sm mb-2 flex items-center">
+                        <i class="fas fa-list-alt mr-2 text-blue-500 text-xs"></i>Planes:
+                    </h4>
                     ${product.plans && product.plans.length > 0 ? 
                         product.plans.slice(0, 2).map(plan => `
                             <div class="flex justify-between text-sm mb-1">
                                 <span>${plan.name}</span>
-                                <div>
-                                    ${plan.price_soles ? `<span class="text-green-600 font-bold">S/ ${plan.price_soles}</span>` : ''}
-                                    ${plan.price_soles && plan.price_dollars ? ' • ' : ''}
-                                    ${plan.price_dollars ? `<span class="text-blue-600">$ ${plan.price_dollars}</span>` : ''}
+                                <div class="flex items-center">
+                                    ${plan.price_soles ? `<span class="text-green-600 font-bold">S/ ${formatCurrency(plan.price_soles)}</span>` : ''}
+                                    ${plan.price_soles && plan.price_dollars ? '<span class="text-gray-400 mx-1">|</span>' : ''}
+                                    ${plan.price_dollars ? `<span class="text-blue-600">$ ${formatCurrency(plan.price_dollars)}</span>` : ''}
                                 </div>
                             </div>
                         `).join('') : 
                         '<span class="text-gray-500 text-sm">No hay planes</span>'
                     }
+                    ${product.plans && product.plans.length > 2 ? 
+                        `<div class="text-xs text-gray-500 mt-1">+${product.plans.length - 2} plan(s) más</div>` : ''
+                    }
                 </div>
                 
-                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 view-details-btn" 
+                <button class="view-details-btn w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2 px-4 rounded-lg transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center" 
                         data-product-id="${product.id}">
-                    Ver detalles
+                    <i class="fas fa-eye mr-2"></i> Ver detalles
                 </button>
             </div>
         </div>
@@ -364,7 +406,21 @@ export function renderProductsGrid(productsToRender, containerId) {
             }
         });
     });
+    
+    // Animar la entrada de las tarjetas
+    const productCards = container.querySelectorAll('.product-card');
+    productCards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
 }
+
 // Renderizar lista de productos en el panel de administración
 export function renderAdminProductsList(productsToRender, container) {
     if (!container) return;
@@ -383,14 +439,16 @@ export function renderAdminProductsList(productsToRender, container) {
     }
 
     container.innerHTML = productsToRender.map(product => `
-        <tr class="border-b hover:bg-gray-50 transition-colors duration-150">
+        <tr class="border-b hover:bg-gray-50 transition-colors duration-150 group">
             <td class="py-3 px-4">
-                <img src="${product.photo_url || 'https://via.placeholder.com/50x50?text=Imagen'}" 
-                     alt="${product.name}" 
-                     class="w-12 h-12 object-cover rounded"
-                     onerror="this.src='https://via.placeholder.com/50x50?text=Error'">
+                <div class="w-12 h-12 rounded-lg overflow-hidden shadow-sm group-hover:shadow-md transition-shadow duration-200">
+                    <img src="${product.photo_url || 'https://via.placeholder.com/50x50?text=Imagen'}" 
+                         alt="${product.name}" 
+                         class="w-full h-full object-cover"
+                         onerror="this.src='https://via.placeholder.com/50x50?text=Error'">
+                </div>
             </td>
-            <td class="py-3 px-4 font-medium">${product.name || 'Sin nombre'}</td>
+            <td class="py-3 px-4 font-medium group-hover:text-blue-600 transition-colors duration-200">${product.name || 'Sin nombre'}</td>
             <td class="py-3 px-4">
                 <span class="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                     ${getCategoryName(product)}
@@ -409,12 +467,12 @@ export function renderAdminProductsList(productsToRender, container) {
                     `<div class="text-xs text-gray-500">+${product.plans.length - 2} planes más</div>` : ''}
             </td>
             <td class="py-3 px-4">
-                <div class="flex space-x-2">
-                    <button class="edit-product text-blue-500 hover:text-blue-700 p-1 transition-colors duration-200" 
+                <div class="flex space-x-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                    <button class="edit-product text-blue-500 hover:text-blue-700 p-2 rounded-lg hover:bg-blue-50 transition-all duration-200 transform hover:scale-110" 
                             data-id="${product.id}" title="Editar producto">
                         <i class="fas fa-edit"></i>
                     </button>
-                    <button class="delete-product text-red-500 hover:text-red-700 p-1 transition-colors duration-200" 
+                    <button class="delete-product text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition-all duration-200 transform hover:scale-110" 
                             data-id="${product.id}" title="Eliminar producto">
                         <i class="fas fa-trash"></i>
                     </button>
@@ -427,6 +485,13 @@ export function renderAdminProductsList(productsToRender, container) {
     container.querySelectorAll('.edit-product').forEach(button => {
         button.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.id;
+            
+            // Efecto de clic
+            e.currentTarget.classList.add('scale-95');
+            setTimeout(() => {
+                e.currentTarget.classList.remove('scale-95');
+            }, 150);
+            
             if (typeof window.editProduct === 'function') {
                 window.editProduct(id);
             }
@@ -436,6 +501,13 @@ export function renderAdminProductsList(productsToRender, container) {
     container.querySelectorAll('.delete-product').forEach(button => {
         button.addEventListener('click', (e) => {
             const id = e.currentTarget.dataset.id;
+            
+            // Efecto de clic
+            e.currentTarget.classList.add('scale-95');
+            setTimeout(() => {
+                e.currentTarget.classList.remove('scale-95');
+            }, 150);
+            
             if (confirm('¿Estás seguro de que deseas eliminar este producto?')) {
                 deleteProduct(id).then(success => {
                     if (success) {
@@ -456,6 +528,9 @@ export function renderAdminProductsList(productsToRender, container) {
 
 // Helper para obtener nombre de categoría
 function getCategoryName(product) {
+    if (product.categories && product.categories.name) {
+        return product.categories.name;
+    }
     if (product.category_id && typeof window.getCategories === 'function') {
         try {
             const categories = window.getCategories();
@@ -468,6 +543,24 @@ function getCategoryName(product) {
         }
     }
     return 'Sin categoría';
+}
+
+// Helper para obtener nombre de categoría por ID
+function getCategoryNameById(categoryId) {
+    if (!categoryId) return 'Sin categoría';
+    
+    if (typeof window.getCategories === 'function') {
+        try {
+            const categories = window.getCategories();
+            if (categories && Array.isArray(categories)) {
+                const category = categories.find(cat => cat.id == categoryId);
+                return category ? category.name : `Categoría ${categoryId}`;
+            }
+        } catch (error) {
+            console.error('Error obteniendo categorías:', error);
+        }
+    }
+    return `Categoría ${categoryId}`;
 }
 
 // Hacer funciones disponibles globalmente
