@@ -9,6 +9,8 @@ import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
 import { showNotification, debounce } from './utils.js';
 
+let appState = AppState.getInstance();
+
 // Estado global de la aplicación
 class AppState {
     constructor() {
@@ -67,10 +69,10 @@ class AppState {
     }
 }
 
-const appState = AppState.getInstance();
-
 // Inicializar la aplicación
 export const initializeApp = async () => {
+    const appState = AppState.getInstance();
+    
     if (appState.isInitialized) {
         console.warn('La aplicación ya está inicializada');
         return;
@@ -90,7 +92,7 @@ export const initializeApp = async () => {
         renderHeader();
         initModals();
 
-        // Inicializar autenticación
+        // Inicializar autenticación PRIMERO
         console.log('🔄 Inicializando autenticación...');
         await initializeAuth();
         
@@ -98,7 +100,11 @@ export const initializeApp = async () => {
         setupAuthEventListeners();
         
         // Cargar datos iniciales
-        await loadInitialData();
+        if (appState.isOnline) {
+            await loadInitialData();
+        } else {
+            showNotification('Modo offline activado. Usando datos almacenados localmente.', 'info');
+        }
 
         // Inicializar componentes
         initCatalogGrid();
@@ -111,7 +117,10 @@ export const initializeApp = async () => {
         hideLoadingState();
         appState.isInitialized = true;
         
-        showNotification('Catálogo cargado correctamente', 'success');
+        if (appState.isOnline) {
+            showNotification('Catálogo cargado correctamente', 'success');
+        }
+        
         console.log('✅ Aplicación inicializada correctamente');
         
     } catch (error) {
@@ -124,6 +133,8 @@ export const initializeApp = async () => {
 
 // Configurar monitoreo de conexión
 const setupConnectionMonitoring = () => {
+    const appState = AppState.getInstance();
+    
     window.addEventListener('online', () => {
         appState.isOnline = true;
         showNotification('Conexión restaurada. Sincronizando datos...', 'success');
@@ -143,16 +154,16 @@ const loadInitialData = async () => {
         
         // Cargar categorías
         let categories = [];
-        if (typeof loadCategories === 'function') {
-            categories = await loadCategories();
+        if (typeof window.loadCategories === 'function') {
+            categories = await window.loadCategories();
             appState.updateCategories(categories);
             console.log(`✅ ${categories.length} categorías cargadas`);
         }
 
         // Cargar productos
         let products = [];
-        if (typeof loadProducts === 'function') {
-            products = await loadProducts();
+        if (typeof window.loadProducts === 'function') {
+            products = await window.loadProducts();
             appState.updateProducts(products);
             console.log(`✅ ${products.length} productos cargados`);
         }
@@ -161,9 +172,9 @@ const loadInitialData = async () => {
         updateCategoryFilter();
         
         // Renderizar productos
-        if (typeof renderProductsGrid === 'function') {
+        if (typeof window.renderProductsGrid === 'function') {
             console.log('🎨 Renderizando productos...');
-            renderProductsGrid(products, 'productsGrid');
+            window.renderProductsGrid(products, 'productsGrid');
         }
         
     } catch (error) {
@@ -171,17 +182,16 @@ const loadInitialData = async () => {
         throw error;
     }
 };
-
 // Cargar datos de demostración
 const loadDemoData = () => {
+    const appState = AppState.getInstance();
+    
     console.log('📋 Cargando datos de demostración...');
     appState.updateProducts(getSampleProducts());
     appState.updateCategories(getDefaultCategories());
     
     updateCategoryFilter();
     filterAndRenderProducts();
-    
-    showNotification('Modo demostración activado', 'info');
 };
 
 // Datos de ejemplo
@@ -192,51 +202,44 @@ function getSampleProducts() {
             name: 'Diseño de Logo Profesional',
             description: 'Diseño de logo moderno y profesional para tu marca',
             category_id: 1,
+            categories: { id: 1, name: 'diseño' },
             photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Básico', price_soles: 199, price_dollars: 50 },
                 { name: 'Premium', price_soles: 399, price_dollars: 100 }
             ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         },
         {
             id: 'demo-2', 
             name: 'Sitio Web Responsive',
             description: 'Desarrollo de sitio web moderno y responsive',
             category_id: 3,
+            categories: { id: 3, name: 'software' },
             photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=300&h=200&fit=crop',
             plans: [
                 { name: 'Landing Page', price_soles: 799, price_dollars: 200 },
                 { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400 }
             ],
-            created_at: new Date().toISOString()
-        },
-        {
-            id: 'demo-3',
-            name: 'Marketing Digital',
-            description: 'Estrategias de marketing digital para tu negocio',
-            category_id: 2,
-            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=300&h=200&fit=crop',
-            plans: [
-                { name: 'Básico', price_soles: 299, price_dollars: 75 },
-                { name: 'Completo', price_soles: 599, price_dollars: 150 }
-            ],
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            isDemo: true
         }
     ];
 }
 
 function getDefaultCategories() {
     return [
-        { id: 1, name: 'Diseño', created_at: new Date().toISOString() },
-        { id: 2, name: 'Marketing', created_at: new Date().toISOString() },
-        { id: 3, name: 'Desarrollo Web', created_at: new Date().toISOString() },
-        { id: 4, name: 'Consultoría', created_at: new Date().toISOString() }
+        { id: 1, name: 'diseño', created_at: new Date().toISOString(), isDemo: true },
+        { id: 2, name: 'marketing', created_at: new Date().toISOString(), isDemo: true },
+        { id: 3, name: 'software', created_at: new Date().toISOString(), isDemo: true },
+        { id: 4, name: 'consultoria', created_at: new Date().toISOString(), isDemo: true }
     ];
 }
 
 // Actualizar filtro de categorías
 const updateCategoryFilter = () => {
+    const appState = AppState.getInstance();
     const categoryFilter = document.getElementById('categoryFilter');
     if (!categoryFilter) return;
 
@@ -248,6 +251,9 @@ const updateCategoryFilter = () => {
         const option = document.createElement('option');
         option.value = category.id;
         option.textContent = category.name;
+        if (category.isDemo) {
+            option.dataset.demo = 'true';
+        }
         categoryFilter.appendChild(option);
     });
 
@@ -296,6 +302,9 @@ const setupSmoothNavigation = () => {
                     behavior: 'smooth',
                     block: 'start'
                 });
+                
+                // Actualizar URL sin recargar la página
+                history.pushState(null, null, targetId);
             }
         });
     });
@@ -303,22 +312,43 @@ const setupSmoothNavigation = () => {
 
 // Configurar manejadores globales
 const setupGlobalHandlers = () => {
+    const appState = AppState.getInstance();
+    
+    window.addEventListener('focus', async () => {
+        if (appState.isInitialized && appState.isOnline) {
+            await refreshData();
+        }
+    });
+
     window.addEventListener('error', (e) => {
         console.error('Error no capturado:', e.error);
+        showNotification('Error inesperado en la aplicación', 'error');
     });
 
     window.addEventListener('unhandledrejection', (e) => {
         console.error('Promesa rechazada no capturada:', e.reason);
+        showNotification('Error en operación asíncrona', 'error');
         e.preventDefault();
+    });
+
+    // Prevenir recarga accidental con Ctrl+R
+    window.addEventListener('beforeunload', (e) => {
+        if (appState.currentUser) {
+            const message = '¿Estás seguro de que quieres salir? Los cambios no guardados se perderán.';
+            e.returnValue = message;
+            return message;
+        }
     });
 };
 
 // Función para filtrar y renderizar productos
 const filterAndRenderProducts = () => {
+    const appState = AppState.getInstance();
     const searchInput = document.getElementById('searchInput');
     const categoryFilter = document.getElementById('categoryFilter');
+    const productsGrid = document.getElementById('productsGrid');
 
-    if (!searchInput || !categoryFilter) return;
+    if (!searchInput || !categoryFilter || !productsGrid) return;
 
     const searchText = searchInput.value.toLowerCase().trim();
     const category = categoryFilter.value;
@@ -333,6 +363,8 @@ const filterAndRenderProducts = () => {
 
 // Recargar datos
 export const refreshData = async () => {
+    const appState = AppState.getInstance();
+    
     if (!appState.isOnline) {
         showNotification('No hay conexión a internet. No se pueden actualizar los datos.', 'warning');
         return;
@@ -373,6 +405,10 @@ const showLoadingState = () => {
             </div>
         `;
         document.body.appendChild(loadingDiv);
+    } else {
+        loadingElements.forEach(element => {
+            element.classList.remove('hidden');
+        });
     }
 };
 
@@ -382,14 +418,15 @@ const hideLoadingState = () => {
     loadingElements.forEach(element => {
         if (element.parentNode) {
             element.parentNode.removeChild(element);
+        } else {
+            element.classList.add('hidden');
         }
     });
 };
 
-// Hacer funciones disponibles globalmente
+// Exportar funciones para uso global
 window.filterAndRenderProducts = filterAndRenderProducts;
 window.refreshData = refreshData;
-window.getAppState = () => appState;
 
 // Inicializar la aplicación cuando el DOM esté listo
 if (document.readyState === 'loading') {
@@ -397,3 +434,11 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(initializeApp, 100);
 }
+
+// Manejar el evento de vuelta/adelante del navegador
+window.addEventListener('popstate', () => {
+    const appState = AppState.getInstance();
+    if (appState.isInitialized) {
+        filterAndRenderProducts();
+    }
+});
