@@ -1,74 +1,199 @@
-// scripts/event-listeners.js
-import { showNotification } from './utils.js';
+// scripts/event-listeners.js - Event listeners mejorados
+import { debounce, showNotification } from './utils.js';
+import { openImageSearchModal, openCategoriesModal } from './modals.js';
 
 // Configurar todos los event listeners globales
 export function setupAllEventListeners() {
     console.log('🔧 Configurando todos los event listeners...');
     
-    // Event delegation para toda la aplicación
-    document.addEventListener('click', function(e) {
-        const target = e.target;
+    try {
+        setupGlobalClickListeners();
+        setupFormEventListeners();
+        setupNavigationListeners();
+        setupUIEventListeners();
         
-        // Botones de productos en admin
-        if (target.classList.contains('delete-product') || target.closest('.delete-product')) {
-            e.preventDefault();
-            const button = target.classList.contains('delete-product') ? target : target.closest('.delete-product');
-            const id = button.dataset.id;
-            if (id && confirm('¿Estás seguro de eliminar este producto?')) {
-                if (typeof window.deleteProduct === 'function') {
-                    window.deleteProduct(id);
-                }
+        console.log('✅ Todos los event listeners configurados');
+    } catch (error) {
+        console.error('Error configurando event listeners:', error);
+        showNotification('Error al configurar interactividad', 'error');
+    }
+}
+
+// Listeners globales de clic
+function setupGlobalClickListeners() {
+    document.addEventListener('click', debounce((e) => {
+        // Solo registrar clicks en modo desarrollo
+        if (localStorage.getItem('debug') === 'true') {
+            console.log('🖱️ Global click detected on:', e.target.className);
+        }
+        
+        // Manejar clicks en botones de detalles de producto
+        if (e.target.closest('.view-details-btn')) {
+            const btn = e.target.closest('.view-details-btn');
+            const productId = btn.dataset.productId;
+            if (productId && typeof window.showProductDetails === 'function') {
+                // Efecto de clic
+                btn.classList.add('scale-95');
+                setTimeout(() => btn.classList.remove('scale-95'), 150);
+                
+                window.showProductDetails(productId);
             }
         }
         
-        if (target.classList.contains('edit-product') || target.closest('.edit-product')) {
-            e.preventDefault();
-            const button = target.classList.contains('edit-product') ? target : target.closest('.edit-product');
-            const id = button.dataset.id;
-            if (id && typeof window.editProduct === 'function') {
-                window.editProduct(id);
+        // Manejar clicks en botones de editar producto
+        if (e.target.closest('.edit-product')) {
+            const btn = e.target.closest('.edit-product');
+            const productId = btn.dataset.id;
+            if (productId && typeof window.editProduct === 'function') {
+                // Efecto de clic
+                btn.classList.add('scale-95');
+                setTimeout(() => btn.classList.remove('scale-95'), 150);
+                
+                window.editProduct(productId);
             }
         }
         
-        // Botones de ver detalles
-        if (target.classList.contains('view-details-btn') || target.closest('.view-details-btn')) {
-            e.preventDefault();
-            const button = target.classList.contains('view-details-btn') ? target : target.closest('.view-details-btn');
-            const id = button.dataset.productId;
-            if (id && typeof window.showProductDetails === 'function') {
-                window.showProductDetails(id);
+        // Manejar clicks en botones de búsqueda de imagen
+        if (e.target.closest('#searchImageBtn')) {
+            if (typeof window.openImageSearchModal === 'function') {
+                window.openImageSearchModal();
             }
         }
         
-        // Menú móvil
-        if (target.id === 'mobileMenuBtn' || target.closest('#mobileMenuBtn')) {
+        // Manejar clicks en botones de gestión de categorías
+        if (e.target.closest('#manageCategoriesBtn')) {
+            if (typeof window.openCategoriesModal === 'function') {
+                window.openCategoriesModal();
+            }
+        }
+    }, 50));
+}
+
+// Listeners para formularios
+function setupFormEventListeners() {
+    // Validación en tiempo real para formularios
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('input', debounce((e) => {
+            validateField(e.target);
+        }, 300));
+        
+        form.addEventListener('submit', (e) => {
+            if (!validateForm(form)) {
+                e.preventDefault();
+                showNotification('Por favor, completa todos los campos requeridos', 'error');
+            }
+        });
+    });
+}
+
+// Listeners de navegación
+function setupNavigationListeners() {
+    // Smooth scrolling para enlaces internos
+    document.addEventListener('click', (e) => {
+        if (e.target.matches('a[href^="#"]')) {
             e.preventDefault();
-            const mobileMenu = document.getElementById('mobileMenu');
-            if (mobileMenu) {
-                mobileMenu.classList.toggle('hidden');
+            const targetId = e.target.getAttribute('href').substring(1);
+            const targetElement = document.getElementById(targetId);
+            
+            if (targetElement) {
+                targetElement.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start'
+                });
             }
         }
     });
     
-    // Formulario de contacto
-    const contactForm = document.getElementById('contactForm');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            showNotification('Mensaje enviado correctamente. Te contactaremos pronto.', 'success');
-            this.reset();
+    // Cerrar modales con Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const openModals = document.querySelectorAll('.modal:not(.hidden)');
+            openModals.forEach(modal => {
+                modal.classList.add('hidden');
+            });
+        }
+    });
+}
+
+// Listeners para UI
+function setupUIEventListeners() {
+    // Hover effects
+    const cards = document.querySelectorAll('.card, .product-card, .btn');
+    cards.forEach(card => {
+        card.addEventListener('mouseenter', () => {
+            card.style.transition = 'all 0.3s ease';
         });
-    }
+        
+        card.addEventListener('touchstart', () => {
+            card.classList.add('active');
+        });
+        
+        card.addEventListener('touchend', () => {
+            setTimeout(() => card.classList.remove('active'), 150);
+        });
+    });
     
-    console.log('✅ Todos los event listeners configurados');
+    // Loading states for buttons
+    const buttons = document.querySelectorAll('button[type="submit"]');
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+            if (this.form && this.form.checkValidity()) {
+                this.classList.add('loading');
+                this.disabled = true;
+                this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+                
+                // Restore after 5 seconds max (safety)
+                setTimeout(() => {
+                    this.classList.remove('loading');
+                    this.disabled = false;
+                    this.innerHTML = this.dataset.originalText || this.textContent;
+                }, 5000);
+            }
+        });
+    });
 }
 
-// Inicializar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', setupAllEventListeners);
-} else {
-    setupAllEventListeners();
+// Validación de campo individual
+function validateField(field) {
+    if (!field) return true;
+    
+    const isValid = field.checkValidity();
+    const errorElement = field.nextElementSibling?.classList.contains('error') 
+        ? field.nextElementSibling 
+        : null;
+    
+    if (!isValid && field.value) {
+        field.classList.add('error');
+        if (errorElement) {
+            errorElement.textContent = field.validationMessage;
+            errorElement.classList.remove('hidden');
+        }
+        return false;
+    } else {
+        field.classList.remove('error');
+        if (errorElement) {
+            errorElement.classList.add('hidden');
+        }
+        return true;
+    }
 }
 
-// Hacer disponible globalmente
+// Validación de formulario completo
+function validateForm(form) {
+    if (!form) return true;
+    
+    let isValid = true;
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    requiredFields.forEach(field => {
+        if (!validateField(field)) {
+            isValid = false;
+        }
+    });
+    
+    return isValid;
+}
+
+// Hacer funciones disponibles globalmente
 window.setupAllEventListeners = setupAllEventListeners;
