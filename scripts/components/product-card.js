@@ -1,5 +1,5 @@
 // scripts/components/product-card.js
-import { formatCurrency, truncateText, lazyLoadImages } from '../utils.js';
+import { formatCurrency, truncateText, lazyLoadImages, showNotification } from '../utils.js';
 
 // Crear tarjeta de producto
 export const createProductCard = (product) => {
@@ -44,28 +44,44 @@ export const createProductCard = (product) => {
     const description = truncateText(product.description || 'Sin descripción', 120);
     
     return `
-        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 h-full flex flex-col group" data-product-id="${product.id}">
+        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col group opacity-0 transform translate-y-6" data-product-id="${product.id}">
             <div class="h-48 bg-gray-100 overflow-hidden relative">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
                 <img src="https://via.placeholder.com/300x200?text=Cargando..." 
                      data-src="${imageUrl}" 
                      alt="${product.name}" 
-                     class="w-full h-full object-cover transition-opacity duration-300 group-hover:scale-105"
+                     class="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
                      loading="lazy"
                      onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen';this.onerror=null;">
-                <div class="absolute top-2 right-2">
-                    <span class="px-2 py-1 bg-blue-600 text-white text-xs rounded-full shadow-sm">${categoryName}</span>
+                <div class="absolute top-3 right-3 z-20">
+                    <span class="px-3 py-1 bg-blue-600 text-white text-xs rounded-full shadow-lg">${categoryName}</span>
+                </div>
+                <div class="absolute bottom-3 left-3 z-20">
+                    ${product.plans && product.plans.length > 0 ? `
+                        <div class="flex items-center bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
+                            ${product.plans[0].price_soles > 0 ? `
+                                <span class="text-green-600 font-bold text-sm">S/ ${formatCurrency(product.plans[0].price_soles)}</span>
+                            ` : ''}
+                            ${product.plans[0].price_soles > 0 && product.plans[0].price_dollars > 0 ? '<span class="text-gray-400 mx-1">|</span>' : ''}
+                            ${product.plans[0].price_dollars > 0 ? `
+                                <span class="text-blue-600 text-sm">$ ${formatCurrency(product.plans[0].price_dollars)}</span>
+                            ` : ''}
+                        </div>
+                    ` : ''}
                 </div>
             </div>
-            <div class="p-4 flex-1 flex flex-col">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2" title="${product.name || 'Producto sin nombre'}">${product.name || 'Producto sin nombre'}</h3>
+            <div class="p-5 flex-1 flex flex-col">
+                <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200" title="${product.name || 'Producto sin nombre'}">${product.name || 'Producto sin nombre'}</h3>
                 <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${description}</p>
                 <div class="mb-4">
-                    <h4 class="font-medium text-gray-700 text-sm mb-2">Planes y precios:</h4>
+                    <h4 class="font-medium text-gray-700 text-sm mb-2 flex items-center">
+                        <i class="fas fa-list-alt mr-2 text-blue-500"></i>Planes disponibles:
+                    </h4>
                     <div class="space-y-1">
                         ${plansHTML}
                     </div>
                 </div>
-                <button class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 view-details-btn flex items-center justify-center group/btn" 
+                <button class="view-details-btn w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center group/btn" 
                         data-product-id="${product.id}"
                         aria-label="Ver detalles de ${product.name}">
                     <i class="fas fa-eye mr-2 group-hover/btn:animate-pulse"></i>
@@ -109,7 +125,7 @@ export const renderProductsGrid = (products, containerId) => {
     
     if (!products || products.length === 0) {
         container.innerHTML = `
-            <div class="col-span-full text-center py-12">
+            <div class="col-span-full text-center py-12 animate-fade-in">
                 <i class="fas fa-box-open text-4xl text-gray-400 mb-4"></i>
                 <p class="text-gray-600">No se encontraron productos</p>
                 <p class="text-sm text-gray-500 mt-1">Intenta con otros filtros o categorías</p>
@@ -127,6 +143,9 @@ export const renderProductsGrid = (products, containerId) => {
         if (images.length > 0) {
             lazyLoadImages(images);
         }
+        
+        // Animar la entrada de las tarjetas
+        animateProductCards();
     } catch (error) {
         console.error('Error al renderizar productos:', error);
         container.innerHTML = `
@@ -139,6 +158,18 @@ export const renderProductsGrid = (products, containerId) => {
     }
 };
 
+// Animación de entrada para las tarjetas de producto
+function animateProductCards() {
+    const productCards = document.querySelectorAll('.product-card');
+    productCards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+}
+
 // Añadir event listeners a las tarjetas
 const addProductCardEventListeners = () => {
     // Botones de ver detalles
@@ -146,6 +177,13 @@ const addProductCardEventListeners = () => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const productId = e.currentTarget.getAttribute('data-product-id');
+            
+            // Efecto de clic
+            e.currentTarget.classList.add('scale-95');
+            setTimeout(() => {
+                e.currentTarget.classList.remove('scale-95');
+            }, 150);
+            
             if (productId && typeof window.showProductDetails === 'function') {
                 window.showProductDetails(productId);
             }
@@ -163,7 +201,12 @@ const addProductCardEventListeners = () => {
                 
                 const productId = card.getAttribute('data-product-id');
                 if (productId && typeof window.showProductDetails === 'function') {
-                    window.showProductDetails(productId);
+                    // Efecto de clic en la tarjeta
+                    card.classList.add('scale-95');
+                    setTimeout(() => {
+                        card.classList.remove('scale-95');
+                        window.showProductDetails(productId);
+                    }, 150);
                 }
             });
         });
@@ -205,7 +248,7 @@ const showProductModal = (product) => {
     let plansHTML = '';
     if (Array.isArray(product.plans) && product.plans.length > 0) {
         plansHTML = product.plans.map(plan => `
-            <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
+            <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0 group/plan hover:bg-gray-50 rounded-lg px-2 transition-colors duration-200">
                 <span class="font-medium">${plan.name}</span>
                 <div class="text-right">
                     ${plan.price_soles ? `<div class="text-green-600 font-bold">S/ ${formatCurrency(plan.price_soles)}</div>` : ''}
@@ -219,43 +262,52 @@ const showProductModal = (product) => {
     
     // Crear modal
     const modalHTML = `
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" id="productDetailModal">
-            <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300" id="productDetailModal">
+            <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform scale-95 transition-transform duration-300 shadow-2xl">
                 <div class="p-6">
                     <div class="flex justify-between items-start mb-4">
                         <h2 class="text-2xl font-bold text-gray-800">${product.name || 'Producto sin nombre'}</h2>
-                        <button class="close-modal text-gray-500 hover:text-gray-700 text-xl transition-colors duration-200" aria-label="Cerrar modal">
+                        <button class="close-modal text-gray-500 hover:text-gray-700 text-xl transition-all duration-200 transform hover:rotate-90 hover:scale-110 p-1 rounded-full hover:bg-gray-100" aria-label="Cerrar modal">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     
                     <div class="mb-4">
-                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                            ${categoryName}
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm inline-flex items-center">
+                            <i class="fas fa-tag mr-1 text-xs"></i> ${categoryName}
                         </span>
                     </div>
                     
-                    <div class="h-64 bg-gray-100 rounded-lg mb-4 overflow-hidden">
+                    <div class="h-64 bg-gray-100 rounded-xl mb-4 overflow-hidden relative">
                         <img src="${product.photo_url || 'https://via.placeholder.com/500x300?text=Imagen+no+disponible'}" 
                              alt="${product.name}" 
-                             class="w-full h-full object-cover"
+                             class="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
                              onerror="this.src='https://via.placeholder.com/500x300?text=Imagen+no+disponible';this.onerror=null;">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                            <a href="${product.photo_url}" target="_blank" class="text-white text-sm bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full hover:bg-black/70 transition-colors duration-200">
+                                <i class="fas fa-external-link-alt mr-1"></i> Ver imagen completa
+                            </a>
+                        </div>
                     </div>
                     
                     <div class="mb-4">
-                        <h3 class="font-semibold text-gray-800 mb-2">Descripción:</h3>
+                        <h3 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-align-left mr-2 text-blue-500"></i>Descripción:
+                        </h3>
                         <p class="text-gray-600">${product.description || 'Sin descripción disponible'}</p>
                     </div>
                     
                     <div class="mb-6">
-                        <h3 class="font-semibold text-gray-800 mb-2">Planes y precios:</h3>
+                        <h3 class="font-semibold text-gray-800 mb-2 flex items-center">
+                            <i class="fas fa-list-alt mr-2 text-blue-500"></i>Planes y precios:
+                        </h3>
                         <div class="space-y-2">
                             ${plansHTML}
                         </div>
                     </div>
                     
                     <div class="flex justify-end mt-6">
-                        <button class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 close-modal flex items-center">
+                        <button class="close-modal bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center shadow-md hover:shadow-lg">
                             <i class="fas fa-times mr-2"></i>
                             Cerrar
                         </button>
@@ -276,10 +328,27 @@ const showProductModal = (product) => {
     modalContainer.innerHTML = modalHTML;
     document.body.appendChild(modalContainer);
     
+    // Animación de entrada
+    setTimeout(() => {
+        const modal = document.getElementById('productDetailModal');
+        if (modal) {
+            modal.style.opacity = '1';
+            modal.querySelector('div').style.transform = 'scale(1)';
+        }
+    }, 10);
+    
     // Agregar event listeners para cerrar el modal
     const closeModal = () => {
-        if (modalContainer.parentNode) {
-            document.body.removeChild(modalContainer);
+        const modal = document.getElementById('productDetailModal');
+        if (modal) {
+            modal.style.opacity = '0';
+            modal.querySelector('div').style.transform = 'scale(0.95)';
+            
+            setTimeout(() => {
+                if (modalContainer.parentNode) {
+                    document.body.removeChild(modalContainer);
+                }
+            }, 300);
         }
     };
     
