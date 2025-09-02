@@ -1,7 +1,7 @@
 // scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList } from '../categories.js';
 import { openCategoriesModal } from '../modals.js';
-import { validateRequired, validateUrl, validateNumber, showNotification } from '../utils.js';
+import { validateRequired, validateUrl, validateNumber, showNotification, debounce } from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
@@ -31,6 +31,7 @@ export function initAdminPanel() {
         // Configurar formulario de producto solo si el usuario está autenticado
         if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
             setupProductForm();
+            setupRealTimeValidation();
         }
         
         console.log('✅ Panel de administración inicializado');
@@ -38,6 +39,56 @@ export function initAdminPanel() {
         console.error('Error initializing admin panel:', error);
         showNotification('Error al inicializar el panel de administración', 'error');
     }
+}
+
+// Configurar validación en tiempo real
+function setupRealTimeValidation() {
+    const nameInput = document.getElementById('name');
+    const descriptionInput = document.getElementById('description');
+    const photoUrlInput = document.getElementById('photo_url');
+    
+    if (nameInput) {
+        nameInput.addEventListener('input', debounce(() => {
+            validateField(nameInput, validateRequired, 'El nombre es requerido');
+        }, 500));
+    }
+    
+    if (descriptionInput) {
+        descriptionInput.addEventListener('input', debounce(() => {
+            validateField(descriptionInput, validateRequired, 'La descripción es requerida');
+        }, 500));
+    }
+    
+    if (photoUrlInput) {
+        photoUrlInput.addEventListener('input', debounce(() => {
+            if (photoUrlInput.value) {
+                validateField(photoUrlInput, validateUrl, 'La URL de la imagen no es válida');
+            }
+        }, 500));
+    }
+}
+
+// Validar campo individual
+function validateField(field, validator, errorMessage) {
+    const isValid = validator(field.value);
+    const errorElement = document.getElementById(`${field.id}Error`);
+    
+    if (errorElement) {
+        if (!isValid && field.value) {
+            errorElement.textContent = errorMessage;
+            errorElement.classList.remove('hidden');
+            field.classList.add('border-red-500');
+            field.classList.remove('border-green-500');
+        } else {
+            errorElement.classList.add('hidden');
+            field.classList.remove('border-red-500');
+            if (field.value && isValid) {
+                field.classList.add('border-green-500');
+            }
+        }
+    }
+    
+    return isValid;
 }
 
 // Cargar categorías en el selector del formulario
@@ -71,6 +122,9 @@ async function loadCategoriesIntoSelect() {
         if (currentValue) {
             categorySelect.value = currentValue;
         }
+        
+        // Validar si hay una selección
+        validateField(categorySelect, validateRequired, 'La categoría es requerida');
     } catch (error) {
         console.error('Error loading categories into select:', error);
         showNotification('Error al cargar categorías', 'error');
@@ -136,21 +190,30 @@ export function setupProductForm() {
     console.log('✅ Formulario de producto configurado');
 }
 
-// Agregar fila de plan
+// Agregar fila de plan con animación
 function addPlanRow() {
     const plansContainer = document.getElementById('plansContainer');
     if (!plansContainer) return;
 
     const planId = Date.now() + Math.random().toString(36).substr(2, 5);
     const planItem = document.createElement('div');
-    planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg';
+    planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg opacity-0 transform scale-95 transition-all duration-300';
     planItem.innerHTML = `
         <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
-            <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-            <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent">
-            <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            <div>
+                <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
+                <div class="plan-name-error text-red-500 text-xs mt-1 hidden"></div>
+            </div>
+            <div>
+                <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent">
+                <div class="plan-price-soles-error text-red-500 text-xs mt-1 hidden"></div>
+            </div>
+            <div>
+                <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <div class="plan-price-dollars-error text-red-500 text-xs mt-1 hidden"></div>
+            </div>
         </div>
-        <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200" title="Eliminar plan">
+        <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200 hover:scale-110" title="Eliminar plan">
             <i class="fas fa-times"></i>
         </button>
     `;
@@ -160,20 +223,77 @@ function addPlanRow() {
     removeBtn.addEventListener('click', () => {
         const planItems = document.querySelectorAll('.plan-item');
         if (planItems.length > 1) {
-            planItem.remove();
-            showNotification('Plan eliminado', 'info');
+            // Animación de salida
+            planItem.style.opacity = '0';
+            planItem.style.transform = 'scale(0.9) translateX(20px)';
+            setTimeout(() => {
+                planItem.remove();
+                showNotification('Plan eliminado', 'info');
+            }, 300);
         } else {
             showNotification('Debe haber al menos un plan', 'warning');
         }
     });
 
+    // Agregar validación en tiempo real para los campos del plan
+    const nameInput = planItem.querySelector('.plan-name');
+    const priceSolesInput = planItem.querySelector('.plan-price-soles');
+    const priceDollarsInput = planItem.querySelector('.plan-price-dollars');
+    
+    if (nameInput) {
+        nameInput.addEventListener('input', debounce(() => {
+            validatePlanField(nameInput, validateRequired, 'El nombre del plan es requerido');
+        }, 500));
+    }
+    
+    if (priceSolesInput) {
+        priceSolesInput.addEventListener('input', debounce(() => {
+            validatePlanField(priceSolesInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
+        }, 500));
+    }
+    
+    if (priceDollarsInput) {
+        priceDollarsInput.addEventListener('input', debounce(() => {
+            validatePlanField(priceDollarsInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
+        }, 500));
+    }
+
     plansContainer.appendChild(planItem);
+    
+    // Animación de entrada
+    setTimeout(() => {
+        planItem.style.opacity = '1';
+        planItem.style.transform = 'scale(1)';
+    }, 10);
     
     // Enfocar el primer campo del nuevo plan
     const firstInput = planItem.querySelector('input');
     if (firstInput) {
         setTimeout(() => firstInput.focus(), 100);
     }
+}
+
+// Validar campo de plan
+function validatePlanField(field, validator, errorMessage) {
+    const isValid = validator(field.value);
+    const errorElement = field.nextElementSibling;
+    
+    if (errorElement && errorElement.classList.contains('hidden')) {
+        if (!isValid && field.value) {
+            errorElement.textContent = errorMessage;
+            errorElement.classList.remove('hidden');
+            field.classList.add('border-red-500');
+            field.classList.remove('border-green-500');
+        } else {
+            errorElement.classList.add('hidden');
+            field.classList.remove('border-red-500');
+            if (field.value && isValid) {
+                field.classList.add('border-green-500');
+            }
+        }
+    }
+    
+    return isValid;
 }
 
 // Validar formulario de producto
@@ -260,6 +380,21 @@ async function handleProductSubmit(e) {
     const validationErrors = validateProductForm(productData);
     if (validationErrors.length > 0) {
         validationErrors.forEach(error => showNotification(error, 'error'));
+        
+        // Mostrar errores específicos en los campos
+        if (!validateRequired(name)) {
+            document.getElementById('name').classList.add('border-red-500');
+        }
+        if (!validateRequired(category)) {
+            document.getElementById('category').classList.add('border-red-500');
+        }
+        if (!validateRequired(description)) {
+            document.getElementById('description').classList.add('border-red-500');
+        }
+        if (!validateUrl(photo_url)) {
+            document.getElementById('photo_url').classList.add('border-red-500');
+        }
+        
         return;
     }
 
@@ -284,7 +419,14 @@ async function handleProductSubmit(e) {
 
         if (result) {
             showNotification(productId ? 'Producto actualizado correctamente' : 'Producto agregado correctamente', 'success');
-            resetForm();
+            
+            // Animación de éxito
+            const form = document.getElementById('productForm');
+            form.classList.add('bg-green-50');
+            setTimeout(() => {
+                form.classList.remove('bg-green-50');
+                resetForm();
+            }, 1000);
             
             if (typeof window.loadProducts === 'function') {
                 await window.loadProducts();
@@ -302,7 +444,7 @@ async function handleProductSubmit(e) {
     }
 }
 
-// Resetear formulario
+// Resetear formulario con animación
 export function resetForm() {
     const productForm = document.getElementById('productForm');
     if (productForm) {
@@ -317,10 +459,32 @@ export function resetForm() {
         if (submitText) submitText.textContent = 'Agregar Producto';
         if (cancelBtn) cancelBtn.classList.add('hidden');
         
+        // Limpiar estilos de validación
+        const inputs = productForm.querySelectorAll('input, select, textarea');
+        inputs.forEach(input => {
+            input.classList.remove('border-red-500', 'border-green-500');
+            const errorElement = document.getElementById(`${input.id}Error`);
+            if (errorElement) {
+                errorElement.classList.add('hidden');
+            }
+        });
+        
         const plansContainer = document.getElementById('plansContainer');
         if (plansContainer) {
-            plansContainer.innerHTML = '';
-            addPlanRow();
+            // Animación de eliminación para planes existentes
+            const planItems = plansContainer.querySelectorAll('.plan-item');
+            planItems.forEach((item, index) => {
+                item.style.opacity = '0';
+                item.style.transform = 'scale(0.9) translateX(-20px)';
+                setTimeout(() => {
+                    item.remove();
+                }, index * 50);
+            });
+            
+            // Agregar nuevo plan después de la animación
+            setTimeout(() => {
+                addPlanRow();
+            }, planItems.length * 50 + 100);
         }
         
         updateImagePreview('');
@@ -331,35 +495,46 @@ export function resetForm() {
         // Enfocar el primer campo
         const firstInput = productForm.querySelector('input');
         if (firstInput) {
-            setTimeout(() => firstInput.focus(), 100);
+            setTimeout(() => firstInput.focus(), 300);
         }
     }
 }
 
-// Actualizar vista previa de imagen
+// Actualizar vista previa de imagen con animación
 function updateImagePreview(url) {
     const imagePreview = document.getElementById('imagePreview');
     if (!imagePreview) return;
 
-    if (url && url.trim() !== '') {
-        imagePreview.innerHTML = `
-            <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg">
-                <img src="${url}" 
-                     alt="Vista previa" 
-                     class="w-full h-full object-contain"
-                     onerror="this.parentElement.innerHTML='<p class=\\"text-red-500 p-4\\">Error al cargar imagen</p>'">
-            </div>
-        `;
-    } else {
-        imagePreview.innerHTML = `
-            <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500">
-                <p>La imagen aparecerá aquí</p>
-            </div>
-        `;
-    }
+    // Animación de desvanecimiento
+    imagePreview.style.opacity = '0';
+    
+    setTimeout(() => {
+        if (url && url.trim() !== '') {
+            imagePreview.innerHTML = `
+                <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
+                    <img src="${url}" 
+                         alt="Vista previa" 
+                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
+                         onerror="this.parentElement.innerHTML='<p class=\\"text-red-500 p-4\\">Error al cargar imagen</p>'">
+                </div>
+            `;
+        } else {
+            imagePreview.innerHTML = `
+                <div class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded-lg text-gray-500">
+                    <i class="fas fa-image text-3xl mb-2 opacity-50"></i>
+                    <p class="text-sm">La imagen aparecerá aquí</p>
+                </div>
+            `;
+        }
+        
+        // Restaurar opacidad con animación
+        setTimeout(() => {
+            imagePreview.style.opacity = '1';
+        }, 50);
+    }, 300);
 }
 
-// Preparar formulario para edición
+// Preparar formulario para edición con animación
 export function prepareEditForm(product) {
     if (!product) return;
 
@@ -387,38 +562,94 @@ export function prepareEditForm(product) {
     
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
-        plansContainer.innerHTML = '';
+        // Animación de eliminación para planes existentes
+        const existingPlans = plansContainer.querySelectorAll('.plan-item');
+        existingPlans.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'scale(0.9) translateX(-20px)';
+            setTimeout(() => {
+                item.remove();
+            }, index * 50);
+        });
         
-        if (product.plans && product.plans.length > 0) {
-            product.plans.forEach(plan => {
-                const planItem = document.createElement('div');
-                planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg';
-                planItem.innerHTML = `
-                    <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
-                        <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.name || ''}" required>
-                        <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" value="${plan.price_soles || ''}">
-                        <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.price_dollars || ''}">
-                    </div>
-                    <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200" title="Eliminar plan">
-                        <i class="fas fa-times"></i>
-                    </button>
-                `;
-                
-                const removeBtn = planItem.querySelector('.remove-plan');
-                removeBtn.addEventListener('click', () => {
-                    if (document.querySelectorAll('.plan-item').length > 1) {
-                        planItem.remove();
-                    }
+        // Agregar planes del producto después de la animación
+        setTimeout(() => {
+            if (product.plans && product.plans.length > 0) {
+                product.plans.forEach((plan, index) => {
+                    setTimeout(() => {
+                        const planItem = document.createElement('div');
+                        planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg opacity-0 transform scale-95 transition-all duration-300';
+                        planItem.innerHTML = `
+                            <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
+                                <div>
+                                    <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.name || ''}" required>
+                                    <div class="plan-name-error text-red-500 text-xs mt-1 hidden"></div>
+                                </div>
+                                <div>
+                                    <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" value="${plan.price_soles || ''}">
+                                    <div class="plan-price-soles-error text-red-500 text-xs mt-1 hidden"></div>
+                                </div>
+                                <div>
+                                    <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.price_dollars || ''}">
+                                    <div class="plan-price-dollars-error text-red-500 text-xs mt-1 hidden"></div>
+                                </div>
+                            </div>
+                            <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200 hover:scale-110" title="Eliminar plan">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        `;
+                        
+                        const removeBtn = planItem.querySelector('.remove-plan');
+                        removeBtn.addEventListener('click', () => {
+                            if (document.querySelectorAll('.plan-item').length > 1) {
+                                // Animación de salida
+                                planItem.style.opacity = '0';
+                                planItem.style.transform = 'scale(0.9) translateX(20px)';
+                                setTimeout(() => {
+                                    planItem.remove();
+                                }, 300);
+                            }
+                        });
+                        
+                        // Agregar validación en tiempo real
+                        const nameInput = planItem.querySelector('.plan-name');
+                        const priceSolesInput = planItem.querySelector('.plan-price-soles');
+                        const priceDollarsInput = planItem.querySelector('.plan-price-dollars');
+                        
+                        if (nameInput) {
+                            nameInput.addEventListener('input', debounce(() => {
+                                validatePlanField(nameInput, validateRequired, 'El nombre del plan es requerido');
+                            }, 500));
+                        }
+                        
+                        if (priceSolesInput) {
+                            priceSolesInput.addEventListener('input', debounce(() => {
+                                validatePlanField(priceSolesInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
+                            }, 500));
+                        }
+                        
+                        if (priceDollarsInput) {
+                            priceDollarsInput.addEventListener('input', debounce(() => {
+                                validatePlanField(priceDollarsInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
+                            }, 500));
+                        }
+                        
+                        plansContainer.appendChild(planItem);
+                        
+                        // Animación de entrada
+                        setTimeout(() => {
+                            planItem.style.opacity = '1';
+                            planItem.style.transform = 'scale(1)';
+                        }, 10);
+                    }, index * 100);
                 });
-                
-                plansContainer.appendChild(planItem);
-            });
-        } else {
-            addPlanRow();
-        }
+            } else {
+                addPlanRow();
+            }
+        }, existingPlans.length * 50 + 100);
     }
     
-    // Scroll al formulario
+    // Scroll al formulario con animación suave
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -427,7 +658,7 @@ export function prepareEditForm(product) {
     // Enfocar el primer campo
     const firstInput = productForm.querySelector('input');
     if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
+        setTimeout(() => firstInput.focus(), 300);
     }
 }
 
