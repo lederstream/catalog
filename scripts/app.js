@@ -86,6 +86,7 @@ export const initializeApp = async () => {
         
         // Configurar monitoreo de conexión
         setupConnectionMonitoring();
+        console.log('habla causita')
 
         // Renderizar componentes básicos
         renderHeader();
