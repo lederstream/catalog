@@ -86,7 +86,6 @@ export const initializeApp = async () => {
         
         // Configurar monitoreo de conexión
         setupConnectionMonitoring();
-        console.log('habla causita')
 
         // Renderizar componentes básicos
         renderHeader();
@@ -155,37 +154,19 @@ const loadInitialData = async () => {
         console.log('📦 Cargando datos del catálogo...');
         
         // Cargar categorías primero
-        let categories = [];
-        if (typeof window.loadCategories === 'function') {
-            categories = await window.loadCategories();
-            appState.updateCategories(categories);
-            console.log(`✅ ${categories.length} categorías cargadas`);
-        } else {
-            console.error('loadCategories function not available');
-        }
-
-        // Luego cargar productos
-        let products = [];
-        if (typeof window.loadProducts === 'function') {
-            products = await window.loadProducts();
-            appState.updateProducts(products);
-            console.log(`✅ ${products.length} productos cargados`);
-        } else {
-            console.error('loadProducts function not available');
-        }
-
-        // Actualizar UI
-        updateCategoryFilter();
+        const categories = await loadCategories();
+        appState.updateCategories(categories);
+        console.log(`✅ ${categories.length} categorías cargadas`);
         
-        // Renderizar productos INMEDIATAMENTE después de cargar
-        if (typeof window.renderProductsGrid === 'function') {
-            console.log('🎨 Renderizando productos...');
-            window.renderProductsGrid(products, 'productsGrid');
-        } else {
-            console.error('renderProductsGrid function not available');
-            // Fallback: mostrar mensaje de productos
-            showNoProductsMessage();
-        }
+        // Luego cargar productos
+        const products = await loadProducts();
+        appState.updateProducts(products);
+        console.log(`✅ ${products.length} productos cargados`);
+
+        // Actualizar UI y renderizar
+        updateCategoryFilter();
+        console.log('🎨 Renderizando productos...');
+        renderProductsGrid(products, 'productsGrid');
         
     } catch (error) {
         console.error('Error loading initial data:', error);
