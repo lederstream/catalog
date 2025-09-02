@@ -76,6 +76,12 @@ export async function addCategory(name) {
                 };
                 categories.push(newCategory);
                 showNotification('Categoría agregada (modo demostración)', 'success');
+                
+                // Actualizar el selector de categorías en el formulario
+                if (typeof window.loadCategoriesIntoSelect === 'function') {
+                    window.loadCategoriesIntoSelect();
+                }
+                
                 return newCategory;
             }
             
@@ -86,6 +92,12 @@ export async function addCategory(name) {
         if (data && data.length > 0) {
             categories.push(data[0]);
             showNotification('Categoría agregada correctamente', 'success');
+            
+            // Actualizar el selector de categorías en el formulario
+            if (typeof window.loadCategoriesIntoSelect === 'function') {
+                window.loadCategoriesIntoSelect();
+            }
+            
             return data[0];
         }
 
@@ -133,6 +145,12 @@ export async function deleteCategory(id) {
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 categories = categories.filter(cat => cat.id !== id);
                 showNotification('Categoría eliminada (modo demostración)', 'success');
+                
+                // Actualizar el selector de categorías en el formulario
+                if (typeof window.loadCategoriesIntoSelect === 'function') {
+                    window.loadCategoriesIntoSelect();
+                }
+                
                 return true;
             }
             
@@ -143,6 +161,12 @@ export async function deleteCategory(id) {
         // Eliminar de la lista local
         categories = categories.filter(cat => cat.id !== id);
         showNotification('Categoría eliminada correctamente', 'success');
+        
+        // Actualizar el selector de categorías en el formulario
+        if (typeof window.loadCategoriesIntoSelect === 'function') {
+            window.loadCategoriesIntoSelect();
+        }
+        
         return true;
     } catch (error) {
         console.error('Error inesperado al eliminar categoría:', error);
@@ -174,6 +198,12 @@ export async function updateCategory(id, name) {
                 if (index !== -1) {
                     categories[index].name = name.trim();
                     showNotification('Categoría actualizada (modo demostración)', 'success');
+                    
+                    // Actualizar el selector de categorías en el formulario
+                    if (typeof window.loadCategoriesIntoSelect === 'function') {
+                        window.loadCategoriesIntoSelect();
+                    }
+                    
                     return categories[index];
                 }
             }
@@ -189,6 +219,12 @@ export async function updateCategory(id, name) {
                 categories[index] = data[0];
             }
             showNotification('Categoría actualizada correctamente', 'success');
+            
+            // Actualizar el selector de categorías en el formulario
+            if (typeof window.loadCategoriesIntoSelect === 'function') {
+                window.loadCategoriesIntoSelect();
+            }
+            
             return data[0];
         }
 
