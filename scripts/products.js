@@ -1,6 +1,6 @@
-// scripts/products.js
+// scripts/products.js - Gestión de productos mejorada
 import { supabase } from './supabase.js';
-import { showNotification, formatCurrency, validateUrl, validateRequired, validateNumber } from './utils.js';
+import { showNotification, formatCurrency, validateUrl, validateRequired, validateNumber, debounce } from './utils.js';
 
 let products = [];
 
@@ -261,7 +261,7 @@ export function renderProductsGrid(productsToRender, containerId) {
 
     // Renderizado mejorado de productos con efectos visuales
     container.innerHTML = productsToRender.map(product => `
-        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group">
+        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 group cursor-pointer">
             <div class="h-48 bg-gray-100 overflow-hidden relative">
                 <div class="image-container w-full h-full relative overflow-hidden">
                     <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}" 
@@ -334,6 +334,23 @@ export function renderProductsGrid(productsToRender, containerId) {
             }
         });
     });
+    
+    // Hacer las tarjetas clickeables en móviles
+    if (window.innerWidth < 768) {
+        container.querySelectorAll('.product-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                // No activar si se hizo clic en un botón o enlace
+                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
+                    return;
+                }
+                
+                const productId = card.querySelector('.view-details-btn')?.dataset.productId;
+                if (productId && typeof window.showProductDetails === 'function') {
+                    window.showProductDetails(productId);
+                }
+            });
+        });
+    }
     
     // Animar la entrada de las tarjetas
     const productCards = container.querySelectorAll('.product-card');
@@ -420,7 +437,7 @@ export function renderAdminProductsList(productsToRender, container) {
 
     // Agregar event listeners para los botones de editar y eliminar
     container.querySelectorAll('.edit-product').forEach(button => {
-        button.addEventListener('click', (e) => {
+        button.addEventListener('click', debounce((e) => {
             const id = e.currentTarget.dataset.id;
             
             // Efecto de clic
@@ -432,11 +449,11 @@ export function renderAdminProductsList(productsToRender, container) {
             if (typeof window.editProduct === 'function') {
                 window.editProduct(id);
             }
-        });
+        }, 200));
     });
 
     container.querySelectorAll('.delete-product').forEach(button => {
-        button.addEventListener('click', (e) => {
+        button.addEventListener('click', debounce((e) => {
             const id = e.currentTarget.dataset.id;
             
             // Efecto de clic
@@ -459,7 +476,7 @@ export function renderAdminProductsList(productsToRender, container) {
                     }
                 });
             }
-        });
+        }, 200));
     });
 }
 
