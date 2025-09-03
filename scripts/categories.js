@@ -1,4 +1,3 @@
-// scripts/categories.js - Gestión de categorías mejorada
 import { supabase } from './supabase.js';
 import { showNotification, validateRequired, debounce } from './utils.js';
 
@@ -297,7 +296,7 @@ export function renderCategoriesList(container) {
     }
 
     container.innerHTML = categories.map((category, index) => `
-        <div class="flex items-center justify-between p-3 border-b hover:bg-gray-50 transition-colors duration-200 opacity-0 transform -translate-x-4" style="transition: opacity 0.3s ease, transform 0.3s ease; transition-delay: ${index * 50}ms">
+        <div class="flex items-center justify-between p-3 border-b hover:bg-gray-50 transition-colors duration-200 group" style="animation-delay: ${index * 50}ms">
             <div class="flex items-center">
                 <i class="${category.icon || 'fas fa-tag'} mr-3 text-blue-500"></i>
                 <span class="category-name font-medium">${category.name}</span>
@@ -313,20 +312,10 @@ export function renderCategoriesList(container) {
         </div>
     `).join('');
 
-    // Animar la entrada de las categorías
-    setTimeout(() => {
-        const categoryElements = container.querySelectorAll('div');
-        categoryElements.forEach((element, index) => {
-            setTimeout(() => {
-                element.classList.remove('opacity-0', '-translate-x-4');
-            }, index * 50);
-        });
-    }, 10);
-
     // Agregar event listeners para los botones
     container.querySelectorAll('.edit-category').forEach(button => {
         button.addEventListener('click', (e) => {
-            const id = e.currentTarget.dataset.id;
+            const id = parseInt(e.currentTarget.dataset.id);
             const category = categories.find(cat => cat.id === id);
             if (category) {
                 const newName = prompt('Editar nombre de categoría:', category.name);
@@ -343,10 +332,10 @@ export function renderCategoriesList(container) {
 
     container.querySelectorAll('.delete-category').forEach(button => {
         button.addEventListener('click', (e) => {
-            const id = e.currentTarget.dataset.id;
+            const id = parseInt(e.currentTarget.dataset.id);
             const category = categories.find(cat => cat.id === id);
             
-            if (confirm(`¿Estás seguro de que deseas eliminar la categoría "${category.name}"?`)) {
+            if (category && confirm(`¿Estás seguro de que deseas eliminar la categoría "${category.name}"?`)) {
                 // Animación de eliminación
                 const element = e.currentTarget.closest('div');
                 element.style.opacity = '0';
