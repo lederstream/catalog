@@ -40,7 +40,25 @@ class ModalSystem {
             animation: true,
             ...options
         };
-        
+
+        // Configurar estilos para centrado perfecto
+        modal.style.display = 'flex';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        modal.style.position = 'fixed';
+        modal.style.top = '0';
+        modal.style.left = '0';
+        modal.style.right = '0';
+        modal.style.bottom = '0';
+        modal.style.zIndex = '50';
+
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+            modalContent.style.margin = 'auto';
+            modalContent.style.maxHeight = '90vh';
+            modalContent.style.overflowY = 'auto';
+        }
+
         // Agregar a pila de modales
         this.modalStack.push(modalId);
         this.activeModals.add(modalId);
@@ -256,6 +274,29 @@ const closeCategoriesModal = document.getElementById('closeCategoriesModal');
 // Inicializar modales
 export function initModals() {
     console.log('🔲 Inicializando sistema de modales...');
+
+        // Aplicar estilos de centrado a todos los modales existentes
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.style.display = 'none';
+        modal.style.alignItems = 'center';
+        modal.style.justifyContent = 'center';
+        
+        // Asegurar que el contenido del modal tenga los estilos correctos
+        let modalContent = modal.querySelector('.modal-content');
+        if (!modalContent) {
+            modalContent = modal.querySelector('.bg-white');
+            if (modalContent) {
+                modalContent.classList.add('modal-content');
+            }
+        }
+        
+        if (modalContent) {
+            modalContent.style.margin = 'auto';
+            modalContent.style.maxWidth = '90%';
+            modalContent.style.maxHeight = '90vh';
+            modalContent.style.overflowY = 'auto';
+        }
+    });
     
     // Inicializar sistema de modales
     setupModalSystem();
