@@ -1,7 +1,13 @@
 // scripts/utils.js
 import { showNotification, showError, showSuccess, showWarning, showInfo } from './notifications.js';
 
-// Utilidades generales
+// Estado global de utilidades
+const UtilsState = {
+    debugMode: localStorage.getItem('debug') === 'true',
+    performanceMetrics: new Map()
+};
+
+// ===== FUNCIONES BÁSICAS =====
 export const debounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
@@ -16,13 +22,57 @@ export const debounce = (func, wait, immediate = false) => {
     };
 };
 
-export const formatCurrency = (amount, currency = 'PEN') => {
-    // Manejar valores nulos o undefined
+export const throttle = (func, limit) => {
+    let inThrottle;
+    return function(...args) {
+        if (!inThrottle) {
+            func.apply(this, args);
+            inThrottle = true;
+            setTimeout(() => inThrottle = false, limit);
+        }
+    };
+};
+
+// ===== VALIDACIONES =====
+export const validateEmail = (email) => {
+    if (!email || typeof email !== 'string') return false;
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email.trim());
+};
+
+export const validateUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    try {
+        const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
+        new URL(urlWithProtocol);
+        return true;
+    } catch {
+        return false;
+    }
+};
+
+export const validateRequired = (value) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === 'string') return value.trim() !== '';
+    if (typeof value === 'number') return !isNaN(value);
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'object') return Object.keys(value).length > 0;
+    return true;
+};
+
+export const validateNumber = (value, min = 0, max = Infinity) => {
+    if (value === null || value === undefined || value === '') return false;
+    const num = parseFloat(value);
+    return !isNaN(num) && isFinite(num) && num >= min && num <= max;
+};
+
+// ===== FORMATEO Y MANIPULACIÓN =====
+export const formatCurrency = (amount, currency = 'PEN', locale = 'es-PE') => {
     if (amount === null || amount === undefined || isNaN(amount)) {
         amount = 0;
     }
     
-    const formatter = new Intl.NumberFormat('es-PE', {
+    const formatter = new Intl.NumberFormat(locale, {
         style: 'currency',
         currency: currency,
         minimumFractionDigits: 2,
@@ -32,82 +82,32 @@ export const formatCurrency = (amount, currency = 'PEN') => {
     return formatter.format(amount);
 };
 
-export const validateEmail = (email) => {
-    if (!email) return false;
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email.trim());
-};
-
-export const validateUrl = (url) => {
-    if (!url) return false;
-    try {
-        // Asegurarse de que la URL tenga protocolo
-        const urlWithProtocol = url.startsWith('http') ? url : `https://${url}`;
-        new URL(urlWithProtocol);
-        return true;
-    } catch (_) {
-        return false;
-    }
-};
-
-export const validateRequired = (value) => {
-    return value !== null && value !== undefined && value.toString().trim() !== '';
-};
-
-export const validateNumber = (value) => {
-    if (value === null || value === undefined || value === '') return false;
-    return !isNaN(parseFloat(value)) && isFinite(value) && parseFloat(value) >= 0;
-};
-
 export const slugify = (text) => {
-    if (!text) return '';
-    return text.toString().toLowerCase()
-        .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // Eliminar acentos
-        .replace(/\s+/g, '-')           // Replace spaces with -
-        .replace(/[^\w\-]+/g, '')       // Remove all non-word chars
-        .replace(/\-\-+/g, '-')         // Replace multiple - with single -
-        .replace(/^-+/, '')             // Trim - from start of text
-        .replace(/-+$/, '');            // Trim - from end of text
+    if (!text || typeof text !== 'string') return '';
+    return text
+        .toString()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/[^\w\-]+/g, '')
+        .replace(/\-\-+/g, '-')
+        .replace(/^-+/, '')
+        .replace(/-+$/, '');
 };
 
 export const capitalize = (text) => {
-    if (!text) return '';
+    if (!text || typeof text !== 'string') return '';
     return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 };
 
-export const truncateText = (text, maxLength = 100) => {
-    if (!text) return '';
+export const truncateText = (text, maxLength = 100, suffix = '...') => {
+    if (!text || typeof text !== 'string') return '';
     if (text.length <= maxLength) return text;
-    return text.substr(0, maxLength) + '...';
+    return text.substr(0, maxLength) + suffix;
 };
 
-export const parseJSONSafe = (jsonString, defaultValue = null) => {
-    try {
-        return JSON.parse(jsonString);
-    } catch (error) {
-        console.error('Error parsing JSON:', error);
-        return defaultValue;
-    }
-};
-
-export const stringifyJSONSafe = (data, defaultValue = '{}') => {
-    try {
-        return JSON.stringify(data);
-    } catch (error) {
-        console.error('Error stringifying JSON:', error);
-        return defaultValue;
-    }
-};
-
-export const deepClone = (obj) => {
-    if (obj === null || typeof obj !== 'object') return obj;
-    return JSON.parse(JSON.stringify(obj));
-};
-
-export const getRandomId = () => {
-    return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
-};
-
+// ===== MANEJO DE FECHAS =====
 export const formatDate = (date, options = {}) => {
     if (!date) return '';
     
@@ -118,23 +118,32 @@ export const formatDate = (date, options = {}) => {
         ...options
     };
     
-    return new Date(date).toLocaleDateString('es-ES', defaultOptions);
+    try {
+        return new Date(date).toLocaleDateString('es-ES', defaultOptions);
+    } catch {
+        return 'Fecha inválida';
+    }
 };
 
 export const formatDateTime = (date) => {
     if (!date) return '';
     
-    return new Date(date).toLocaleDateString('es-ES', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
+    try {
+        return new Date(date).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+    } catch {
+        return 'Fecha/hora inválida';
+    }
 };
 
+// ===== MANEJO DE ARCHIVOS =====
 export const getFileExtension = (filename) => {
-    if (!filename) return '';
+    if (!filename || typeof filename !== 'string') return '';
     return filename.split('.').pop().toLowerCase();
 };
 
@@ -144,372 +153,23 @@ export const isImageFile = (filename) => {
     return imageExtensions.includes(extension);
 };
 
-export const getFileSize = (bytes) => {
+export const formatBytes = (bytes, decimals = 2) => {
     if (bytes === 0) return '0 Bytes';
     
     const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+    
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
-export const sleep = (ms) => {
-    return new Promise(resolve => setTimeout(resolve, ms));
-};
-
-export const retry = async (fn, retries = 3, delay = 1000) => {
-    try {
-        return await fn();
-    } catch (error) {
-        if (retries === 0) throw error;
-        await sleep(delay);
-        return retry(fn, retries - 1, delay * 2);
-    }
-};
-
-export const throttle = (func, limit) => {
-    let inThrottle;
-    return function() {
-        const args = arguments;
-        const context = this;
-        if (!inThrottle) {
-            func.apply(context, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
-};
-
-export const groupBy = (array, key) => {
-    if (!array) return {};
-    return array.reduce((result, currentValue) => {
-        const keyValue = currentValue[key];
-        if (keyValue !== undefined && keyValue !== null) {
-            (result[keyValue] = result[keyValue] || []).push(currentValue);
-        }
-        return result;
-    }, {});
-};
-
-export const sortBy = (array, key, direction = 'asc') => {
-    if (!array) return [];
-    
-    return [...array].sort((a, b) => {
-        let aValue = a[key];
-        let bValue = b[key];
-        
-        if (typeof aValue === 'string') aValue = aValue.toLowerCase();
-        if (typeof bValue === 'string') bValue = bValue.toLowerCase();
-        
-        if (aValue < bValue) return direction === 'asc' ? -1 : 1;
-        if (aValue > bValue) return direction === 'asc' ? 1 : -1;
-        return 0;
-    });
-};
-
-export const filterUnique = (array, key = null) => {
-    if (!array) return [];
-    
-    if (key) {
-        return array.filter((item, index, self) =>
-            index === self.findIndex(t => t[key] === item[key])
-        );
-    }
-    return [...new Set(array)];
-};
-
-export const calculateTotal = (items, key) => {
-    if (!items) return 0;
-    return items.reduce((total, item) => total + (parseFloat(item[key]) || 0), 0);
-};
-
-export const getPercentage = (value, total) => {
-    if (total === 0) return 0;
-    return (value / total) * 100;
-};
-
-export const clamp = (value, min, max) => {
-    return Math.min(Math.max(value, min), max);
-};
-
-export const randomInt = (min, max) => {
-    return Math.floor(Math.random() * (max - min + 1)) + min;
-};
-
-export const randomItem = (array) => {
-    if (!array || array.length === 0) return null;
-    return array[Math.floor(Math.random() * array.length)];
-};
-
-export const shuffleArray = (array) => {
-    if (!array) return [];
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-};
-
-export const createRange = (start, end, step = 1) => {
-    const range = [];
-    for (let i = start; i <= end; i += step) {
-        range.push(i);
-    }
-    return range;
-};
-
-export const isMobileDevice = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-};
-
-export const isTouchDevice = () => {
-    return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-};
-
-export const getBrowserInfo = () => {
-    const ua = navigator.userAgent;
-    let tem;
-    let M = ua.match(/(opera|chrome|safari|firefox|msie|trident(?=\/))\/?\s*(\d+)/i) || [];
-    
-    if (/trident/i.test(M[1])) {
-        tem = /\brv[ :]+(\d+)/g.exec(ua) || [];
-        return { name: 'IE', version: (tem[1] || '') };
-    }
-    
-    if (M[1] === 'Chrome') {
-        tem = ua.match(/\b(OPR|Edge)\/(\d+)/);
-        if (tem != null) return { name: tem[1].replace('OPR', 'Opera'), version: tem[2] };
-    }
-    
-    M = M[2] ? [M[1], M[2]] : [navigator.appName, navigator.appVersion, '-?'];
-    
-    if ((tem = ua.match(/version\/(\d+)/i)) != null) M.splice(1, 1, tem[1]);
-    
-    return { name: M[0], version: M[1] };
-};
-
-export const getDeviceType = () => {
-    const width = window.innerWidth;
-    if (width < 768) return 'mobile';
-    if (width < 1024) return 'tablet';
-    return 'desktop';
-};
-
-export const copyToClipboard = async (text) => {
-    try {
-        await navigator.clipboard.writeText(text);
-        showSuccess('Texto copiado al portapapeles');
-        return true;
-    } catch (error) {
-        console.error('Error copying to clipboard:', error);
-        
-        // Fallback para navegadores más antiguos
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.focus();
-        textArea.select();
-        
-        try {
-            const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            
-            if (successful) {
-                showSuccess('Texto copiado al portapapeles');
-                return true;
-            } else {
-                showError('Error al copiar el texto');
-                return false;
-            }
-        } catch (fallbackError) {
-            document.body.removeChild(textArea);
-            showError('Error al copiar el texto');
-            return false;
-        }
-    }
-};
-
-export const downloadFile = (content, fileName, contentType = 'text/plain') => {
-    const blob = new Blob([content], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-};
-
-export const loadScript = (src, async = true, defer = true) => {
-    return new Promise((resolve, reject) => {
-        // Verificar si el script ya está cargado
-        if (document.querySelector(`script[src="${src}"]`)) {
-            resolve();
-            return;
-        }
-
-        const script = document.createElement('script');
-        script.src = src;
-        script.async = async;
-        script.defer = defer;
-        script.onload = () => resolve();
-        script.onerror = () => reject(new Error(`Failed to load script: ${src}`));
-        document.head.appendChild(script);
-    });
-};
-
-export const loadStyle = (href) => {
-    return new Promise((resolve, reject) => {
-        // Verificar si el estilo ya está cargado
-        if (document.querySelector(`link[href="${href}"]`)) {
-            resolve();
-            return;
-        }
-
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.href = href;
-        link.onload = () => resolve();
-        link.onerror = () => reject(new Error(`Failed to load style: ${href}`));
-        document.head.appendChild(link);
-    });
-};
-
-export const measurePerformance = (fn, ...args) => {
-    const start = performance.now();
-    const result = fn(...args);
-    const end = performance.now();
-    return {
-        result,
-        time: end - start
-    };
-};
-
-export const createEvent = (name, detail = {}) => {
-    return new CustomEvent(name, {
-        detail,
-        bubbles: true,
-        cancelable: true
-    });
-};
-
-export const dispatchCustomEvent = (element, eventName, detail = {}) => {
-    const event = createEvent(eventName, detail);
-    element.dispatchEvent(event);
-    return event;
-};
-
-export const observeElement = (element, callback, options = {}) => {
-    const observer = new MutationObserver(callback);
-    observer.observe(element, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-        attributeFilter: ['class', 'style'],
-        ...options
-    });
-    return observer;
-};
-
-export const waitForElement = (selector, timeout = 5000) => {
-    return new Promise((resolve, reject) => {
-        const element = document.querySelector(selector);
-        if (element) {
-            resolve(element);
-            return;
-        }
-
-        const observer = new MutationObserver((mutations, obs) => {
-            const element = document.querySelector(selector);
-            if (element) {
-                obs.disconnect();
-                resolve(element);
-            }
-        });
-
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
-
-        setTimeout(() => {
-            observer.disconnect();
-            reject(new Error(`Element ${selector} not found within ${timeout}ms`));
-        }, timeout);
-    });
-};
-
-export const addGlobalEventListener = (type, selector, callback, options = {}) => {
-    document.addEventListener(type, (e) => {
-        if (e.target.matches(selector)) {
-            callback(e);
-        }
-    }, options);
-};
-
-export const getElementOffset = (element) => {
-    if (!element) return { top: 0, left: 0, width: 0, height: 0 };
-    
-    const rect = element.getBoundingClientRect();
-    return {
-        top: rect.top + window.pageYOffset,
-        left: rect.left + window.pageXOffset,
-        width: rect.width,
-        height: rect.height
-    };
-};
-
-export const isElementInViewport = (element) => {
-    if (!element) return false;
-    
-    const rect = element.getBoundingClientRect();
-    return (
-        rect.top >= 0 &&
-        rect.left >= 0 &&
-        rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
-        rect.right <= (window.innerWidth || document.documentElement.clientWidth)
-    );
-};
-
-export const scrollToElement = (element, options = {}) => {
-    if (!element) return;
-    
-    const defaultOptions = {
-        behavior: 'smooth',
-        block: 'start',
-        inline: 'nearest'
-    };
-    
-    element.scrollIntoView({ ...defaultOptions, ...options });
-};
-
-export const disableScroll = () => {
-    document.body.style.overflow = 'hidden';
-    document.documentElement.style.overflow = 'hidden';
-};
-
-export const enableScroll = () => {
-    document.body.style.overflow = '';
-    document.documentElement.style.overflow = '';
-};
-
-export const lockBodyScroll = (lock = true) => {
-    if (lock) {
-        disableScroll();
-    } else {
-        enableScroll();
-    }
-};
-
+// ===== MANIPULACIÓN DEL DOM =====
 export const createElement = (tag, attributes = {}, children = []) => {
     const element = document.createElement(tag);
     
+    // Manejar atributos especiales
     Object.entries(attributes).forEach(([key, value]) => {
         if (key === 'className') {
             element.className = value;
@@ -522,11 +182,14 @@ export const createElement = (tag, attributes = {}, children = []) => {
             element.addEventListener(eventName, value);
         } else if (key === 'style' && typeof value === 'object') {
             Object.assign(element.style, value);
+        } else if (key === 'dataset' && typeof value === 'object') {
+            Object.assign(element.dataset, value);
         } else {
             element.setAttribute(key, value);
         }
     });
     
+    // Agregar hijos
     children.forEach(child => {
         if (typeof child === 'string') {
             element.appendChild(document.createTextNode(child));
@@ -539,7 +202,7 @@ export const createElement = (tag, attributes = {}, children = []) => {
 };
 
 export const removeAllChildren = (element) => {
-    if (!element) return;
+    if (!element || !element.parentNode) return;
     
     while (element.firstChild) {
         element.removeChild(element.firstChild);
@@ -556,241 +219,271 @@ export const toggleClass = (element, className, force) => {
     }
 };
 
-export const hasClass = (element, className) => {
-    if (!element) return false;
-    return element.classList.contains(className);
+export const addClass = (element, ...classNames) => {
+    if (!element) return;
+    element.classList.add(...classNames);
 };
 
-export const addClass = (element, className) => {
+export const removeClass = (element, ...classNames) => {
     if (!element) return;
-    element.classList.add(className);
+    element.classList.remove(...classNames);
 };
 
-export const removeClass = (element, className) => {
-    if (!element) return;
-    element.classList.remove(className);
-};
-
-export const setAttributes = (element, attributes) => {
-    if (!element) return;
+// ===== ANIMACIONES Y TRANSICIONES =====
+export const fadeIn = (element, duration = 300, display = 'block') => {
+    if (!element) return Promise.resolve();
     
-    Object.entries(attributes).forEach(([key, value]) => {
-        element.setAttribute(key, value);
+    return new Promise(resolve => {
+        element.style.opacity = '0';
+        element.style.display = display;
+        
+        let start = null;
+        
+        function animate(timestamp) {
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const opacity = Math.min(progress / duration, 1);
+            
+            element.style.opacity = opacity.toString();
+            
+            if (progress < duration) {
+                requestAnimationFrame(animate);
+            } else {
+                resolve();
+            }
+        }
+        
+        requestAnimationFrame(animate);
     });
 };
 
-export const getComputedStyleValue = (element, property) => {
-    if (!element) return '';
-    return window.getComputedStyle(element).getPropertyValue(property);
-};
-
-export const animateValue = (element, property, start, end, duration = 1000, easing = 'easeInOut', unit = '') => {
-    if (!element) return;
+export const fadeOut = (element, duration = 300) => {
+    if (!element) return Promise.resolve();
     
-    const startTime = performance.now();
-    const easingFunctions = {
-        linear: t => t,
-        easeIn: t => t * t,
-        easeOut: t => t * (2 - t),
-        easeInOut: t => t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
-    };
-    
-    const ease = easingFunctions[easing] || easingFunctions.easeInOut;
-    
-    function update(currentTime) {
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const easedProgress = ease(progress);
-        const value = start + (end - start) * easedProgress;
+    return new Promise(resolve => {
+        const startOpacity = parseFloat(getComputedStyle(element).opacity);
+        let start = null;
         
-        element.style[property] = value + unit;
-        
-        if (progress < 1) {
-            requestAnimationFrame(update);
+        function animate(timestamp) {
+            if (!start) start = timestamp;
+            const progress = timestamp - start;
+            const opacity = Math.max(startOpacity - (progress / duration), 0);
+            
+            element.style.opacity = opacity.toString();
+            
+            if (progress < duration && opacity > 0) {
+                requestAnimationFrame(animate);
+            } else {
+                element.style.display = 'none';
+                resolve();
+            }
         }
-    }
-    
-    requestAnimationFrame(update);
-};
-
-export const preloadImages = (imageUrls) => {
-    return Promise.all(
-        imageUrls.map(url => {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.onload = resolve;
-                img.onerror = reject;
-                img.src = url;
-            });
-        })
-    );
-};
-
-export const lazyLoadImages = (images) => {
-    if (!images || images.length === 0) return;
-    
-    const lazyImages = [...images];
-    
-    if ('IntersectionObserver' in window) {
-        const lazyImageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const lazyImage = entry.target;
-                    lazyImage.src = lazyImage.dataset.src || lazyImage.src;
-                    
-                    if (lazyImage.dataset.srcset) {
-                        lazyImage.srcset = lazyImage.dataset.srcset;
-                    }
-                    
-                    lazyImage.classList.remove('lazy');
-                    lazyImageObserver.unobserve(lazyImage);
-                }
-            });
-        });
         
-        lazyImages.forEach(lazyImage => {
-            lazyImageObserver.observe(lazyImage);
-        });
-    } else {
-        // Fallback para navegadores que no soportan IntersectionObserver
-        lazyImages.forEach(lazyImage => {
-            lazyImage.src = lazyImage.dataset.src || lazyImage.src;
-        });
-    }
+        requestAnimationFrame(animate);
+    });
 };
 
-export const formatBytes = (bytes, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
+export const slideDown = (element, duration = 300) => {
+    if (!element) return Promise.resolve();
     
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    return new Promise(resolve => {
+        element.style.display = 'block';
+        const height = element.scrollHeight;
+        
+        element.style.overflow = 'hidden';
+        element.style.height = '0px';
+        element.style.transition = `height ${duration}ms ease`;
+        
+        // Forzar reflow
+        element.offsetHeight;
+        
+        element.style.height = `${height}px`;
+        
+        setTimeout(() => {
+            element.style.overflow = '';
+            element.style.height = '';
+            element.style.transition = '';
+            resolve();
+        }, duration);
+    });
 };
 
-export const formatNumber = (number, options = {}) => {
-    const defaultOptions = {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 2,
+export const slideUp = (element, duration = 300) => {
+    if (!element) return Promise.resolve();
+    
+    return new Promise(resolve => {
+        const height = element.scrollHeight;
+        
+        element.style.overflow = 'hidden';
+        element.style.height = `${height}px`;
+        element.style.transition = `height ${duration}ms ease`;
+        
+        // Forzar reflow
+        element.offsetHeight;
+        
+        element.style.height = '0px';
+        
+        setTimeout(() => {
+            element.style.display = 'none';
+            element.style.overflow = '';
+            element.style.height = '';
+            element.style.transition = '';
+            resolve();
+        }, duration);
+    });
+};
+
+// ===== MANEJO DE EVENTOS =====
+export const addGlobalEventListener = (type, selector, callback, options = {}) => {
+    document.addEventListener(type, (e) => {
+        if (e.target.matches(selector) || e.target.closest(selector)) {
+            callback(e);
+        }
+    }, options);
+};
+
+export const delegateEvent = (container, type, selector, callback) => {
+    if (!container) return;
+    
+    container.addEventListener(type, (e) => {
+        if (e.target.matches(selector) || e.target.closest(selector)) {
+            callback(e);
+        }
+    });
+};
+
+// ===== SCROLL Y VISIBILIDAD =====
+export const smoothScrollTo = (target, offset = 0, duration = 800) => {
+    const element = typeof target === 'string' ? document.querySelector(target) : target;
+    if (!element) return Promise.resolve();
+    
+    return new Promise(resolve => {
+        const startPosition = window.pageYOffset;
+        const targetPosition = element.getBoundingClientRect().top + startPosition - offset;
+        const distance = targetPosition - startPosition;
+        let startTime = null;
+        
+        function animation(currentTime) {
+            if (startTime === null) startTime = currentTime;
+            const timeElapsed = currentTime - startTime;
+            const run = easeInOutQuad(timeElapsed, startPosition, distance, duration);
+            
+            window.scrollTo(0, run);
+            
+            if (timeElapsed < duration) {
+                requestAnimationFrame(animation);
+            } else {
+                resolve();
+            }
+        }
+        
+        function easeInOutQuad(t, b, c, d) {
+            t /= d / 2;
+            if (t < 1) return c / 2 * t * t + b;
+            t--;
+            return -c / 2 * (t * (t - 2) - 1) + b;
+        }
+        
+        requestAnimationFrame(animation);
+    });
+};
+
+export const isElementInViewport = (element, threshold = 0) => {
+    if (!element) return false;
+    
+    const rect = element.getBoundingClientRect();
+    const windowHeight = window.innerHeight || document.documentElement.clientHeight;
+    const windowWidth = window.innerWidth || document.documentElement.clientWidth;
+    
+    const vertInView = (rect.top <= windowHeight - threshold) && 
+                      (rect.top + rect.height >= threshold);
+    const horInView = (rect.left <= windowWidth - threshold) && 
+                     (rect.left + rect.width >= threshold);
+    
+    return vertInView && horInView;
+};
+
+export const observeElementIntersection = (element, callback, options = {}) => {
+    if (!element || !('IntersectionObserver' in window)) return null;
+    
+    const observerOptions = {
+        threshold: 0.1,
+        rootMargin: '0px',
         ...options
     };
     
-    return new Intl.NumberFormat('es-ES', defaultOptions).format(number);
-};
-
-export const generateUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-        const r = Math.random() * 16 | 0;
-        const v = c === 'x' ? r : (r & 0x3 | 0x8);
-        return v.toString(16);
-    });
-};
-
-export const isEqual = (a, b) => {
-    return JSON.stringify(a) === JSON.stringify(b);
-};
-
-export const difference = (a, b) => {
-    if (!a) return [];
-    if (!b) return a;
-    return a.filter(x => !b.includes(x));
-};
-
-export const intersection = (a, b) => {
-    if (!a || !b) return [];
-    return a.filter(x => b.includes(x));
-};
-
-export const union = (a, b) => {
-    return [...new Set([...(a || []), ...(b || [])])];
-};
-
-export const chunkArray = (array, size) => {
-    if (!array) return [];
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            callback(entry.isIntersecting, entry);
+        });
+    }, observerOptions);
     
-    const chunks = [];
-    for (let i = 0; i < array.length; i += size) {
-        chunks.push(array.slice(i, i + size));
+    observer.observe(element);
+    return observer;
+};
+
+// ===== ALMACENAMIENTO Y DATOS =====
+export const safeJSONParse = (jsonString, defaultValue = null) => {
+    try {
+        return JSON.parse(jsonString);
+    } catch (error) {
+        if (UtilsState.debugMode) {
+            console.error('Error parsing JSON:', error, jsonString);
+        }
+        return defaultValue;
     }
-    return chunks;
 };
 
-export const flattenArray = (array) => {
-    if (!array) return [];
+export const safeJSONStringify = (data, defaultValue = '{}') => {
+    try {
+        return JSON.stringify(data);
+    } catch (error) {
+        if (UtilsState.debugMode) {
+            console.error('Error stringifying JSON:', error, data);
+        }
+        return defaultValue;
+    }
+};
+
+export const deepClone = (obj) => {
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (obj instanceof Date) return new Date(obj.getTime());
+    if (obj instanceof Array) return obj.map(item => deepClone(item));
     
-    return array.reduce((flat, next) => {
-        return flat.concat(Array.isArray(next) ? flattenArray(next) : next);
-    }, []);
-};
-
-export const memoize = (fn) => {
-    const cache = new Map();
-    return (...args) => {
-        const key = JSON.stringify(args);
-        if (cache.has(key)) {
-            return cache.get(key);
+    const cloned = {};
+    for (const key in obj) {
+        if (obj.hasOwnProperty(key)) {
+            cloned[key] = deepClone(obj[key]);
         }
-        const result = fn(...args);
-        cache.set(key, result);
-        return result;
-    };
+    }
+    return cloned;
 };
 
-export const pipe = (...fns) => {
-    return (x) => fns.reduce((v, f) => f(v), x);
+// ===== RENDIMIENTO Y DEBUGGING =====
+export const measurePerformance = (name, fn) => {
+    if (!UtilsState.debugMode) return fn();
+    
+    const start = performance.now();
+    const result = fn();
+    const end = performance.now();
+    
+    UtilsState.performanceMetrics.set(name, end - start);
+    console.log(`⏱️ ${name}: ${(end - start).toFixed(2)}ms`);
+    
+    return result;
 };
 
-export const compose = (...fns) => {
-    return (x) => fns.reduceRight((v, f) => f(v), x);
+export const getPerformanceMetrics = () => {
+    return Array.from(UtilsState.performanceMetrics.entries());
 };
 
-export const curry = (fn) => {
-    return function curried(...args) {
-        if (args.length >= fn.length) {
-            return fn.apply(this, args);
-        } else {
-            return function(...args2) {
-                return curried.apply(this, args.concat(args2));
-            };
-        }
-    };
+export const enableDebugMode = (enable = true) => {
+    UtilsState.debugMode = enable;
+    localStorage.setItem('debug', enable.toString());
+    console.log(`🔧 Debug mode ${enable ? 'enabled' : 'disabled'}`);
 };
 
-export const once = (fn) => {
-    let called = false;
-    let result;
-    return function(...args) {
-        if (!called) {
-            called = true;
-            result = fn.apply(this, args);
-        }
-        return result;
-    };
-};
-
-export const createDebouncedFunction = (fn, delay) => {
-    let timeoutId;
-    return function(...args) {
-        clearTimeout(timeoutId);
-        timeoutId = setTimeout(() => fn.apply(this, args), delay);
-    };
-};
-
-export const createThrottledFunction = (fn, limit) => {
-    let inThrottle;
-    return function(...args) {
-        if (!inThrottle) {
-            fn.apply(this, args);
-            inThrottle = true;
-            setTimeout(() => inThrottle = false, limit);
-        }
-    };
-};
-
-// Utilidades específicas para el catálogo
+// ===== UTILIDADES ESPECÍFICAS DEL CATÁLOGO =====
 export const validateProductForm = (formData) => {
     const errors = [];
     
@@ -798,7 +491,7 @@ export const validateProductForm = (formData) => {
         errors.push('El nombre del producto es requerido');
     }
     
-    if (!validateRequired(formData.category)) {
+    if (!validateRequired(formData.category_id)) {
         errors.push('La categoría es requerida');
     }
     
@@ -818,12 +511,11 @@ export const validateProductForm = (formData) => {
                 errors.push(`El nombre del plan ${index + 1} es requerido`);
             }
             
-            if (!validateNumber(plan.price_soles) || parseFloat(plan.price_soles) < 0) {
-                errors.push(`El precio en soles del plan ${index + 1} no es válido`);
-            }
+            const hasSoles = validateNumber(plan.price_soles) && parseFloat(plan.price_soles) >= 0;
+            const hasDollars = validateNumber(plan.price_dollars) && parseFloat(plan.price_dollars) >= 0;
             
-            if (!validateNumber(plan.price_dollars) || parseFloat(plan.price_dollars) < 0) {
-                errors.push(`El precio en dólares del plan ${index + 1} no es válido`);
+            if (!hasSoles && !hasDollars) {
+                errors.push(`El plan ${index + 1} debe tener al menos un precio válido (soles o dólares)`);
             }
         });
     }
@@ -832,7 +524,7 @@ export const validateProductForm = (formData) => {
 };
 
 export const formatPlanPrices = (plans) => {
-    if (!plans) return [];
+    if (!plans || !Array.isArray(plans)) return [];
     
     return plans.map(plan => ({
         ...plan,
@@ -844,7 +536,7 @@ export const formatPlanPrices = (plans) => {
 };
 
 export const escapeHtml = (text) => {
-    if (!text) return '';
+    if (!text || typeof text !== 'string') return '';
     
     const map = {
         '&': '&amp;',
@@ -854,27 +546,62 @@ export const escapeHtml = (text) => {
         "'": '&#039;'
     };
     
-    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+    return text.replace(/[&<>"']/g, m => map[m]);
 };
 
 export const sanitizeInput = (input) => {
     if (typeof input !== 'string') return input;
     
-    // Eliminar scripts y etiquetas potencialmente peligrosas
-    return input.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-                .replace(/on\w+="[^"]*"/g, '')
-                .replace(/on\w+='[^']*'/g, '')
-                .replace(/on\w+=\w+/g, '')
-                .trim();
+    return input
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/on\w+="[^"]*"/g, '')
+        .replace(/on\w+='[^']*'/g, '')
+        .replace(/on\w+=\w+/g, '')
+        .trim();
 };
 
-// Exportar funciones de notificación para uso conveniente
-export { showNotification, showError, showSuccess, showWarning, showInfo };
+// ===== INICIALIZACIÓN =====
+export const initUtils = () => {
+    // Configurar modo debug si está en localStorage
+    if (localStorage.getItem('debug') === 'true') {
+        enableDebugMode(true);
+    }
+    
+    console.log('✅ Utilidades inicializadas');
+};
 
+// Hacer funciones disponibles globalmente
 if (typeof window !== 'undefined') {
-    window.showNotification = showNotification;
-    window.showError = showError;
-    window.showSuccess = showSuccess;
-    window.showWarning = showWarning;
-    window.showInfo = showInfo;
+    window.utils = {
+        debounce,
+        throttle,
+        validateEmail,
+        validateUrl,
+        validateRequired,
+        validateNumber,
+        formatCurrency,
+        slugify,
+        capitalize,
+        truncateText,
+        formatDate,
+        formatDateTime,
+        fadeIn,
+        fadeOut,
+        slideDown,
+        slideUp,
+        smoothScrollTo,
+        isElementInViewport,
+        measurePerformance,
+        enableDebugMode
+    };
 }
+
+// Inicializar automáticamente
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initUtils);
+} else {
+    setTimeout(initUtils, 0);
+}
+
+// Exportar funciones de notificación
+export { showNotification, showError, showSuccess, showWarning, showInfo };
