@@ -165,6 +165,39 @@ export const formatBytes = (bytes, decimals = 2) => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 };
 
+export const lazyLoadImages = (images) => {
+    if (!images || images.length === 0) return;
+    
+    const lazyImages = [...images];
+    
+    if ('IntersectionObserver' in window) {
+        const lazyImageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const lazyImage = entry.target;
+                    lazyImage.src = lazyImage.dataset.src || lazyImage.src;
+                    
+                    if (lazyImage.dataset.srcset) {
+                        lazyImage.srcset = lazyImage.dataset.srcset;
+                    }
+                    
+                    lazyImage.classList.remove('lazy');
+                    lazyImageObserver.unobserve(lazyImage);
+                }
+            });
+        });
+        
+        lazyImages.forEach(lazyImage => {
+            lazyImageObserver.observe(lazyImage);
+        });
+    } else {
+        // Fallback para navegadores que no soportan IntersectionObserver
+        lazyImages.forEach(lazyImage => {
+            lazyImage.src = lazyImage.dataset.src || lazyImage.src;
+        });
+    }
+};
+
 // ===== MANIPULACIÓN DEL DOM =====
 export const createElement = (tag, attributes = {}, children = []) => {
     const element = document.createElement(tag);
