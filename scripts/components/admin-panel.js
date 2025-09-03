@@ -1,7 +1,15 @@
 // scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList } from '../categories.js';
-import { openCategoriesModal } from '../modals.js';
-import { validateRequired, validateUrl, validateNumber, showNotification, debounce } from '../utils.js';
+import { openCategoriesModal, showConfirmationModal } from '../modals.js';
+import { 
+    validateRequired, 
+    validateUrl, 
+    validateNumber, 
+    showNotification,
+    debounce,
+    fadeIn,
+    fadeOut
+} from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
@@ -14,7 +22,10 @@ export function initAdminPanel() {
             manageCategoriesBtn.addEventListener('click', () => {
                 openCategoriesModal();
                 // Cargar y renderizar categorías
-                renderCategoriesList(document.getElementById('categoriesList'));
+                const categoriesList = document.getElementById('categoriesList');
+                if (categoriesList && typeof renderCategoriesList === 'function') {
+                    renderCategoriesList(categoriesList);
+                }
             });
         }
 
@@ -23,7 +34,14 @@ export function initAdminPanel() {
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
                 if (typeof window.handleLogout === 'function') {
-                    window.handleLogout();
+                    showConfirmationModal({
+                        title: 'Cerrar sesión',
+                        message: '¿Estás seguro de que deseas cerrar sesión?',
+                        confirmText: 'Cerrar sesión',
+                        cancelText: 'Cancelar',
+                        type: 'warning',
+                        onConfirm: () => window.handleLogout()
+                    });
                 }
             });
         }
@@ -31,64 +49,179 @@ export function initAdminPanel() {
         // Configurar formulario de producto solo si el usuario está autenticado
         if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
             setupProductForm();
-            setupRealTimeValidation();
         }
+        
+        // Configurar tabs de administración
+        setupAdminTabs();
         
         console.log('✅ Panel de administración inicializado');
     } catch (error) {
         console.error('Error initializing admin panel:', error);
-        showNotification('Error al inicializar el panel de administración', 'error');
+        showNotification('❌ Error al inicializar el panel de administración', 'error');
     }
 }
 
-// Configurar validación en tiempo real
-function setupRealTimeValidation() {
-    const nameInput = document.getElementById('name');
-    const descriptionInput = document.getElementById('description');
-    const photoUrlInput = document.getElementById('photo_url');
+// Configurar tabs de administración
+function setupAdminTabs() {
+    const tabButtons = document.querySelectorAll('[data-tab]');
+    const tabPanes = document.querySelectorAll('[data-tab-pane]');
     
-    if (nameInput) {
-        nameInput.addEventListener('input', debounce(() => {
-            validateField(nameInput, validateRequired, 'El nombre es requerido');
-        }, 500));
-    }
+    tabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const tabName = button.dataset.tab;
+            
+            // Actualizar botones activos
+            tabButtons.forEach(btn => {
+                btn.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
+                btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            });
+            
+            button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
+            button.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
+            
+            // Mostrar pane activo
+            tabPanes.forEach(pane => {
+                pane.classList.add('hidden');
+                if (pane.dataset.tabPane === tabName) {
+                    pane.classList.remove('hidden');
+                    fadeIn(pane);
+                }
+            });
+            
+            // Cargar contenido específico del tab
+            loadTabContent(tabName);
+        });
+    });
     
-    if (descriptionInput) {
-        descriptionInput.addEventListener('input', debounce(() => {
-            validateField(descriptionInput, validateRequired, 'La descripción es requerida');
-        }, 500));
-    }
-    
-    if (photoUrlInput) {
-        photoUrlInput.addEventListener('input', debounce(() => {
-            if (photoUrlInput.value) {
-                validateField(photoUrlInput, validateUrl, 'La URL de la imagen no es válida');
-            }
-        }, 500));
+    // Activar el primer tab por defecto
+    if (tabButtons.length > 0) {
+        tabButtons[0].click();
     }
 }
 
-// Validar campo individual
-function validateField(field, validator, errorMessage) {
-    const isValid = validator(field.value);
-    const errorElement = document.getElementById(`${field.id}Error`);
-    
-    if (errorElement) {
-        if (!isValid && field.value) {
-            errorElement.textContent = errorMessage;
-            errorElement.classList.remove('hidden');
-            field.classList.add('border-red-500');
-            field.classList.remove('border-green-500');
-        } else {
-            errorElement.classList.add('hidden');
-            field.classList.remove('border-red-500');
-            if (field.value && isValid) {
-                field.classList.add('border-green-500');
+// Cargar contenido específico del tab
+function loadTabContent(tabName) {
+    switch (tabName) {
+        case 'products':
+            // Cargar productos si es necesario
+            if (typeof window.loadProducts === 'function') {
+                window.loadProducts().then(() => {
+                    if (typeof window.renderAdminProductsList === 'function') {
+                        const adminProductsList = document.getElementById('adminProductsList');
+                        if (adminProductsList) {
+                            const products = window.getProducts ? window.getProducts() : [];
+                            window.renderAdminProductsList(products, adminProductsList);
+                        }
+                    }
+                });
             }
-        }
+            break;
+            
+        case 'categories':
+            // Cargar categorías si es necesario
+            if (typeof window.loadCategories === 'function') {
+                window.loadCategories().then(() => {
+                    const categoriesList = document.getElementById('categoriesList');
+                    if (categoriesList && typeof renderCategoriesList === 'function') {
+                        renderCategoriesList(categoriesList);
+                    }
+                });
+            }
+            break;
+            
+        case 'stats':
+            // Cargar estadísticas
+            loadStats();
+            break;
     }
+}
+
+// Cargar estadísticas
+function loadStats() {
+    const statsContainer = document.getElementById('statsContent');
+    if (!statsContainer) return;
     
-    return isValid;
+    // Simular carga de estadísticas
+    statsContainer.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-lg mr-4">
+                        <i class="fas fa-box text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">12</p>
+                        <p class="text-gray-500">Productos totales</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-lg mr-4">
+                        <i class="fas fa-tags text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">5</p>
+                        <p class="text-gray-500">Categorías</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-lg mr-4">
+                        <i class="fas fa-eye text-purple-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">1.2K</p>
+                        <p class="text-gray-500">Visitas este mes</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Actividad reciente</h3>
+            <div class="space-y-3">
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-plus text-blue-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium">Nuevo producto agregado</p>
+                            <p class="text-xs text-gray-500">Hace 2 horas</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-edit text-green-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium">Producto actualizado</p>
+                            <p class="text-xs text-gray-500">Hace 5 horas</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center">
+                        <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
+                            <i class="fas fa-tag text-purple-600 text-sm"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium">Nueva categoría creada</p>
+                            <p class="text-xs text-gray-500">Ayer</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 // Cargar categorías en el selector del formulario
@@ -115,6 +248,9 @@ async function loadCategoriesIntoSelect() {
             const option = document.createElement('option');
             option.value = cat.id;
             option.textContent = cat.name;
+            if (cat.isDemo) {
+                option.dataset.demo = 'true';
+            }
             categorySelect.appendChild(option);
         });
         
@@ -122,12 +258,9 @@ async function loadCategoriesIntoSelect() {
         if (currentValue) {
             categorySelect.value = currentValue;
         }
-        
-        // Validar si hay una selección
-        validateField(categorySelect, validateRequired, 'La categoría es requerida');
     } catch (error) {
         console.error('Error loading categories into select:', error);
-        showNotification('Error al cargar categorías', 'error');
+        showNotification('❌ Error al cargar categorías', 'error');
     }
 }
 
@@ -162,14 +295,14 @@ export function setupProductForm() {
 
     // Configurar vista previa de imagen
     if (photoUrlInput) {
-        photoUrlInput.addEventListener('input', (e) => {
+        photoUrlInput.addEventListener('input', debounce((e) => {
             updateImagePreview(e.target.value);
-        });
+        }, 300));
         
         // Validar URL en tiempo real
         photoUrlInput.addEventListener('blur', (e) => {
             if (e.target.value && !validateUrl(e.target.value)) {
-                showNotification('La URL de la imagen no es válida', 'error');
+                showNotification('❌ La URL de la imagen no es válida', 'error');
                 e.target.focus();
             }
         });
@@ -190,31 +323,36 @@ export function setupProductForm() {
     console.log('✅ Formulario de producto configurado');
 }
 
-// Agregar fila de plan con animación
+// Agregar fila de plan
 function addPlanRow() {
     const plansContainer = document.getElementById('plansContainer');
     if (!plansContainer) return;
 
     const planId = Date.now() + Math.random().toString(36).substr(2, 5);
     const planItem = document.createElement('div');
-    planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg opacity-0 transform scale-95 transition-all duration-300';
+    planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all duration-300 hover:border-blue-300';
     planItem.innerHTML = `
-        <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
+        <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
-                <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" required>
-                <div class="plan-name-error text-red-500 text-xs mt-1 hidden"></div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del plan</label>
+                <input type="text" placeholder="Ej: Básico, Premium" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" 
+                       required>
             </div>
             <div>
-                <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent">
-                <div class="plan-price-soles-error text-red-500 text-xs mt-1 hidden"></div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
+                <input type="number" step="0.01" min="0" placeholder="0.00" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors">
             </div>
             <div>
-                <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                <div class="plan-price-dollars-error text-red-500 text-xs mt-1 hidden"></div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Precio $</label>
+                <input type="number" step="0.01" min="0" placeholder="0.00" 
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
             </div>
         </div>
-        <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200 hover:scale-110" title="Eliminar plan">
-            <i class="fas fa-times"></i>
+        <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200 transform hover:scale-110" 
+                title="Eliminar plan">
+            <i class="fas fa-times-circle"></i>
         </button>
     `;
 
@@ -223,47 +361,33 @@ function addPlanRow() {
     removeBtn.addEventListener('click', () => {
         const planItems = document.querySelectorAll('.plan-item');
         if (planItems.length > 1) {
-            // Animación de salida
+            // Animación de eliminación
             planItem.style.opacity = '0';
-            planItem.style.transform = 'scale(0.9) translateX(20px)';
+            planItem.style.height = `${planItem.offsetHeight}px`;
+            
             setTimeout(() => {
-                planItem.remove();
-                showNotification('Plan eliminado', 'info');
-            }, 300);
+                planItem.style.height = '0';
+                planItem.style.marginBottom = '0';
+                planItem.style.paddingTop = '0';
+                planItem.style.paddingBottom = '0';
+                planItem.style.overflow = 'hidden';
+                
+                setTimeout(() => {
+                    planItem.remove();
+                    showNotification('🗑️ Plan eliminado', 'info');
+                }, 300);
+            }, 50);
         } else {
-            showNotification('Debe haber al menos un plan', 'warning');
+            showNotification('⚠️ Debe haber al menos un plan', 'warning');
         }
     });
-
-    // Agregar validación en tiempo real para los campos del plan
-    const nameInput = planItem.querySelector('.plan-name');
-    const priceSolesInput = planItem.querySelector('.plan-price-soles');
-    const priceDollarsInput = planItem.querySelector('.plan-price-dollars');
-    
-    if (nameInput) {
-        nameInput.addEventListener('input', debounce(() => {
-            validatePlanField(nameInput, validateRequired, 'El nombre del plan es requerido');
-        }, 500));
-    }
-    
-    if (priceSolesInput) {
-        priceSolesInput.addEventListener('input', debounce(() => {
-            validatePlanField(priceSolesInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
-        }, 500));
-    }
-    
-    if (priceDollarsInput) {
-        priceDollarsInput.addEventListener('input', debounce(() => {
-            validatePlanField(priceDollarsInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
-        }, 500));
-    }
 
     plansContainer.appendChild(planItem);
     
     // Animación de entrada
     setTimeout(() => {
+        planItem.style.transform = 'translateY(0)';
         planItem.style.opacity = '1';
-        planItem.style.transform = 'scale(1)';
     }, 10);
     
     // Enfocar el primer campo del nuevo plan
@@ -271,29 +395,6 @@ function addPlanRow() {
     if (firstInput) {
         setTimeout(() => firstInput.focus(), 100);
     }
-}
-
-// Validar campo de plan
-function validatePlanField(field, validator, errorMessage) {
-    const isValid = validator(field.value);
-    const errorElement = field.nextElementSibling;
-    
-    if (errorElement && errorElement.classList.contains('hidden')) {
-        if (!isValid && field.value) {
-            errorElement.textContent = errorMessage;
-            errorElement.classList.remove('hidden');
-            field.classList.add('border-red-500');
-            field.classList.remove('border-green-500');
-        } else {
-            errorElement.classList.add('hidden');
-            field.classList.remove('border-red-500');
-            if (field.value && isValid) {
-                field.classList.add('border-green-500');
-            }
-        }
-    }
-    
-    return isValid;
 }
 
 // Validar formulario de producto
@@ -334,7 +435,7 @@ function validateProductForm(formData) {
             const hasDollars = validateNumber(priceDollars) && parseFloat(priceDollars) >= 0;
             
             if (!hasSoles && !hasDollars) {
-                errors.push(`El plan ${index + 1} debe tener al menos un precio (soles o dólares)`);
+                errors.push(`El plan ${index + 1} debe tener al menos un precio válido (soles o dólares)`);
             }
         });
     }
@@ -379,21 +480,23 @@ async function handleProductSubmit(e) {
     // Validar formulario
     const validationErrors = validateProductForm(productData);
     if (validationErrors.length > 0) {
-        validationErrors.forEach(error => showNotification(error, 'error'));
+        validationErrors.forEach(error => showNotification(`❌ ${error}`, 'error'));
         
-        // Mostrar errores específicos en los campos
-        if (!validateRequired(name)) {
-            document.getElementById('name').classList.add('border-red-500');
-        }
-        if (!validateRequired(category)) {
-            document.getElementById('category').classList.add('border-red-500');
-        }
-        if (!validateRequired(description)) {
-            document.getElementById('description').classList.add('border-red-500');
-        }
-        if (!validateUrl(photo_url)) {
-            document.getElementById('photo_url').classList.add('border-red-500');
-        }
+        // Resaltar campos con error
+        validationErrors.forEach(error => {
+            if (error.includes('nombre')) {
+                document.getElementById('name').classList.add('border-red-500');
+            }
+            if (error.includes('categoría')) {
+                document.getElementById('category').classList.add('border-red-500');
+            }
+            if (error.includes('descripción')) {
+                document.getElementById('description').classList.add('border-red-500');
+            }
+            if (error.includes('imagen')) {
+                document.getElementById('photo_url').classList.add('border-red-500');
+            }
+        });
         
         return;
     }
@@ -406,6 +509,7 @@ async function handleProductSubmit(e) {
         // Mostrar estado de carga
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
         submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-75');
         
         if (productId) {
             if (typeof window.updateProduct === 'function') {
@@ -418,33 +522,52 @@ async function handleProductSubmit(e) {
         }
 
         if (result) {
-            showNotification(productId ? 'Producto actualizado correctamente' : 'Producto agregado correctamente', 'success');
-            
             // Animación de éxito
-            const form = document.getElementById('productForm');
-            form.classList.add('bg-green-50');
-            setTimeout(() => {
-                form.classList.remove('bg-green-50');
-                resetForm();
-            }, 1000);
+            submitBtn.innerHTML = '<i class="fas fa-check"></i> ¡Éxito!';
+            submitBtn.classList.remove('bg-blue-600', 'opacity-75');
+            submitBtn.classList.add('bg-green-600');
             
-            if (typeof window.loadProducts === 'function') {
-                await window.loadProducts();
-            }
+            setTimeout(() => {
+                showNotification(productId ? '✅ Producto actualizado correctamente' : '✅ Producto agregado correctamente', 'success');
+                resetForm();
+                
+                if (typeof window.loadProducts === 'function') {
+                    window.loadProducts().then(() => {
+                        // Actualizar lista de productos en el admin
+                        if (typeof window.renderAdminProductsList === 'function') {
+                            const adminProductsList = document.getElementById('adminProductsList');
+                            if (adminProductsList) {
+                                const products = window.getProducts ? window.getProducts() : [];
+                                window.renderAdminProductsList(products, adminProductsList);
+                            }
+                        }
+                    });
+                }
+                
+                // Restaurar botón después de 2 segundos
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('bg-green-600');
+                    submitBtn.classList.add('bg-blue-600');
+                }, 2000);
+            }, 500);
         }
     } catch (error) {
         console.error('Error al procesar el producto:', error);
-        showNotification('Error al procesar el producto: ' + error.message, 'error');
-    } finally {
+        showNotification(`❌ Error al procesar el producto: ${error.message}`, 'error');
+        
+        // Restaurar botón
         const submitBtn = document.querySelector('#productForm button[type="submit"]');
         if (submitBtn) {
             submitBtn.innerHTML = productId ? 'Actualizar Producto' : 'Agregar Producto';
             submitBtn.disabled = false;
+            submitBtn.classList.remove('opacity-75');
         }
     }
 }
 
-// Resetear formulario con animación
+// Resetear formulario
 export function resetForm() {
     const productForm = document.getElementById('productForm');
     if (productForm) {
@@ -459,32 +582,10 @@ export function resetForm() {
         if (submitText) submitText.textContent = 'Agregar Producto';
         if (cancelBtn) cancelBtn.classList.add('hidden');
         
-        // Limpiar estilos de validación
-        const inputs = productForm.querySelectorAll('input, select, textarea');
-        inputs.forEach(input => {
-            input.classList.remove('border-red-500', 'border-green-500');
-            const errorElement = document.getElementById(`${input.id}Error`);
-            if (errorElement) {
-                errorElement.classList.add('hidden');
-            }
-        });
-        
         const plansContainer = document.getElementById('plansContainer');
         if (plansContainer) {
-            // Animación de eliminación para planes existentes
-            const planItems = plansContainer.querySelectorAll('.plan-item');
-            planItems.forEach((item, index) => {
-                item.style.opacity = '0';
-                item.style.transform = 'scale(0.9) translateX(-20px)';
-                setTimeout(() => {
-                    item.remove();
-                }, index * 50);
-            });
-            
-            // Agregar nuevo plan después de la animación
-            setTimeout(() => {
-                addPlanRow();
-            }, planItems.length * 50 + 100);
+            plansContainer.innerHTML = '';
+            addPlanRow();
         }
         
         updateImagePreview('');
@@ -495,46 +596,43 @@ export function resetForm() {
         // Enfocar el primer campo
         const firstInput = productForm.querySelector('input');
         if (firstInput) {
-            setTimeout(() => firstInput.focus(), 300);
+            setTimeout(() => firstInput.focus(), 100);
         }
+        
+        // Remover clases de error
+        const errorInputs = productForm.querySelectorAll('.border-red-500');
+        errorInputs.forEach(input => input.classList.remove('border-red-500'));
     }
 }
 
-// Actualizar vista previa de imagen con animación
+// Actualizar vista previa de imagen
 function updateImagePreview(url) {
     const imagePreview = document.getElementById('imagePreview');
     if (!imagePreview) return;
 
-    // Animación de desvanecimiento
-    imagePreview.style.opacity = '0';
-    
-    setTimeout(() => {
-        if (url && url.trim() !== '') {
-            imagePreview.innerHTML = `
-                <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg overflow-hidden">
-                    <img src="${url}" 
-                         alt="Vista previa" 
-                         class="w-full h-full object-cover transition-transform duration-500 hover:scale-110"
-                         onerror="this.parentElement.innerHTML='<p class=\\"text-red-500 p-4\\">Error al cargar imagen</p>'">
-                </div>
-            `;
-        } else {
-            imagePreview.innerHTML = `
-                <div class="w-full h-full flex flex-col items-center justify-center bg-gray-100 rounded-lg text-gray-500">
-                    <i class="fas fa-image text-3xl mb-2 opacity-50"></i>
+    if (url && url.trim() !== '') {
+        imagePreview.innerHTML = `
+            <div class="w-full h-full bg-gray-100 rounded-lg overflow-hidden relative group">
+                <img src="${url}" 
+                     alt="Vista previa" 
+                     class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                     onerror="this.parentElement.innerHTML='<div class=\\"w-full h-full flex items-center justify-center\\"><p class=\\"text-red-500 p-4 text-center\\">❌ Error al cargar imagen</p></div>'">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
+            </div>
+        `;
+    } else {
+        imagePreview.innerHTML = `
+            <div class="w-full h-full flex items-center justify-center bg-gray-100 rounded-lg text-gray-500">
+                <div class="text-center">
+                    <i class="fas fa-image text-2xl mb-2"></i>
                     <p class="text-sm">La imagen aparecerá aquí</p>
                 </div>
-            `;
-        }
-        
-        // Restaurar opacidad con animación
-        setTimeout(() => {
-            imagePreview.style.opacity = '1';
-        }, 50);
-    }, 300);
+            </div>
+        `;
+    }
 }
 
-// Preparar formulario para edición con animación
+// Preparar formulario para edición
 export function prepareEditForm(product) {
     if (!product) return;
 
@@ -562,94 +660,55 @@ export function prepareEditForm(product) {
     
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
-        // Animación de eliminación para planes existentes
-        const existingPlans = plansContainer.querySelectorAll('.plan-item');
-        existingPlans.forEach((item, index) => {
-            item.style.opacity = '0';
-            item.style.transform = 'scale(0.9) translateX(-20px)';
-            setTimeout(() => {
-                item.remove();
-            }, index * 50);
-        });
+        plansContainer.innerHTML = '';
         
-        // Agregar planes del producto después de la animación
-        setTimeout(() => {
-            if (product.plans && product.plans.length > 0) {
-                product.plans.forEach((plan, index) => {
-                    setTimeout(() => {
-                        const planItem = document.createElement('div');
-                        planItem.className = 'plan-item flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-lg opacity-0 transform scale-95 transition-all duration-300';
-                        planItem.innerHTML = `
-                            <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
-                                <div>
-                                    <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.name || ''}" required>
-                                    <div class="plan-name-error text-red-500 text-xs mt-1 hidden"></div>
-                                </div>
-                                <div>
-                                    <input type="number" step="0.01" min="0" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" value="${plan.price_soles || ''}">
-                                    <div class="plan-price-soles-error text-red-500 text-xs mt-1 hidden"></div>
-                                </div>
-                                <div>
-                                    <input type="number" step="0.01" min="0" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" value="${plan.price_dollars || ''}">
-                                    <div class="plan-price-dollars-error text-red-500 text-xs mt-1 hidden"></div>
-                                </div>
-                            </div>
-                            <button type="button" class="remove-plan text-red-500 hover:text-red-700 p-2 transition-colors duration-200 hover:scale-110" title="Eliminar plan">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        `;
-                        
-                        const removeBtn = planItem.querySelector('.remove-plan');
-                        removeBtn.addEventListener('click', () => {
-                            if (document.querySelectorAll('.plan-item').length > 1) {
-                                // Animación de salida
-                                planItem.style.opacity = '0';
-                                planItem.style.transform = 'scale(0.9) translateX(20px)';
-                                setTimeout(() => {
-                                    planItem.remove();
-                                }, 300);
-                            }
-                        });
-                        
-                        // Agregar validación en tiempo real
-                        const nameInput = planItem.querySelector('.plan-name');
-                        const priceSolesInput = planItem.querySelector('.plan-price-soles');
-                        const priceDollarsInput = planItem.querySelector('.plan-price-dollars');
-                        
-                        if (nameInput) {
-                            nameInput.addEventListener('input', debounce(() => {
-                                validatePlanField(nameInput, validateRequired, 'El nombre del plan es requerido');
-                            }, 500));
-                        }
-                        
-                        if (priceSolesInput) {
-                            priceSolesInput.addEventListener('input', debounce(() => {
-                                validatePlanField(priceSolesInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
-                            }, 500));
-                        }
-                        
-                        if (priceDollarsInput) {
-                            priceDollarsInput.addEventListener('input', debounce(() => {
-                                validatePlanField(priceDollarsInput, (value) => !value || validateNumber(value), 'El precio debe ser un número válido');
-                            }, 500));
-                        }
-                        
-                        plansContainer.appendChild(planItem);
-                        
-                        // Animación de entrada
-                        setTimeout(() => {
-                            planItem.style.opacity = '1';
-                            planItem.style.transform = 'scale(1)';
-                        }, 10);
-                    }, index * 100);
+        if (product.plans && product.plans.length > 0) {
+            product.plans.forEach(plan => {
+                const planItem = document.createElement('div');
+                planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200';
+                planItem.innerHTML = `
+                    <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del plan</label>
+                            <input type="text" placeholder="Ej: Básico, Premium" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   value="${plan.name || ''}" 
+                                   required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
+                            <input type="number" step="0.01" min="0" placeholder="0.00" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" 
+                                   value="${plan.price_soles || ''}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Precio $</label>
+                            <input type="number" step="0.01" min="0" placeholder="0.00" 
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                   value="${plan.price_dollars || ''}">
+                        </div>
+                    </div>
+                    <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200" 
+                            title="Eliminar plan">
+                        <i class="fas fa-times-circle"></i>
+                    </button>
+                `;
+                
+                const removeBtn = planItem.querySelector('.remove-plan');
+                removeBtn.addEventListener('click', () => {
+                    if (document.querySelectorAll('.plan-item').length > 1) {
+                        planItem.remove();
+                    }
                 });
-            } else {
-                addPlanRow();
-            }
-        }, existingPlans.length * 50 + 100);
+                
+                plansContainer.appendChild(planItem);
+            });
+        } else {
+            addPlanRow();
+        }
     }
     
-    // Scroll al formulario con animación suave
+    // Scroll al formulario
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -658,7 +717,7 @@ export function prepareEditForm(product) {
     // Enfocar el primer campo
     const firstInput = productForm.querySelector('input');
     if (firstInput) {
-        setTimeout(() => firstInput.focus(), 300);
+        setTimeout(() => firstInput.focus(), 100);
     }
 }
 
@@ -666,19 +725,120 @@ export function prepareEditForm(product) {
 export function editProduct(id) {
     if (typeof window.getProductById !== 'function') {
         console.error('getProductById no está disponible');
-        showNotification('Error: Función no disponible', 'error');
+        showNotification('❌ Error: Función no disponible', 'error');
         return;
     }
     
     const product = window.getProductById(id);
     if (product) {
         prepareEditForm(product);
+        
+        // Cambiar al tab de productos si es necesario
+        const productsTab = document.querySelector('[data-tab="products"]');
+        if (productsTab) {
+            productsTab.click();
+        }
     } else {
         console.error('Producto no encontrado:', id);
-        if (typeof window.showError === 'function') {
-            window.showError('Producto no encontrado');
-        }
+        showNotification('❌ Producto no encontrado', 'error');
     }
+}
+
+// Renderizar lista de productos en el panel de administración
+export function renderAdminProductsList(products, container) {
+    if (!container) {
+        console.error('Contenedor de productos no encontrado');
+        return;
+    }
+
+    if (!products || products.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-12 fade-in-up">
+                <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
+                <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
+                <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = products.map((product, index) => `
+        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 transition-all duration-300 hover:shadow-md fade-in-up" 
+             style="animation-delay: ${index * 50}ms">
+            <div class="flex items-start justify-between">
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        <img src="${product.photo_url || 'https://via.placeholder.com/64?text=Imagen'}" 
+                             alt="${product.name}" 
+                             class="w-full h-full object-cover"
+                             onerror="this.src='https://via.placeholder.com/64?text=Error'">
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-800">${product.name}</h4>
+                        <p class="text-sm text-gray-500 mt-1 line-clamp-2">${product.description || 'Sin descripción'}</p>
+                        <div class="flex items-center mt-2 space-x-2">
+                            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                                ${product.categories ? product.categories.name : 'Sin categoría'}
+                            </span>
+                            <span class="text-xs text-gray-500">
+                                ${product.plans ? product.plans.length : 0} planes
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="edit-product bg-blue-100 text-blue-600 p-2 rounded-lg hover:bg-blue-200 transition-colors duration-200 transform hover:scale-105" 
+                            data-id="${product.id}"
+                            title="Editar producto">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete-product bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 transition-colors duration-200 transform hover:scale-105" 
+                            data-id="${product.id}"
+                            title="Eliminar producto">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `).join('');
+
+    // Agregar event listeners a los botones
+    container.querySelectorAll('.edit-product').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const productId = e.currentTarget.dataset.id;
+            editProduct(productId);
+        });
+    });
+
+    container.querySelectorAll('.delete-product').forEach(button => {
+        button.addEventListener('click', (e) => {
+            const productId = e.currentTarget.dataset.id;
+            const product = products.find(p => p.id == productId);
+            
+            if (product) {
+                showConfirmationModal({
+                    title: 'Eliminar producto',
+                    message: `¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`,
+                    confirmText: 'Eliminar',
+                    cancelText: 'Cancelar',
+                    type: 'danger',
+                    onConfirm: () => {
+                        if (typeof window.deleteProduct === 'function') {
+                            window.deleteProduct(productId).then(success => {
+                                if (success) {
+                                    // Volver a renderizar la lista
+                                    renderAdminProductsList(
+                                        products.filter(p => p.id != productId), 
+                                        container
+                                    );
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    });
 }
 
 // Hacer funciones disponibles globalmente
@@ -687,4 +847,14 @@ window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
+window.renderAdminProductsList = renderAdminProductsList;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
+
+// Inicializar automáticamente cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
+            initAdminPanel();
+        }
+    });
+}
