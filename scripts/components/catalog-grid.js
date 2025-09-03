@@ -1,3 +1,4 @@
+// scripts/components/catalog-grid.js
 import { 
     showNotification, 
     debounce, // Esta importación está bien
@@ -543,6 +544,8 @@ function createProductCard(product, isListView = false, index = 0) {
     const imageUrl = product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen';
     const categoryName = getCategoryName(product);
     const minPrice = getProductMinPrice(product);
+    const formattedPrice = formatCurrency(minPrice);
+
     
     if (isListView) {
         // Vista de lista
@@ -631,23 +634,28 @@ function renderPlansList(plans) {
         return '<span class="text-gray-500 text-sm">No hay planes disponibles</span>';
     }
     
-    // Mostrar máximo 3 planes
-    const visiblePlans = plans.slice(0, 3);
-    const hiddenPlansCount = plans.length - 3;
-    
-    return visiblePlans.map(plan => `
-        <div class="flex justify-between items-center py-1">
+    return plans.map(plan => `
+        <div class="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
             <span class="text-sm font-medium">${plan.name}</span>
             <div class="text-right">
-                ${plan.price_soles ? `<div class="text-green-600 font-bold">S/ ${plan.price_soles}</div>` : ''}
-                ${plan.price_dollars ? `<div class="text-blue-600 text-sm">$ ${plan.price_dollars}</div>` : ''}
+                ${plan.price_soles ? `
+                    <div class="text-green-600 font-bold">
+                        S/ ${typeof plan.price_soles === 'number' ? 
+                            plan.price_soles.toFixed(2) : 
+                            parseFloat(plan.price_soles || 0).toFixed(2)}
+                    </div>
+                ` : ''}
+                ${plan.price_dollars ? `
+                    <div class="text-blue-600 text-sm">
+                        $ ${typeof plan.price_dollars === 'number' ? 
+                            plan.price_dollars.toFixed(2) : 
+                            parseFloat(plan.price_dollars || 0).toFixed(2)}
+                    </div>
+                ` : ''}
             </div>
         </div>
-    `).join('') + (hiddenPlansCount > 0 ? 
-        `<div class="text-xs text-gray-500 mt-1">+${hiddenPlansCount} plan(s) más</div>` : ''
-    );
+    `).join('');
 }
-
 // Formatear moneda
 function formatCurrency(amount) {
     if (amount === Infinity || isNaN(amount)) return 'S/ 0.00';
