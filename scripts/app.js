@@ -1,4 +1,3 @@
-// scripts/app.js
 import { supabase } from './supabase.js';
 import { renderHeader, updateHeader } from './components/header.js';
 import { initAdminPanel, setupProductForm } from './components/admin-panel.js';
@@ -8,7 +7,6 @@ import { loadCategories, getCategories } from './categories.js';
 import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
 import { showNotification, debounce } from './utils.js';
-
 
 // Estado global de la aplicación
 class AppState {
@@ -440,6 +438,20 @@ const hideLoadingState = () => {
             element.classList.add('hidden');
         }
     });
+};
+
+// Mostrar mensaje de no productos
+const showNoProductsMessage = () => {
+    const productsGrid = document.getElementById('productsGrid');
+    if (productsGrid) {
+        productsGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600">No hay productos disponibles</h3>
+                <p class="text-gray-500 mt-2">Agrega productos desde el panel de administración</p>
+            </div>
+        `;
+    }
 };
 
 // Exportar funciones para uso global
