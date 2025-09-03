@@ -1,4 +1,3 @@
-// scripts/auth.js
 import { supabase } from './supabase.js';
 import { showNotification, validateEmail, validateRequired } from './utils.js';
 
@@ -342,9 +341,8 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// NUEVA FUNCIÓN: Configurar event listeners de manera más robusta
+// Configurar event listeners de manera más robusta
 const attachEventListener = (elementId, event, handler) => {
-    // Buscar el elemento de manera continua hasta encontrarlo
     const tryAttach = () => {
         const element = document.getElementById(elementId);
         if (element && !element.dataset.listenerAttached) {
@@ -383,7 +381,7 @@ export const setupAuthEventListeners = () => {
     console.log('🔧 Configurando event listeners de autenticación...');
     
     // Método 1: Event Delegation (más confiable)
-    document.removeEventListener('click', handleGlobalClick); // Remover listener previo si existe
+    document.removeEventListener('click', handleGlobalClick);
     document.addEventListener('click', handleGlobalClick);
     
     // Método 2: Listeners directos con observer
