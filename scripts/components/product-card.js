@@ -1,8 +1,15 @@
 // scripts/components/product-card.js
-import { formatCurrency, truncateText, lazyLoadImages, showNotification } from '../utils.js';
+import { 
+    formatCurrency, 
+    truncateText, 
+    lazyLoadImages,
+    fadeIn,
+    fadeOut,
+    smoothScrollTo
+} from '../utils.js';
 
 // Crear tarjeta de producto
-export const createProductCard = (product) => {
+export const createProductCard = (product, isListView = false, index = 0) => {
     if (!product) {
         console.error('Producto no definido en createProductCard');
         return '';
@@ -14,83 +21,137 @@ export const createProductCard = (product) => {
     // Obtener nombre de categoría
     const categoryName = getCategoryName(product);
     
-    // Generar HTML de planes
-    let plansHTML = '';
-    if (Array.isArray(product.plans) && product.plans.length > 0) {
-        // Mostrar máximo 3 planes inicialmente
-        const visiblePlans = product.plans.slice(0, 3);
-        const hiddenPlansCount = product.plans.length - 3;
-        
-        plansHTML = visiblePlans.map(plan => `
-            <div class="border-t border-gray-100 pt-2 mt-2 first:border-t-0 first:mt-0 first:pt-0">
-                <div class="flex justify-between items-center">
-                    <span class="text-sm font-medium text-gray-700">${plan.name || 'Plan sin nombre'}</span>
-                    <div class="flex flex-col items-end">
-                        ${plan.price_soles ? `<span class="text-sm font-bold text-green-600">S/ ${formatCurrency(plan.price_soles)}</span>` : ''}
-                        ${plan.price_dollars ? `<span class="text-xs font-bold text-blue-600">$ ${formatCurrency(plan.price_dollars)}</span>` : ''}
+    // Obtener precio mínimo
+    const minPrice = getProductMinPrice(product);
+    
+    if (isListView) {
+        // Vista de lista
+        return `
+            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row opacity-0 transform translate-y-4" 
+                 style="animation-delay: ${index * 50}ms"
+                 data-product-id="${product.id}">
+                <div class="md:w-48 h-48 bg-gray-100 overflow-hidden flex-shrink-0 relative">
+                    <img src="https://via.placeholder.com/192x192?text=Cargando..." 
+                         data-src="${imageUrl}" 
+                         alt="${product.name}" 
+                         class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                         loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/192x192?text=Error+imagen'">
+                    <div class="absolute top-3 right-3">
+                        <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            ${categoryName}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="flex-1 p-6 flex flex-col">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-xl font-semibold text-gray-800" title="${product.name}">${truncateText(product.name, 60)}</h3>
+                    </div>
+                    
+                    <p class="text-gray-600 mb-4 flex-1">${truncateText(product.description || 'Sin descripción', 120)}</p>
+                    
+                    <div class="mb-4">
+                        <h4 class="font-medium text-gray-700 mb-2">Planes disponibles:</h4>
+                        <div class="space-y-2">
+                            ${renderPlansList(product.plans)}
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center mt-auto">
+                        <div class="text-lg font-bold text-blue-600">
+                            Desde ${formatCurrency(minPrice)}
+                        </div>
+                        <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center transform hover:scale-105 group/btn" 
+                                data-product-id="${product.id}"
+                                aria-label="Ver detalles de ${product.name}">
+                            <i class="fas fa-eye mr-2 group-hover/btn:animate-bounce"></i>
+                            Ver detalles
+                        </button>
                     </div>
                 </div>
             </div>
-        `).join('');
-        
-        if (hiddenPlansCount > 0) {
-            plansHTML += `<div class="text-xs text-gray-500 mt-2">+${hiddenPlansCount} plan(s) más</div>`;
-        }
+        `;
     } else {
-        plansHTML = '<span class="text-gray-500 text-sm">No hay planes disponibles</span>';
+        // Vista de grid
+        return `
+            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col opacity-0 transform translate-y-4 group" 
+                 style="animation-delay: ${index * 50}ms"
+                 data-product-id="${product.id}">
+                <div class="h-48 bg-gray-100 overflow-hidden relative">
+                    <img src="https://via.placeholder.com/300x200?text=Cargando..." 
+                         data-src="${imageUrl}" 
+                         alt="${product.name}" 
+                         class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                         loading="lazy"
+                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
+                    <div class="absolute top-3 right-3">
+                        <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            ${categoryName}
+                        </span>
+                    </div>
+                    <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition-all duration-300"></div>
+                </div>
+                
+                <div class="p-4 flex-1 flex flex-col">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2" title="${product.name}">${truncateText(product.name, 50)}</h3>
+                    <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${truncateText(product.description || 'Sin descripción', 100)}</p>
+                    
+                    <div class="mb-4">
+                        <div class="text-sm text-gray-500 mb-1">Desde:</div>
+                        <div class="text-xl font-bold text-blue-600">
+                            ${formatCurrency(minPrice)}
+                        </div>
+                    </div>
+                    
+                    <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-all duration-200 flex items-center justify-center group/btn transform hover:scale-105" 
+                            data-product-id="${product.id}"
+                            aria-label="Ver detalles de ${product.name}">
+                        <i class="fas fa-eye mr-2 group-hover/btn:animate-bounce"></i>
+                        Ver detalles
+                    </button>
+                </div>
+            </div>
+        `;
+    }
+};
+
+// Renderizar lista de planes
+function renderPlansList(plans) {
+    if (!plans || plans.length === 0) {
+        return '<span class="text-gray-500 text-sm">No hay planes disponibles</span>';
     }
     
-    // Truncar descripción si es muy larga
-    const description = truncateText(product.description || 'Sin descripción', 120);
+    // Mostrar máximo 3 planes
+    const visiblePlans = plans.slice(0, 3);
+    const hiddenPlansCount = plans.length - 3;
     
-    return `
-        <div class="product-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 h-full flex flex-col group opacity-0 transform translate-y-6" data-product-id="${product.id}">
-            <div class="h-48 bg-gray-100 overflow-hidden relative">
-                <div class="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
-                <img src="https://via.placeholder.com/300x200?text=Cargando..." 
-                     data-src="${imageUrl}" 
-                     alt="${product.name}" 
-                     class="w-full h-full object-cover transition-all duration-500 group-hover:scale-110"
-                     loading="lazy"
-                     onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen';this.onerror=null;">
-                <div class="absolute top-3 right-3 z-20">
-                    <span class="px-3 py-1 bg-blue-600 text-white text-xs rounded-full shadow-lg">${categoryName}</span>
-                </div>
-                <div class="absolute bottom-3 left-3 z-20">
-                    ${product.plans && product.plans.length > 0 ? `
-                        <div class="flex items-center bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-sm">
-                            ${product.plans[0].price_soles > 0 ? `
-                                <span class="text-green-600 font-bold text-sm">S/ ${formatCurrency(product.plans[0].price_soles)}</span>
-                            ` : ''}
-                            ${product.plans[0].price_soles > 0 && product.plans[0].price_dollars > 0 ? '<span class="text-gray-400 mx-1">|</span>' : ''}
-                            ${product.plans[0].price_dollars > 0 ? `
-                                <span class="text-blue-600 text-sm">$ ${formatCurrency(product.plans[0].price_dollars)}</span>
-                            ` : ''}
-                        </div>
-                    ` : ''}
-                </div>
-            </div>
-            <div class="p-5 flex-1 flex flex-col">
-                <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors duration-200" title="${product.name || 'Producto sin nombre'}">${product.name || 'Producto sin nombre'}</h3>
-                <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${description}</p>
-                <div class="mb-4">
-                    <h4 class="font-medium text-gray-700 text-sm mb-2 flex items-center">
-                        <i class="fas fa-list-alt mr-2 text-blue-500"></i>Planes disponibles:
-                    </h4>
-                    <div class="space-y-1">
-                        ${plansHTML}
-                    </div>
-                </div>
-                <button class="view-details-btn w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white py-2 px-4 rounded-xl transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center justify-center group/btn" 
-                        data-product-id="${product.id}"
-                        aria-label="Ver detalles de ${product.name}">
-                    <i class="fas fa-eye mr-2 group-hover/btn:animate-pulse"></i>
-                    Ver detalles
-                </button>
+    return visiblePlans.map(plan => `
+        <div class="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
+            <span class="text-sm font-medium">${plan.name}</span>
+            <div class="text-right">
+                ${plan.price_soles ? `<div class="text-green-600 font-bold">S/ ${plan.price_soles}</div>` : ''}
+                ${plan.price_dollars ? `<div class="text-blue-600 text-sm">$ ${plan.price_dollars}</div>` : ''}
             </div>
         </div>
-    `;
-};
+    `).join('') + (hiddenPlansCount > 0 ? 
+        `<div class="text-xs text-gray-500 mt-1">+${hiddenPlansCount} plan(s) más</div>` : ''
+    );
+}
+
+// Obtener precio mínimo de un producto
+function getProductMinPrice(product) {
+    if (!product.plans || product.plans.length === 0) return 0;
+    
+    const prices = product.plans.map(plan => 
+        Math.min(
+            plan.price_soles || Infinity,
+            plan.price_dollars || Infinity
+        )
+    ).filter(price => price > 0);
+    
+    return prices.length > 0 ? Math.min(...prices) : 0;
+}
 
 // Helper para obtener nombre de categoría
 function getCategoryName(product) {
@@ -125,17 +186,25 @@ export const renderProductsGrid = (products, containerId) => {
     
     if (!products || products.length === 0) {
         container.innerHTML = `
-            <div class="col-span-full text-center py-12 animate-fade-in">
-                <i class="fas fa-box-open text-4xl text-gray-400 mb-4"></i>
-                <p class="text-gray-600">No se encontraron productos</p>
-                <p class="text-sm text-gray-500 mt-1">Intenta con otros filtros o categorías</p>
+            <div class="col-span-full text-center py-16 fade-in-up">
+                <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
+                <p class="text-gray-500">Intenta con otros términos de búsqueda o categorías</p>
             </div>
         `;
         return;
     }
     
     try {
-        container.innerHTML = products.map(product => createProductCard(product)).join('');
+        // Determinar si es vista de lista
+        const isListView = container.classList.contains('list-view');
+        const catalogState = window.CatalogState ? window.CatalogState.getInstance() : { currentView: 'grid' };
+        const actualIsListView = isListView || catalogState.currentView === 'list';
+        
+        container.innerHTML = products.map((product, index) => 
+            createProductCard(product, actualIsListView, index)
+        ).join('');
+        
         addProductCardEventListeners();
         
         // Configurar lazy loading para imágenes
@@ -144,8 +213,9 @@ export const renderProductsGrid = (products, containerId) => {
             lazyLoadImages(images);
         }
         
-        // Animar la entrada de las tarjetas
-        animateProductCards();
+        // Animación de entrada
+        animateProductsEntry();
+        
     } catch (error) {
         console.error('Error al renderizar productos:', error);
         container.innerHTML = `
@@ -158,18 +228,6 @@ export const renderProductsGrid = (products, containerId) => {
     }
 };
 
-// Animación de entrada para las tarjetas de producto
-function animateProductCards() {
-    const productCards = document.querySelectorAll('.product-card');
-    productCards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.transition = 'opacity 0.6s ease, transform 0.6s ease';
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-        }, index * 100);
-    });
-}
-
 // Añadir event listeners a las tarjetas
 const addProductCardEventListeners = () => {
     // Botones de ver detalles
@@ -177,14 +235,11 @@ const addProductCardEventListeners = () => {
         btn.addEventListener('click', (e) => {
             e.stopPropagation();
             const productId = e.currentTarget.getAttribute('data-product-id');
-            
-            // Efecto de clic
-            e.currentTarget.classList.add('scale-95');
-            setTimeout(() => {
-                e.currentTarget.classList.remove('scale-95');
-            }, 150);
-            
             if (productId && typeof window.showProductDetails === 'function') {
+                // Efecto de clic
+                btn.classList.add('scale-95');
+                setTimeout(() => btn.classList.remove('scale-95'), 150);
+                
                 window.showProductDetails(productId);
             }
         });
@@ -201,17 +256,25 @@ const addProductCardEventListeners = () => {
                 
                 const productId = card.getAttribute('data-product-id');
                 if (productId && typeof window.showProductDetails === 'function') {
-                    // Efecto de clic en la tarjeta
-                    card.classList.add('scale-95');
-                    setTimeout(() => {
-                        card.classList.remove('scale-95');
-                        window.showProductDetails(productId);
-                    }, 150);
+                    window.showProductDetails(productId);
                 }
             });
         });
     }
 };
+
+// Animación de entrada de productos
+function animateProductsEntry() {
+    const productCards = document.querySelectorAll('.product-card');
+    
+    productCards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        }, index * 50);
+    });
+}
 
 // Mostrar detalles del producto (modal)
 export const showProductDetails = (productId) => {
@@ -224,7 +287,7 @@ export const showProductDetails = (productId) => {
         
         if (!product) {
             console.error('Producto no encontrado:', productId);
-            showNotification('Producto no encontrado', 'error');
+            showNotification('❌ Producto no encontrado', 'error');
             return;
         }
         
@@ -233,9 +296,7 @@ export const showProductDetails = (productId) => {
         
     } catch (error) {
         console.error('Error al mostrar detalles:', error);
-        if (typeof window.showError === 'function') {
-            window.showError('Error al cargar los detalles del producto');
-        }
+        showNotification('❌ Error al cargar los detalles del producto', 'error');
     }
 };
 
@@ -248,11 +309,20 @@ const showProductModal = (product) => {
     let plansHTML = '';
     if (Array.isArray(product.plans) && product.plans.length > 0) {
         plansHTML = product.plans.map(plan => `
-            <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0 group/plan hover:bg-gray-50 rounded-lg px-2 transition-colors duration-200">
-                <span class="font-medium">${plan.name}</span>
+            <div class="flex justify-between items-center py-3 border-b border-gray-100 last:border-b-0">
+                <div>
+                    <span class="font-medium">${plan.name}</span>
+                    ${plan.features && plan.features.length > 0 ? `
+                        <div class="text-sm text-gray-500 mt-1">
+                            <ul class="list-disc list-inside">
+                                ${plan.features.map(feature => `<li>${feature}</li>`).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
+                </div>
                 <div class="text-right">
-                    ${plan.price_soles ? `<div class="text-green-600 font-bold">S/ ${formatCurrency(plan.price_soles)}</div>` : ''}
-                    ${plan.price_dollars ? `<div class="text-blue-600 text-sm">$ ${formatCurrency(plan.price_dollars)}</div>` : ''}
+                    ${plan.price_soles ? `<div class="text-green-600 font-bold">S/ ${plan.price_soles}</div>` : ''}
+                    ${plan.price_dollars ? `<div class="text-blue-600 text-sm">$ ${plan.price_dollars}</div>` : ''}
                 </div>
             </div>
         `).join('');
@@ -262,54 +332,52 @@ const showProductModal = (product) => {
     
     // Crear modal
     const modalHTML = `
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 opacity-0 transition-opacity duration-300" id="productDetailModal">
-            <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto transform scale-95 transition-transform duration-300 shadow-2xl">
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" id="productDetailModal">
+            <div class="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
                 <div class="p-6">
                     <div class="flex justify-between items-start mb-4">
                         <h2 class="text-2xl font-bold text-gray-800">${product.name || 'Producto sin nombre'}</h2>
-                        <button class="close-modal text-gray-500 hover:text-gray-700 text-xl transition-all duration-200 transform hover:rotate-90 hover:scale-110 p-1 rounded-full hover:bg-gray-100" aria-label="Cerrar modal">
+                        <button class="close-modal text-gray-500 hover:text-gray-700 text-xl transition-colors duration-200 transform hover:scale-110" aria-label="Cerrar modal">
                             <i class="fas fa-times"></i>
                         </button>
                     </div>
                     
                     <div class="mb-4">
-                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm inline-flex items-center">
-                            <i class="fas fa-tag mr-1 text-xs"></i> ${categoryName}
+                        <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
+                            ${categoryName}
                         </span>
                     </div>
                     
-                    <div class="h-64 bg-gray-100 rounded-xl mb-4 overflow-hidden relative">
-                        <img src="${product.photo_url || 'https://via.placeholder.com/500x300?text=Imagen+no+disponible'}" 
-                             alt="${product.name}" 
-                             class="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
-                             onerror="this.src='https://via.placeholder.com/500x300?text=Imagen+no+disponible';this.onerror=null;">
-                        <div class="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
-                            <a href="${product.photo_url}" target="_blank" class="text-white text-sm bg-black/50 backdrop-blur-sm px-3 py-1 rounded-full hover:bg-black/70 transition-colors duration-200">
-                                <i class="fas fa-external-link-alt mr-1"></i> Ver imagen completa
-                            </a>
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                        <div class="h-64 lg:h-80 bg-gray-100 rounded-lg overflow-hidden">
+                            <img src="${product.photo_url || 'https://via.placeholder.com/500x300?text=Imagen+no+disponible'}" 
+                                 alt="${product.name}" 
+                                 class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
+                                 onerror="this.src='https://via.placeholder.com/500x300?text=Imagen+no+disponible'">
+                        </div>
+                        
+                        <div>
+                            <h3 class="font-semibold text-gray-800 mb-2">Descripción:</h3>
+                            <p class="text-gray-600 mb-6">${product.description || 'Sin descripción disponible'}</p>
+                            
+                            <div class="bg-gray-50 p-4 rounded-lg">
+                                <h3 class="font-semibold text-gray-800 mb-3">Planes y precios:</h3>
+                                <div class="space-y-3">
+                                    ${plansHTML}
+                                </div>
+                            </div>
                         </div>
                     </div>
                     
-                    <div class="mb-4">
-                        <h3 class="font-semibold text-gray-800 mb-2 flex items-center">
-                            <i class="fas fa-align-left mr-2 text-blue-500"></i>Descripción:
-                        </h3>
-                        <p class="text-gray-600">${product.description || 'Sin descripción disponible'}</p>
-                    </div>
-                    
-                    <div class="mb-6">
-                        <h3 class="font-semibold text-gray-800 mb-2 flex items-center">
-                            <i class="fas fa-list-alt mr-2 text-blue-500"></i>Planes y precios:
-                        </h3>
-                        <div class="space-y-2">
-                            ${plansHTML}
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-end mt-6">
-                        <button class="close-modal bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 transform hover:scale-105 flex items-center shadow-md hover:shadow-lg">
+                    <div class="flex justify-end space-x-3 mt-6">
+                        <button class="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 close-modal flex items-center">
                             <i class="fas fa-times mr-2"></i>
                             Cerrar
+                        </button>
+                        <button class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors duration-200 contact-btn flex items-center transform hover:scale-105" 
+                                data-product-id="${product.id}">
+                            <i class="fas fa-envelope mr-2"></i>
+                            Contactar
                         </button>
                     </div>
                 </div>
@@ -328,33 +396,30 @@ const showProductModal = (product) => {
     modalContainer.innerHTML = modalHTML;
     document.body.appendChild(modalContainer);
     
-    // Animación de entrada
-    setTimeout(() => {
-        const modal = document.getElementById('productDetailModal');
-        if (modal) {
-            modal.style.opacity = '1';
-            modal.querySelector('div').style.transform = 'scale(1)';
-        }
-    }, 10);
+    // Mostrar modal con animación
+    const modal = modalContainer.querySelector('#productDetailModal');
+    fadeIn(modal);
     
     // Agregar event listeners para cerrar el modal
     const closeModal = () => {
-        const modal = document.getElementById('productDetailModal');
-        if (modal) {
-            modal.style.opacity = '0';
-            modal.querySelector('div').style.transform = 'scale(0.95)';
-            
-            setTimeout(() => {
-                if (modalContainer.parentNode) {
-                    document.body.removeChild(modalContainer);
-                }
-            }, 300);
-        }
+        fadeOut(modal).then(() => {
+            if (modalContainer.parentNode) {
+                document.body.removeChild(modalContainer);
+            }
+        });
     };
     
     modalContainer.querySelectorAll('.close-modal').forEach(btn => {
         btn.addEventListener('click', closeModal);
     });
+    
+    // Botón de contactar
+    const contactBtn = modalContainer.querySelector('.contact-btn');
+    if (contactBtn) {
+        contactBtn.addEventListener('click', () => {
+            showNotification('📧 Función de contacto habilitada próximamente', 'info');
+        });
+    }
     
     // Cerrar modal al hacer clic fuera del contenido
     modalContainer.addEventListener('click', (e) => {
@@ -374,7 +439,10 @@ const showProductModal = (product) => {
     document.addEventListener('keydown', handleEscape);
     
     // Enfocar el modal para accesibilidad
-    modalContainer.querySelector('.close-modal')?.focus();
+    setTimeout(() => {
+        const closeBtn = modalContainer.querySelector('.close-modal');
+        if (closeBtn) closeBtn.focus();
+    }, 100);
 };
 
 // Exportar función de renderizado para compatibilidad
