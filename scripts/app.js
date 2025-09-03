@@ -233,19 +233,22 @@ const loadInitialData = async () => {
         let categories = [];
         if (typeof window.loadCategories === 'function') {
             categories = await window.loadCategories();
+            // Si no hay categorías, no usar demo
+            if (categories.length === 0) {
+                showNotification('No hay categorías disponibles', 'info');
+            }
             appState.updateCategories(categories);
             console.log(`✅ ${categories.length} categorías cargadas`);
-            
-            // Actualizar el selector de categorías en el formulario
-            if (typeof window.loadCategoriesIntoSelect === 'function') {
-                window.loadCategoriesIntoSelect();
-            }
         }
 
         // Luego cargar productos
         let products = [];
         if (typeof window.loadProducts === 'function') {
             products = await window.loadProducts();
+            // Si no hay productos, no usar demo
+            if (products.length === 0) {
+                showNotification('No hay productos disponibles', 'info');
+            }
             appState.updateProducts(products);
             console.log(`✅ ${products.length} productos cargados`);
         }
@@ -255,89 +258,15 @@ const loadInitialData = async () => {
         
         // Renderizar productos
         if (typeof window.renderProductsGrid === 'function') {
-            console.log('🎨 Renderizando productos...');
             window.renderProductsGrid(products, 'productsGrid');
         }
         
     } catch (error) {
         console.error('Error loading initial data:', error);
-        if (appState.products.length === 0) {
-            loadDemoData();
-        }
-        showNotification('⚠️ Error al cargar datos. Verifica tu conexión.', 'error');
+        // NO cargar datos de demostración
+        showNotification('Error al cargar datos. La aplicación funcionará con datos vacíos.', 'error');
     }
 };
-
-// Cargar datos de demostración
-const loadDemoData = () => {
-    const appState = AppState.getInstance();
-    
-    console.log('📋 Cargando datos de demostración...');
-    appState.updateProducts(getSampleProducts());
-    appState.updateCategories(getDefaultCategories());
-    
-    updateCategoryFilter();
-    filterAndRenderProducts();
-    
-    showNotification('🔶 Usando datos de demostración', 'warning');
-};
-
-// Datos de ejemplo
-function getSampleProducts() {
-    return [
-        {
-            id: 'demo-1',
-            name: 'Diseño de Logo Profesional',
-            description: 'Diseño de logo moderno y profesional para tu marca. Incluye 3 propuestas iniciales y revisiones ilimitadas.',
-            category_id: 1,
-            categories: { id: 1, name: 'Diseño' },
-            photo_url: 'https://images.unsplash.com/photo-1567446537738-74804ee3a9bd?w=400&h=300&fit=crop',
-            plans: [
-                { name: 'Básico', price_soles: 199, price_dollars: 50, features: ['1 propuesta', '2 revisiones', 'Formatos PNG/JPG'] },
-                { name: 'Premium', price_soles: 399, price_dollars: 100, features: ['3 propuestas', 'Revisiones ilimitadas', 'Todos los formatos', 'Marca guía'] }
-            ],
-            created_at: new Date().toISOString(),
-            isDemo: true
-        },
-        {
-            id: 'demo-2', 
-            name: 'Sitio Web Responsive',
-            description: 'Desarrollo de sitio web moderno y responsive con diseño adaptado a todos los dispositivos.',
-            category_id: 3,
-            categories: { id: 3, name: 'Desarrollo' },
-            photo_url: 'https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?w=400&h=300&fit=crop',
-            plans: [
-                { name: 'Landing Page', price_soles: 799, price_dollars: 200, features: ['Diseño responsive', 'Formulario de contacto', 'Optimización SEO'] },
-                { name: 'Sitio Completo', price_soles: 1599, price_dollars: 400, features: ['Hasta 5 páginas', 'CMS integrado', 'Hosting por 1 año', 'Soporte técnico'] }
-            ],
-            created_at: new Date().toISOString(),
-            isDemo: true
-        },
-        {
-            id: 'demo-3', 
-            name: 'Consultoría Marketing Digital',
-            description: 'Estrategia personalizada de marketing digital para impulsar tu presencia online.',
-            category_id: 2,
-            categories: { id: 2, name: 'Marketing' },
-            photo_url: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400&h=300&fit=crop',
-            plans: [
-                { name: 'Básico', price_soles: 299, price_dollars: 75, features: ['Análisis de mercado', 'Plan estratégico', '1 mes de seguimiento'] },
-                { name: 'Completo', price_soles: 899, price_dollars: 225, features: ['Análisis completo', 'Plan detallado', '3 meses de seguimiento', 'Implementación guiada'] }
-            ],
-            created_at: new Date().toISOString(),
-            isDemo: true
-        }
-    ];
-}
-
-function getDefaultCategories() {
-    return [
-        { id: 1, name: 'Diseño', created_at: new Date().toISOString(), icon: 'fas fa-paint-brush', isDemo: true },
-        { id: 2, name: 'Marketing', created_at: new Date().toISOString(), icon: 'fas fa-chart-line', isDemo: true },
-        { id: 3, name: 'Desarrollo', created_at: new Date().toISOString(), icon: 'fas fa-code', isDemo: true },
-        { id: 4, name: 'Consultoría', created_at: new Date().toISOString(), icon: 'fas fa-handshake', isDemo: true }
-    ];
-}
 
 // Actualizar filtro de categorías
 const updateCategoryFilter = () => {
