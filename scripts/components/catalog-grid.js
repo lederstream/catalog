@@ -1,7 +1,6 @@
-// scripts/components/catalog-grid.js
 import { 
     showNotification, 
-    catalogDebounce, 
+    debounce, // Esta importación está bien
     fadeIn, 
     observeElementIntersection,
     smoothScrollTo
@@ -126,7 +125,7 @@ function setupCatalogFilters() {
     
     // Búsqueda
     if (searchInput) {
-        searchInput.addEventListener('input', catalogDebounce(() => {
+        searchInput.addEventListener('input', debounce(() => {
             const searchText = searchInput.value.toLowerCase().trim();
             catalogState.setFilters({ search: searchText });
             filterAndRenderProducts();
@@ -322,7 +321,7 @@ function setupScrollAnimations() {
     });
 }
 
-// Función catalogDebounce para optimizar búsquedas
+// Función debounce para optimizar búsquedas (RENOMBRADA para evitar conflicto)
 function catalogDebounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
