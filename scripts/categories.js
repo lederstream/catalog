@@ -1,7 +1,6 @@
 // scripts/categories.js
 import { supabase } from './supabase.js';
-import { 
-    showNotification, 
+import { showNotification, 
     validateRequired, 
     debounce,
     fadeIn,
@@ -71,8 +70,6 @@ let categoriesState = CategoriesState.getInstance();
 
 // Cargar categorías desde Supabase
 export async function loadCategories() {
-    categoriesState.isLoading = true;
-    
     try {
         console.log('📂 Cargando categorías desde Supabase...');
         const { data, error } = await supabase
@@ -81,72 +78,25 @@ export async function loadCategories() {
             .order('name');
 
         if (error) {
-            // Si la tabla no existe, usar categorías por defecto
+            // NO usar categorías por defecto - devolver array vacío
             if (error.code === 'PGRST204' || error.code === '42P01') {
-                console.warn('Tabla categories no existe, usando categorías por defecto');
-                const defaultCategories = getDefaultCategories();
-                categoriesState.setCategories(defaultCategories);
-                return defaultCategories;
+                console.warn('Tabla categories no existe');
+                categories = [];
+                return categories;
             }
             throw error;
         }
 
-        categoriesState.setCategories(data || []);
-        console.log(`✅ ${data.length} categorías cargadas`);
-        return data;
+        categories = data || [];
+        console.log(`✅ ${categories.length} categorías cargadas`);
+        return categories;
     } catch (error) {
         console.error('Error al cargar categorías:', error);
-        
-        // En caso de error, usar categorías por defecto
-        const defaultCategories = getDefaultCategories();
-        categoriesState.setCategories(defaultCategories);
-        showNotification('🔶 Usando categorías de demostración', 'info');
-        return defaultCategories;
-    } finally {
-        categoriesState.isLoading = false;
+        // NO usar datos de demostración
+        categories = [];
+        showNotification('Error al cargar categorías', 'error');
+        return categories;
     }
-}
-
-// Categorías por defecto
-function getDefaultCategories() {
-    return [
-        { 
-            id: 1, 
-            name: 'Diseño', 
-            description: 'Servicios de diseño gráfico y UX/UI',
-            icon: 'fas fa-paint-brush',
-            color: 'bg-blue-100 text-blue-800',
-            created_at: new Date().toISOString(), 
-            isDemo: true 
-        },
-        { 
-            id: 2, 
-            name: 'Marketing', 
-            description: 'Estrategias de marketing digital',
-            icon: 'fas fa-chart-line',
-            color: 'bg-green-100 text-green-800',
-            created_at: new Date().toISOString(), 
-            isDemo: true 
-        },
-        { 
-            id: 3, 
-            name: 'Desarrollo', 
-            description: 'Desarrollo web y aplicaciones',
-            icon: 'fas fa-code',
-            color: 'bg-purple-100 text-purple-800',
-            created_at: new Date().toISOString(), 
-            isDemo: true 
-        },
-        { 
-            id: 4, 
-            name: 'Consultoría', 
-            description: 'Asesoramiento profesional',
-            icon: 'fas fa-handshake',
-            color: 'bg-orange-100 text-orange-800',
-            created_at: new Date().toISOString(), 
-            isDemo: true 
-        }
-    ];
 }
 
 // Obtener categorías
@@ -155,62 +105,41 @@ export function getCategories() {
 }
 
 // Agregar una nueva categoría
-export async function addCategory(name, description = '') {
+export async function addCategory(name) {
     try {
         if (!validateRequired(name)) {
-            showNotification('❌ El nombre de la categoría no puede estar vacío', 'error');
+            showNotification('El nombre de la categoría no puede estar vacío', 'error');
             return null;
         }
 
         // Validar que no exista una categoría con el mismo nombre
         const normalizedName = name.trim().toLowerCase();
-        const exists = categoriesState.categories.some(cat => 
+        const exists = categories.some(cat => 
             cat.name.toLowerCase() === normalizedName
         );
         
         if (exists) {
-            showNotification('❌ Ya existe una categoría con ese nombre', 'error');
+            showNotification('Ya existe una categoría con ese nombre', 'error');
             return null;
         }
 
-        const categoryData = {
-            name: name.trim(),
-            description: description.trim(),
-            icon: getCategoryIcon(name.trim()),
-            color: getCategoryColor()
-        };
-
         const { data, error } = await supabase
             .from('categories')
-            .insert([categoryData])
+            .insert([{ 
+                name: name.trim(),
+                created_at: new Date().toISOString()
+            }])
             .select();
 
         if (error) {
             console.error('Error al agregar categoría:', error);
-            
-            // Si hay error de tabla, agregar al array local
-            if (error.code === 'PGRST204' || error.code === '42P01') {
-                const newCategory = {
-                    id: Date.now(),
-                    ...categoryData,
-                    created_at: new Date().toISOString(),
-                    isDemo: true
-                };
-                categoriesState.addCategory(newCategory);
-                showNotification('✅ Categoría agregada (modo demostración)', 'success');
-                
-                // Actualizar el selector de categorías
-                updateCategorySelect();
-                return newCategory;
-            }
-            
-            showNotification('❌ Error al agregar categoría', 'error');
+            showNotification('Error al agregar categoría', 'error');
             return null;
         }
 
         if (data && data.length > 0) {
-            categoriesState.addCategory(data[0]);
-            showNotification('✅ Categoría agregada correctamente', 'success');
+            categories.push(data[0]);
+            showNotification('Categoría agregada correctamente', 'success');
             
             // Actualizar el selector de categorías
             updateCategorySelect();
@@ -220,7 +149,7 @@ export async function addCategory(name, description = '') {
         return null;
     } catch (error) {
         console.error('Error inesperado al agregar categoría:', error);
-        showNotification('❌ Error al agregar categoría', 'error');
+        showNotification('Error al agregar categoría', 'error');
         return null;
     }
 }
