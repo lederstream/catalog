@@ -1,4 +1,4 @@
-// scripts/products.js
+// scripts/products.js - CORREGIDO Y MEJORADO
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency } from './utils.js';
 
@@ -62,39 +62,47 @@ export function filterProducts(category = 'all', search = '') {
     return filtered;
 }
 
-// NUEVA: Función para renderizar grid de productos
 export function renderProductsGrid(products, containerId) {
-    // Implementación consistente
     const container = document.getElementById(containerId);
-    if (!container) return;
-    
-    // Usar la función createProductCard del mismo archivo
-    container.innerHTML = products.map(product => 
-        createProductCard(product)
-    ).join('');
-}
+    if (!container) {
+        console.error(`Contenedor ${containerId} no encontrado`);
+        return;
+    }
 
-// Función auxiliar interna
-function createProductCard(product) {
-    // Implementación simple y consistente
-    return `
-        <div class="product-card">
-            <img src="${product.photo_url}" alt="${product.name}">
-            <h3>${product.name}</h3>
-            <p>${product.description}</p>
+    if (!products || products.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full text-center py-16">
+                <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
+                <p class="text-gray-500">Intenta con otros términos de búsqueda</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = products.map(product => `
+        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden">
+            <img src="${product.photo_url || 'https://via.placeholder.com/300x200'}" 
+                 alt="${product.name}" class="w-full h-48 object-cover">
+            <div class="p-4">
+                <h3 class="text-lg font-semibold">${product.name}</h3>
+                <p class="text-gray-600">${product.description || 'Sin descripción'}</p>
+                <div class="mt-2 text-blue-600 font-bold">
+                    ${formatCurrency(getProductMinPrice(product))}
+                </div>
+            </div>
         </div>
-    `;
+    `).join('');
 }
 
-// Función auxiliar para obtener precio mínimo
 function getProductMinPrice(product) {
     if (!product.plans || product.plans.length === 0) return 0;
-    return Math.min(...product.plans.map(plan => plan.price_soles || Infinity));
+    const prices = product.plans.map(plan => 
+        Math.min(
+            plan.price_soles || Infinity,
+            plan.price_dollars || Infinity
+        )
+    ).filter(price => price > 0);
+    
+    return prices.length > 0 ? Math.min(...prices) : 0;
 }
-
-// Hacer funciones disponibles globalmente
-window.loadProducts = loadProducts;
-window.getProducts = getProducts;
-window.getProductById = getProductById;
-window.filterProducts = filterProducts;
-window.renderProductsGrid = renderProductsGrid;
