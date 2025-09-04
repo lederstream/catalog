@@ -687,3 +687,4 @@ export { Logger };
 
 // Exportar funciones de notificación
 export { showNotification, showError, showSuccess, showWarning, showInfo };
+export { debounce, catalogDebounce, throttle, validateEmail, validateUrl, validateRequired, validateNumber, formatCurrency };
