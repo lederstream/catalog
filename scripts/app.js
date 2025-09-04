@@ -7,15 +7,7 @@ import { loadProducts, getProducts, filterProducts, renderProductsGrid } from '.
 import { loadCategories, getCategories } from './categories.js';
 import { initModals } from './modals.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
-import { 
-    showNotification, 
-    debounce, 
-    fadeIn, 
-    fadeOut, 
-    smoothScrollTo,
-    measurePerformance,
-    enableDebugMode
-} from './utils.js';
+import { showNotification, debounce, fadeIn, fadeOut, smoothScrollTo, measurePerformance, enableDebugMode } from './utils.js';
 
 // Estado global de la aplicación
 class AppState {
