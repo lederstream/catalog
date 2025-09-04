@@ -18,8 +18,9 @@ export const createDebouncer = (defaultWait = 300) => {
         };
     };
 };
+export const catalogDebounce = debounce;
 
-export const catalogDebounce = (func, wait, immediate = false) => {
+export const debounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
         const later = () => {
