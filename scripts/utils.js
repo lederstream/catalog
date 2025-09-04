@@ -18,8 +18,6 @@ export const createDebouncer = (defaultWait = 300) => {
         };
     };
 };
-export const catalogDebounce = debounce;
-
 export const debounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
@@ -34,6 +32,8 @@ export const debounce = (func, wait, immediate = false) => {
     };
 };
 
+export const catalogDebounce = debounce;
+
 export const throttle = (func, limit) => {
     let inThrottle;
     return function(...args) {
@@ -44,7 +44,6 @@ export const throttle = (func, limit) => {
         }
     };
 };
-
 // ===== VALIDACIONES =====
 export const validateEmail = (email) => {
     if (!email || typeof email !== 'string') return false;
