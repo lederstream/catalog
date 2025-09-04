@@ -81,19 +81,19 @@ export async function loadCategories() {
             // NO usar categorías por defecto - devolver array vacío
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 console.warn('Tabla categories no existe');
-                categories = [];
+                const categories = [];
                 return categories;
             }
             throw error;
         }
 
-        categories = data || [];
+        const categories = data || [];
         console.log(`✅ ${categories.length} categorías cargadas`);
         return categories;
     } catch (error) {
         console.error('Error al cargar categorías:', error);
         // NO usar datos de demostración
-        categories = [];
+        const categories = [];
         showNotification('Error al cargar categorías', 'error');
         return categories;
     }
