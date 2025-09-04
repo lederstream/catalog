@@ -315,19 +315,6 @@ function setupScrollAnimations() {
     });
 }
 
-// Función debounce para optimizar búsquedas (RENOMBRADA para evitar conflicto)
-function catalogDebounce(func, wait) {
-    let timeout;
-    return function executedFunction(...args) {
-        const later = () => {
-            clearTimeout(timeout);
-            func(...args);
-        };
-        clearTimeout(timeout);
-        timeout = setTimeout(later, wait);
-    };
-}
-
 // Filtrar y renderizar productos
 export function filterAndRenderProducts() {
     try {
