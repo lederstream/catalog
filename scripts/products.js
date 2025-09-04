@@ -1,4 +1,4 @@
-// scripts/products.js - Versión corregida
+// scripts/products.js
 import { supabase } from './supabase.js';
 import { showNotification, formatCurrency } from './utils.js';
 
@@ -11,7 +11,8 @@ export async function loadProducts() {
             .from('products')
             .select(`
                 *,
-                categories (*)
+                categories (*),
+                plans (*)
             `)
             .order('created_at', { ascending: false });
 
@@ -45,60 +46,57 @@ export function getProductById(id) {
 export function filterProducts(category = 'all', search = '') {
     let filtered = [...products];
 
-    // Filtrar por categoría
     if (category !== 'all') {
         filtered = filtered.filter(product => product.category_id == category);
     }
 
-    // Filtrar por búsqueda
     if (search) {
         const searchLower = search.toLowerCase();
         filtered = filtered.filter(product =>
             product.name.toLowerCase().includes(searchLower) ||
-            (product.description && product.description.toLowerCase().includes(searchLower))
+            (product.description && product.description.toLowerCase().includes(searchLower)) ||
+            (product.categories && product.categories.name.toLowerCase().includes(searchLower))
         );
     }
 
     return filtered;
 }
 
-// Función para formatear precios correctamente
-export function formatProductPrices(product) {
-    if (!product || !product.plans) return product;
-    
-    return {
-        ...product,
-        plans: product.plans.map(plan => ({
-            ...plan,
-            // Asegurar que los precios sean números
-            price_soles: typeof plan.price_soles === 'string' ? 
-                        parseFloat(plan.price_soles) || 0 : 
-                        (plan.price_soles || 0),
-            price_dollars: typeof plan.price_dollars === 'string' ? 
-                          parseFloat(plan.price_dollars) || 0 : 
-                          (plan.price_dollars || 0),
-            // Formatear para visualización
-            formatted_soles: formatCurrency(plan.price_soles || 0, 'PEN'),
-            formatted_dollars: formatCurrency(plan.price_dollars || 0, 'USD')
-        }))
-    };
+// NUEVA: Función para renderizar grid de productos
+export function renderProductsGrid(products, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!products || products.length === 0) {
+        container.innerHTML = `
+            <div class="col-span-full text-center py-16">
+                <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
+                <p class="text-gray-500">Intenta con otros términos de búsqueda</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = products.map(product => `
+        <div class="product-card bg-white rounded-lg shadow-md overflow-hidden">
+            <img src="${product.photo_url || 'https://via.placeholder.com/300x200'}" 
+                 alt="${product.name}" class="w-full h-48 object-cover">
+            <div class="p-4">
+                <h3 class="text-lg font-semibold">${product.name}</h3>
+                <p class="text-gray-600">${product.description || 'Sin descripción'}</p>
+                <div class="mt-2 text-blue-600 font-bold">
+                    ${formatCurrency(getProductMinPrice(product))}
+                </div>
+            </div>
+        </div>
+    `).join('');
 }
 
-// Función para renderizar precios en el formato correcto
-export function renderPrice(amount, currency = 'PEN') {
-    if (!amount && amount !== 0) return 'Precio no disponible';
-    
-    const symbols = {
-        'PEN': 'S/',
-        'USD': '$'
-    };
-    
-    const symbol = symbols[currency] || '';
-    const formattedAmount = typeof amount === 'number' ? 
-                           amount.toFixed(2) : 
-                           parseFloat(amount || 0).toFixed(2);
-    
-    return `${symbol} ${formattedAmount}`;
+// Función auxiliar para obtener precio mínimo
+function getProductMinPrice(product) {
+    if (!product.plans || product.plans.length === 0) return 0;
+    return Math.min(...product.plans.map(plan => plan.price_soles || Infinity));
 }
 
 // Hacer funciones disponibles globalmente
@@ -106,5 +104,4 @@ window.loadProducts = loadProducts;
 window.getProducts = getProducts;
 window.getProductById = getProductById;
 window.filterProducts = filterProducts;
-window.formatProductPrices = formatProductPrices;
-window.renderPrice = renderPrice;
+window.renderProductsGrid = renderProductsGrid;
