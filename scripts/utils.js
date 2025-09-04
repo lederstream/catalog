@@ -8,7 +8,7 @@ const UtilsState = {
 };
 
 // ===== FUNCIONES BÁSICAS =====
-export const debounce = (func, wait, immediate = false) => {
+export const catalogDebounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
         const later = () => {
@@ -603,6 +603,21 @@ export const initUtils = () => {
     console.log('✅ Utilidades inicializadas');
 };
 
+
+export function debugLog(message, data = null) {
+    if (window.location.search.includes('debug=true')) {
+        console.log(`🔍 ${message}`, data || '');
+    }
+}
+
+export function errorHandler(error, context = '') {
+    console.error(`❌ Error en ${context}:`, error);
+    showNotification(`Error en ${context}: ${error.message}`, 'error');
+    return null;
+}
+
+
+
 // Hacer funciones disponibles globalmente
 if (typeof window !== 'undefined') {
     window.utils = {
@@ -625,7 +640,9 @@ if (typeof window !== 'undefined') {
         smoothScrollTo,
         isElementInViewport,
         measurePerformance,
-        enableDebugMode
+        enableDebugMode,
+        debugLog,
+        errorHandler
     };
 }
 
