@@ -1,13 +1,6 @@
 // scripts/components/catalog-grid.js
-import { 
-    showNotification, 
-    debounce, // Esta importación está bien
-    fadeIn, 
-    observeElementIntersection,
-    smoothScrollTo
-} from '../utils.js';
+import { showNotification, catalogDebounce, fadeIn, observeElementIntersection, smoothScrollTo } from '../utils.js';
 
-// Estado del catálogo
 class CatalogState {
     constructor() {
         this.currentView = 'grid'; // grid or list
@@ -126,7 +119,7 @@ function setupCatalogFilters() {
     
     // Búsqueda
     if (searchInput) {
-        searchInput.addEventListener('input', debounce(() => {
+        searchInput.addEventListener('input', catalogDebounce(() => {
             const searchText = searchInput.value.toLowerCase().trim();
             catalogState.setFilters({ search: searchText });
             filterAndRenderProducts();
