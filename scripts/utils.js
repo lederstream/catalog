@@ -8,6 +8,17 @@ const UtilsState = {
 };
 
 // ===== FUNCIONES BÁSICAS =====
+export const createDebouncer = (defaultWait = 300) => {
+    let timeout;
+    
+    return (func, wait = defaultWait) => {
+        return function executedFunction(...args) {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => func.apply(this, args), wait);
+        };
+    };
+};
+
 export const catalogDebounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
@@ -652,6 +663,27 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(initUtils, 0);
 }
+
+class Logger {
+    static debug(message, data = null) {
+        if (localStorage.getItem('debug') === 'true') {
+            console.log(`🔍 ${message}`, data || '');
+        }
+    }
+    
+    static error(context, error) {
+        console.error(`❌ Error en ${context}:`, error);
+        showNotification(`Error en ${context}: ${error.message}`, 'error');
+    }
+    
+    static performance(name, duration) {
+        if (localStorage.getItem('debug') === 'true') {
+            console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
+        }
+    }
+}
+
+export { Logger };
 
 // Exportar funciones de notificación
 export { showNotification, showError, showSuccess, showWarning, showInfo };
