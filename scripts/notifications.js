@@ -1,5 +1,4 @@
 // scripts/notifications.js
-
 // Sistema de notificaciones para la aplicación
 export const showNotification = (message, type = 'info', duration = 5000) => {
     // Crear contenedor de notificaciones si no existe
@@ -123,13 +122,8 @@ export const showInfo = (message, duration = 5000) => {
 export const clearAllNotifications = () => {
     const container = document.getElementById('notifications-container');
     if (container) {
-        removeAllChildren(container);
-    }
-};
-
-// Función auxiliar para eliminar todos los hijos de un elemento
-const removeAllChildren = (element) => {
-    while (element.firstChild) {
-        element.removeChild(element.firstChild);
+        while (container.firstChild) {
+            container.removeChild(container.firstChild);
+        }
     }
 };
