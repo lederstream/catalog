@@ -1,6 +1,4 @@
 // scripts/utils.js
-import { showNotification, showError, showSuccess, showWarning, showInfo } from './notifications.js';
-
 // Estado global de utilidades
 const UtilsState = {
     debugMode: localStorage.getItem('debug') === 'true',
@@ -8,16 +6,6 @@ const UtilsState = {
 };
 
 // ===== FUNCIONES BÁSICAS =====
-export const createDebouncer = (defaultWait = 300) => {
-    let timeout;
-    
-    return (func, wait = defaultWait) => {
-        return function executedFunction(...args) {
-            clearTimeout(timeout);
-            timeout = setTimeout(() => func.apply(this, args), wait);
-        };
-    };
-};
 export const debounce = (func, wait, immediate = false) => {
     let timeout;
     return function executedFunction(...args) {
@@ -44,6 +32,48 @@ export const throttle = (func, limit) => {
         }
     };
 };
+
+// ===== FUNCIONES DE NOTIFICACIÓN (DEFINIDAS LOCALMENTE) =====
+const showNotification = (message, type = 'info') => {
+    console.log(`${type.toUpperCase()}: ${message}`);
+    
+    // Implementación básica de notificación
+    const notification = document.createElement('div');
+    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+        type === 'success' ? 'bg-green-100 border-green-500 text-green-700' :
+        type === 'error' ? 'bg-red-100 border-red-500 text-red-700' :
+        type === 'warning' ? 'bg-yellow-100 border-yellow-500 text-yellow-700' :
+        'bg-blue-100 border-blue-500 text-blue-700'
+    } border-l-4`;
+    
+    notification.innerHTML = `
+        <div class="flex items-center">
+            <span class="mr-2">${
+                type === 'success' ? '✅' :
+                type === 'error' ? '❌' :
+                type === 'warning' ? '⚠️' : 'ℹ️'
+            }</span>
+            <span>${message}</span>
+            <button class="ml-4 text-gray-500 hover:text-gray-700" onclick="this.parentElement.parentElement.remove()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+};
+
+const showError = (message) => showNotification(message, 'error');
+const showSuccess = (message) => showNotification(message, 'success');
+const showWarning = (message) => showNotification(message, 'warning');
+const showInfo = (message) => showNotification(message, 'info');
+
 // ===== VALIDACIONES =====
 export const validateEmail = (email) => {
     if (!email || typeof email !== 'string') return false;
@@ -570,13 +600,18 @@ export const validateProductForm = (formData) => {
 export const formatPlanPrices = (plans) => {
     if (!plans || !Array.isArray(plans)) return [];
     
-    return plans.map(plan => ({
-        ...plan,
-        price_soles: plan.price_soles ? parseFloat(plan.price_soles) : 0,
-        price_dollars: plan.price_dollars ? parseFloat(plan.price_dollars) : 0,
-        formatted_soles: formatCurrency(plan.price_soles, 'PEN'),
-        formatted_dollars: formatCurrency(plan.price_dollars, 'USD')
-    }));
+    return plans.map(plan => {
+        const priceSoles = plan.price_soles ? parseFloat(plan.price_soles) : 0;
+        const priceDollars = plan.price_dollars ? parseFloat(plan.price_dollars) : 0;
+        
+        return {
+            ...plan,
+            price_soles: priceSoles,
+            price_dollars: priceDollars,
+            formatted_soles: formatCurrency(priceSoles, 'PEN'),
+            formatted_dollars: formatCurrency(priceDollars, 'USD')
+        };
+    });
 };
 
 export const escapeHtml = (text) => {
@@ -614,7 +649,6 @@ export const initUtils = () => {
     console.log('✅ Utilidades inicializadas');
 };
 
-
 export function debugLog(message, data = null) {
     if (window.location.search.includes('debug=true')) {
         console.log(`🔍 ${message}`, data || '');
@@ -627,7 +661,33 @@ export function errorHandler(error, context = '') {
     return null;
 }
 
+class Logger {
+    static debug(message, data = null) {
+        if (localStorage.getItem('debug') === 'true') {
+            console.log(`🔍 ${message}`, data || '');
+        }
+    }
+    
+    static error(context, error) {
+        console.error(`❌ Error en ${context}:`, error);
+        showNotification(`Error en ${context}: ${error.message}`, 'error');
+    }
+    
+    static performance(name, duration) {
+        if (localStorage.getItem('debug') === 'true') {
+            console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
+        }
+    }
+}
 
+// Exportar funciones de notificación
+export { 
+    showNotification, 
+    showError, 
+    showSuccess, 
+    showWarning, 
+    showInfo 
+};
 
 // Hacer funciones disponibles globalmente
 if (typeof window !== 'undefined') {
@@ -663,28 +723,3 @@ if (document.readyState === 'loading') {
 } else {
     setTimeout(initUtils, 0);
 }
-
-class Logger {
-    static debug(message, data = null) {
-        if (localStorage.getItem('debug') === 'true') {
-            console.log(`🔍 ${message}`, data || '');
-        }
-    }
-    
-    static error(context, error) {
-        console.error(`❌ Error en ${context}:`, error);
-        showNotification(`Error en ${context}: ${error.message}`, 'error');
-    }
-    
-    static performance(name, duration) {
-        if (localStorage.getItem('debug') === 'true') {
-            console.log(`⏱️ ${name}: ${duration.toFixed(2)}ms`);
-        }
-    }
-}
-
-export { Logger };
-
-// Exportar funciones de notificación
-export { showNotification, showError, showSuccess, showWarning, showInfo };
-export { debounce, catalogDebounce, throttle, validateEmail, validateUrl, validateRequired, validateNumber, formatCurrency };
