@@ -33,13 +33,16 @@ export const throttle = (func, limit) => {
     };
 };
 
-// ===== FUNCIONES DE NOTIFICACIÓN (DEFINIDAS LOCALMENTE) =====
+// ===== FUNCIONES DE NOTIFICACIÓN =====
 const showNotification = (message, type = 'info') => {
     console.log(`${type.toUpperCase()}: ${message}`);
     
-    // Implementación básica de notificación
+    // Eliminar notificaciones existentes
+    document.querySelectorAll('.app-notification').forEach(el => el.remove());
+    
+    // Implementación de notificación
     const notification = document.createElement('div');
-    notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+    notification.className = `app-notification fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
         type === 'success' ? 'bg-green-100 border-green-500 text-green-700' :
         type === 'error' ? 'bg-red-100 border-red-500 text-red-700' :
         type === 'warning' ? 'bg-yellow-100 border-yellow-500 text-yellow-700' :
