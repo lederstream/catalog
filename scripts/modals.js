@@ -199,7 +199,7 @@ class ModalSystem {
         // Cerrar al hacer clic en el backdrop
         if (config.closeOnBackdropClick) {
             const backdropClickHandler = (e) => {
-                if (e.target === modal || e.target.classList.contains('modal')) {
+                if (e.target === modal || e.target.classList.contains('modal-overlay')) {
                     this.close(modalId);
                 }
             };
@@ -208,7 +208,7 @@ class ModalSystem {
             this.eventListeners.set(`${modalId}-backdrop`, backdropClickHandler);
         }
         
-        // Botones de cerrar dentro del modal (mejorado)
+        // Botones de cerrar dentro del modal
         const closeButtons = modal.querySelectorAll('[data-dismiss="modal"], .close-modal, .modal-close');
         closeButtons.forEach(button => {
             const handler = (e) => {
@@ -293,7 +293,7 @@ const closeCategoriesModal = document.getElementById('closeCategoriesModal');
 export function initModals() {
     console.log('🔲 Inicializando sistema de modales...');
 
-        // Aplicar estilos de centrado a todos los modales existentes
+    // Aplicar estilos de centrado a todos los modales existentes
     document.querySelectorAll('.modal').forEach(modal => {
         modal.style.display = 'none';
         modal.style.alignItems = 'center';
