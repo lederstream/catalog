@@ -7,25 +7,43 @@ let products = [];
 export async function loadProducts() {
     try {
         console.log('📦 Cargando productos desde Supabase...');
-        const { data, error } = await supabase
+        
+        // Primero obtener productos
+        const { data: productsData, error: productsError } = await supabase
             .from('products')
-            .select(`
-                *,
-                categories (*),
-                plans (*)
-            `)
+            .select('*')
             .order('created_at', { ascending: false });
 
-        if (error) {
-            if (error.code === 'PGRST204' || error.code === '42P01') {
+        if (productsError) {
+            if (productsError.code === 'PGRST204' || productsError.code === '42P01') {
                 console.warn('Tabla products no existe');
                 products = [];
                 return products;
             }
-            throw error;
+            throw productsError;
         }
 
-        products = data || [];
+        // Luego obtener categorías y planes por separado
+        const productIds = productsData.map(p => p.id);
+        
+        // Obtener categorías
+        const { data: categoriesData } = await supabase
+            .from('categories')
+            .select('*');
+            
+        // Obtener planes
+        const { data: plansData } = await supabase
+            .from('plans')
+            .select('*')
+            .in('product_id', productIds);
+
+        // Combinar los datos
+        products = productsData.map(product => ({
+            ...product,
+            categories: categoriesData?.find(cat => cat.id === product.category_id) || null,
+            plans: plansData?.filter(plan => plan.product_id === product.id) || []
+        }));
+
         console.log(`✅ ${products.length} productos cargados`);
         return products;
     } catch (error) {
