@@ -34,7 +34,7 @@ export const throttle = (func, limit) => {
 };
 
 // ===== FUNCIONES DE NOTIFICACIÓN =====
-const showNotification = (message, type = 'info') => {
+export const showNotification = (message, type = 'info') => {
     console.log(`${type.toUpperCase()}: ${message}`);
     
     // Eliminar notificaciones existentes
@@ -72,10 +72,10 @@ const showNotification = (message, type = 'info') => {
     }, 5000);
 };
 
-const showError = (message) => showNotification(message, 'error');
-const showSuccess = (message) => showNotification(message, 'success');
-const showWarning = (message) => showNotification(message, 'warning');
-const showInfo = (message) => showNotification(message, 'info');
+export const showError = (message) => showNotification(message, 'error');
+export const showSuccess = (message) => showNotification(message, 'success');
+export const showWarning = (message) => showNotification(message, 'warning');
+export const showInfo = (message) => showNotification(message, 'info');
 
 // ===== VALIDACIONES =====
 export const validateEmail = (email) => {
@@ -306,7 +306,7 @@ export const removeClass = (element, ...classNames) => {
     element.classList.remove(...classNames);
 };
 
-// ===== ANIMACIONES Y TRANSICIONES =====
+// ===== ANIMACIONES AND TRANSICIONES =====
 export const fadeIn = (element, duration = 300, display = 'block') => {
     if (!element) return Promise.resolve();
     
@@ -407,25 +407,6 @@ export const slideUp = (element, duration = 300) => {
             element.style.transition = '';
             resolve();
         }, duration);
-    });
-};
-
-// ===== MANEJO DE EVENTOS =====
-export const addGlobalEventListener = (type, selector, callback, options = {}) => {
-    document.addEventListener(type, (e) => {
-        if (e.target.matches(selector) || e.target.closest(selector)) {
-            callback(e);
-        }
-    }, options);
-};
-
-export const delegateEvent = (container, type, selector, callback) => {
-    if (!container) return;
-    
-    container.addEventListener(type, (e) => {
-        if (e.target.matches(selector) || e.target.closest(selector)) {
-            callback(e);
-        }
     });
 };
 
@@ -648,7 +629,6 @@ export const initUtils = () => {
     if (localStorage.getItem('debug') === 'true') {
         enableDebugMode(true);
     }
-    
     console.log('✅ Utilidades inicializadas');
 };
 
@@ -683,42 +663,31 @@ class Logger {
     }
 }
 
-// Exportar funciones de notificación
-export { 
-    showNotification, 
-    showError, 
-    showSuccess, 
-    showWarning, 
-    showInfo 
-};
-
 // Hacer funciones disponibles globalmente
-if (typeof window !== 'undefined') {
-    window.utils = {
-        debounce,
-        throttle,
-        validateEmail,
-        validateUrl,
-        validateRequired,
-        validateNumber,
-        formatCurrency,
-        slugify,
-        capitalize,
-        truncateText,
-        formatDate,
-        formatDateTime,
-        fadeIn,
-        fadeOut,
-        slideDown,
-        slideUp,
-        smoothScrollTo,
-        isElementInViewport,
-        measurePerformance,
-        enableDebugMode,
-        debugLog,
-        errorHandler
-    };
-}
+window.utils = {
+    debounce,
+    throttle,
+    validateEmail,
+    validateUrl,
+    validateRequired,
+    validateNumber,
+    formatCurrency,
+    slugify,
+    capitalize,
+    truncateText,
+    formatDate,
+    formatDateTime,
+    fadeIn,
+    fadeOut,
+    slideDown,
+    slideUp,
+    smoothScrollTo,
+    isElementInViewport,
+    measurePerformance,
+    enableDebugMode,
+    debugLog,
+    errorHandler
+};
 
 // Inicializar automáticamente
 if (document.readyState === 'loading') {
