@@ -181,7 +181,6 @@ export const initializeApp = async () => {
     } catch (error) {
         console.error('❌ Error inicializando la aplicación:', error);
         showNotification('❌ Error al cargar el catálogo. Usando modo demostración.', 'error');
-        loadDemoData();
         await hideLoadingState();
     }
 };
@@ -225,26 +224,37 @@ const loadInitialData = async () => {
         let categories = [];
         if (typeof window.loadCategories === 'function') {
             categories = await window.loadCategories();
+            // Si no hay categorías, no usar demo
+            if (categories.length === 0) {
+                showNotification('No hay categorías disponibles', 'info');
+            }
             appState.updateCategories(categories);
             console.log(`✅ ${categories.length} categorías cargadas`);
-            
-            // Actualizar el filtro de categorías después de cargarlas
-            updateCategoryFilter();
         }
 
         // Luego cargar productos
         let products = [];
         if (typeof window.loadProducts === 'function') {
             products = await window.loadProducts();
+            // Si no hay productos, no usar demo
+            if (products.length === 0) {
+                showNotification('No hay productos disponibles', 'info');
+            }
             appState.updateProducts(products);
             console.log(`✅ ${products.length} productos cargados`);
-            
-            // Renderizar productos después de cargarlos
-            filterAndRenderProducts();
+        }
+
+        // Actualizar UI
+        updateCategoryFilter();
+        
+        // Renderizar productos
+        if (typeof window.renderProductsGrid === 'function') {
+            window.renderProductsGrid(products, 'productsGrid');
         }
         
     } catch (error) {
         console.error('Error loading initial data:', error);
+        // NO cargar datos de demostración
         showNotification('Error al cargar datos. La aplicación funcionará con datos vacíos.', 'error');
     }
 };
@@ -584,4 +594,3 @@ window.addEventListener('popstate', () => {
         filterAndRenderProducts();
     }
 });
-
