@@ -71,7 +71,6 @@ export async function loadCategories() {
             .order('name');
 
         if (error) {
-            // NO usar categorías por defecto - devolver array vacío
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 console.warn('Tabla categories no existe');
                 const categories = [];
@@ -87,7 +86,6 @@ export async function loadCategories() {
         return categories;
     } catch (error) {
         console.error('Error al cargar categorías:', error);
-        // NO usar datos de demostración
         const categories = [];
         categoriesState.setCategories(categories);
         showNotification('Error al cargar categorías', 'error');
@@ -119,6 +117,15 @@ export async function addCategory(name) {
             return null;
         }
 
+        // Mostrar loading
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        const originalText = addCategoryBtn?.innerHTML;
+        
+        if (addCategoryBtn) {
+            addCategoryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Agregando...';
+            addCategoryBtn.disabled = true;
+        }
+
         const { data, error } = await supabase
             .from('categories')
             .insert([{ 
@@ -132,7 +139,9 @@ export async function addCategory(name) {
             
             // Manejar error de RLS específicamente
             if (error.code === '42501') {
-                showNotification('❌ No tienes permisos para agregar categorías. Contacta al administrador.', 'error');
+                showNotification('❌ Error de permisos. Verifica las políticas de la base de datos.', 'error');
+            } else if (error.code === '23505') {
+                showNotification('❌ Ya existe una categoría con ese nombre', 'error');
             } else {
                 showNotification('Error al agregar categoría', 'error');
             }
@@ -145,6 +154,14 @@ export async function addCategory(name) {
             
             // Actualizar el selector de categorías
             updateCategorySelect();
+            
+            // Cerrar el modal después de agregar exitosamente
+            setTimeout(() => {
+                if (typeof window.modalSystem !== 'undefined') {
+                    window.modalSystem.close('categoriesModal');
+                }
+            }, 1000);
+            
             return data[0];
         }
 
@@ -152,6 +169,36 @@ export async function addCategory(name) {
     } catch (error) {
         console.error('Error inesperado al agregar categoría:', error);
         showNotification('Error al agregar categoría', 'error');
+        return null;
+    } finally {
+        // Restaurar botón
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            addCategoryBtn.innerHTML = '<i class="fas fa-plus"></i> Agregar';
+            addCategoryBtn.disabled = false;
+        }
+    }
+}
+
+// Función alternativa para agregar categorías (con más validaciones)
+export async function safeAddCategory(name) {
+    try {
+        // Primero verificar permisos
+        const { error: permError } = await supabase
+            .from('categories')
+            .select('count')
+            .limit(1);
+        
+        if (permError && permError.code === '42501') {
+            showNotification('❌ No tienes permisos para agregar categorías', 'error');
+            return null;
+        }
+        
+        // Luego proceder con la inserción
+        return await addCategory(name);
+    } catch (error) {
+        console.error('Error en safeAddCategory:', error);
+        showNotification('❌ Error al verificar permisos', 'error');
         return null;
     }
 }
@@ -231,7 +278,6 @@ export async function deleteCategory(id) {
                 return false;
             }
         } catch (checkError) {
-            // Si hay error al verificar productos, continuar
             console.warn('Error al verificar productos:', checkError);
         }
 
@@ -243,12 +289,9 @@ export async function deleteCategory(id) {
         if (error) {
             console.error('Error al eliminar categoría:', error);
             
-            // Si hay error de tabla, eliminar del array local
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 categoriesState.removeCategory(id);
                 showNotification('✅ Categoría eliminada (modo demostración)', 'success');
-                
-                // Actualizar el selector de categorías
                 updateCategorySelect();
                 return true;
             }
@@ -305,15 +348,12 @@ export async function updateCategory(id, name, description = '') {
         if (error) {
             console.error('Error al actualizar categoría:', error);
             
-            // Si hay error de tabla, actualizar en el array local
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 const category = categoriesState.categories.find(cat => cat.id === id);
                 if (category) {
                     const updatedCategory = { ...category, ...updateData };
                     categoriesState.updateCategory(updatedCategory);
                     showNotification('✅ Categoría actualizada (modo demostración)', 'success');
-                    
-                    // Actualizar el selector de categorías
                     updateCategorySelect();
                     return updatedCategory;
                 }
@@ -327,8 +367,6 @@ export async function updateCategory(id, name, description = '') {
             // Actualizar en la lista local
             categoriesState.updateCategory(data[0]);
             showNotification('✅ Categoría actualizada correctamente', 'success');
-            
-            // Actualizar el selector de categorías
             updateCategorySelect();
             return data[0];
         }
@@ -742,6 +780,7 @@ export function initCategories() {
 window.loadCategories = loadCategories;
 window.getCategories = getCategories;
 window.addCategory = addCategory;
+window.safeAddCategory = safeAddCategory;
 window.deleteCategory = deleteCategory;
 window.updateCategory = updateCategory;
 window.renderCategoriesList = renderCategoriesList;
