@@ -334,15 +334,17 @@ export function initModals() {
 
     // Modal de categorías
     if (addCategoryBtn) {
-        addCategoryBtn.addEventListener('click', () => {
+        addCategoryBtn.addEventListener('click', async () => {
             const name = newCategoryName.value.trim();
-            if (name && typeof window.addCategory === 'function') {
-                window.addCategory(name).then(() => {
+            if (name) {
+                // Usar la función segura que verifica permisos primero
+                const success = await window.safeAddCategory(name);
+                if (success) {
                     newCategoryName.value = '';
                     if (typeof window.renderCategoriesList === 'function') {
                         window.renderCategoriesList(categoriesList);
                     }
-                });
+                }
             }
         });
     }
@@ -352,19 +354,20 @@ export function initModals() {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 const name = newCategoryName.value.trim();
-                if (name && typeof window.addCategory === 'function') {
-                    window.addCategory(name).then(() => {
-                        newCategoryName.value = '';
-                        if (typeof window.renderCategoriesList === 'function') {
-                            window.renderCategoriesList(categoriesList);
+                if (name) {
+                    // Usar la función segura
+                    window.safeAddCategory(name).then((success) => {
+                        if (success) {
+                            newCategoryName.value = '';
+                            if (typeof window.renderCategoriesList === 'function') {
+                                window.renderCategoriesList(categoriesList);
+                            }
                         }
                     });
                 }
             }
         });
     }
-    
-    console.log('✅ Sistema de modales inicializado');
 }
 
 // Configurar sistema de modales
