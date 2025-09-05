@@ -92,7 +92,6 @@ class AppState {
                 if (state.timestamp) {
                     const dataAge = Date.now() - new Date(state.timestamp).getTime();
                     if (dataAge > 3600000) { // 1 hora
-                        console.log('📦 Datos locales desactualizados, se requerirá recarga');
                         this.products = [];
                         this.categories = [];
                     }
@@ -119,7 +118,6 @@ export const initializeApp = async () => {
 
     try {
         showLoadingState();
-        console.log('🚀 Inicializando aplicación DigitalCatalog...');
         
         // Configurar modo debug si está en URL
         if (window.location.search.includes('debug=true')) {
@@ -137,7 +135,6 @@ export const initializeApp = async () => {
         initModals();
 
         // Inicializar autenticación PRIMERO
-        console.log('🔄 Inicializando autenticación...');
         await initializeAuth();
         
         // Configurar event listeners de autenticación
@@ -175,9 +172,7 @@ export const initializeApp = async () => {
         if (appState.isOnline) {
             showNotification('✅ Catálogo cargado correctamente', 'success');
         }
-        
-        console.log('✅ Aplicación inicializada correctamente');
-        
+                
     } catch (error) {
         console.error('❌ Error inicializando la aplicación:', error);
         showNotification('❌ Error al cargar el catálogo. Usando modo demostración.', 'error');
@@ -217,9 +212,7 @@ const setupConnectionMonitoring = () => {
 const loadInitialData = async () => {
     const appState = AppState.getInstance();
     
-    try {
-        console.log('📦 Cargando datos del catálogo...');
-        
+    try {        
         // Cargar categorías primero
         let categories = [];
         if (typeof window.loadCategories === 'function') {
@@ -453,7 +446,6 @@ const setupScrollAnimations = () => {
             });
         }, { threshold: 0.1 });
         
-        animatedElements.forEach(el => observer.observe(el));
     }
 };
 
@@ -556,23 +548,6 @@ const hideLoadingState = () => {
     
     // Restaurar scrolling
     document.body.style.overflow = '';
-};
-
-// Mostrar mensaje de no productos
-const showNoProductsMessage = () => {
-    const productsGrid = document.getElementById('productsGrid');
-    if (productsGrid) {
-        productsGrid.innerHTML = `
-            <div class="col-span-full text-center py-16 fade-in-up">
-                <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
-                <p class="text-gray-500">Intenta con otros términos de búsqueda o categorías</p>
-                <button class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" onclick="document.getElementById('searchInput').value = ''; document.getElementById('categoryFilter').value = 'all'; filterAndRenderProducts()">
-                    Limpiar filtros
-                </button>
-            </div>
-        `;
-    }
 };
 
 // Exportar funciones para uso global
