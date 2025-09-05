@@ -129,13 +129,19 @@ export async function addCategory(name) {
 
         if (error) {
             console.error('Error al agregar categoría:', error);
-            showNotification('Error al agregar categoría', 'error');
+            
+            // Manejar error de RLS específicamente
+            if (error.code === '42501') {
+                showNotification('❌ No tienes permisos para agregar categorías. Contacta al administrador.', 'error');
+            } else {
+                showNotification('Error al agregar categoría', 'error');
+            }
             return null;
         }
 
         if (data && data.length > 0) {
             categoriesState.addCategory(data[0]);
-            showNotification('Categoría agregada correctamente', 'success');
+            showNotification('✅ Categoría agregada correctamente', 'success');
             
             // Actualizar el selector de categorías
             updateCategorySelect();
