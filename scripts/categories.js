@@ -1,13 +1,6 @@
 // scripts/categories.js
 import { supabase } from './supabase.js';
-import { showNotification, 
-    validateRequired, 
-    debounce,
-    fadeIn,
-    fadeOut,
-    slideUp,
-    slideDown
-} from './utils.js';
+import { showNotification, validateRequired, debounce, fadeIn, fadeOut, slideUp, slideDown } from './utils.js';
 
 // Estado de categorías
 class CategoriesState {
@@ -82,18 +75,21 @@ export async function loadCategories() {
             if (error.code === 'PGRST204' || error.code === '42P01') {
                 console.warn('Tabla categories no existe');
                 const categories = [];
+                categoriesState.setCategories(categories);
                 return categories;
             }
             throw error;
         }
 
         const categories = data || [];
+        categoriesState.setCategories(categories);
         console.log(`✅ ${categories.length} categorías cargadas`);
         return categories;
     } catch (error) {
         console.error('Error al cargar categorías:', error);
         // NO usar datos de demostración
         const categories = [];
+        categoriesState.setCategories(categories);
         showNotification('Error al cargar categorías', 'error');
         return categories;
     }
@@ -114,7 +110,7 @@ export async function addCategory(name) {
 
         // Validar que no exista una categoría con el mismo nombre
         const normalizedName = name.trim().toLowerCase();
-        const exists = categories.some(cat => 
+        const exists = categoriesState.categories.some(cat => 
             cat.name.toLowerCase() === normalizedName
         );
         
@@ -138,7 +134,7 @@ export async function addCategory(name) {
         }
 
         if (data && data.length > 0) {
-            categories.push(data[0]);
+            categoriesState.addCategory(data[0]);
             showNotification('Categoría agregada correctamente', 'success');
             
             // Actualizar el selector de categorías
@@ -389,8 +385,8 @@ export function renderCategoriesList(container) {
              style="animation-delay: ${index * 50}ms"
              data-category-id="${category.id}">
             <div class="flex items-center space-x-3">
-                <span class="${category.color} w-10 h-10 rounded-full flex items-center justify-center">
-                    <i class="${category.icon}"></i>
+                <span class="${getCategoryColor()} w-10 h-10 rounded-full flex items-center justify-center">
+                    <i class="${getCategoryIcon(category.name)}"></i>
                 </span>
                 <div>
                     <h4 class="font-semibold text-gray-800">${category.name}</h4>
