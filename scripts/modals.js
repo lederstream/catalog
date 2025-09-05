@@ -1,13 +1,5 @@
 // scripts/modals.js
-import { 
-    showNotification, 
-    validateUrl, 
-    debounce,
-    fadeIn,
-    fadeOut,
-    slideDown,
-    slideUp
-} from './utils.js';
+import { showNotification, validateUrl, debounce, fadeIn, fadeOut, slideDown, slideUp } from './utils.js';
 
 // Sistema de gestión de modales
 class ModalSystem {
@@ -50,13 +42,39 @@ class ModalSystem {
         modal.style.left = '0';
         modal.style.right = '0';
         modal.style.bottom = '0';
-        modal.style.zIndex = '50';
+        modal.style.zIndex = '1050';
+        modal.classList.add('modal-overlay');
 
-        const modalContent = modal.querySelector('.modal-content');
-        if (modalContent) {
-            modalContent.style.margin = 'auto';
-            modalContent.style.maxHeight = '90vh';
-            modalContent.style.overflowY = 'auto';
+        // Asegurar que el contenido del modal tenga los estilos correctos
+        let modalContent = modal.querySelector('.modal-content');
+        if (!modalContent) {
+            modalContent = modal.querySelector('.bg-white, .modal-dialog');
+            if (modalContent) {
+                modalContent.classList.add('modal-content');
+            } else {
+                // Crear contenedor si no existe
+                modalContent = document.createElement('div');
+                modalContent.className = 'modal-content bg-white rounded-lg shadow-xl';
+                while (modal.firstChild) {
+                    modalContent.appendChild(modal.firstChild);
+                }
+                modal.appendChild(modalContent);
+            }
+        }
+        
+        modalContent.style.margin = 'auto';
+        modalContent.style.maxWidth = '90%';
+        modalContent.style.maxHeight = '90vh';
+        modalContent.style.overflowY = 'auto';
+        modalContent.style.position = 'relative';
+
+        // Agregar botón de cerrar si no existe
+        if (!modalContent.querySelector('.modal-close')) {
+            const closeButton = document.createElement('button');
+            closeButton.className = 'modal-close absolute top-3 right-3 text-gray-500 hover:text-gray-700 z-10';
+            closeButton.innerHTML = '<i class="fas fa-times text-xl"></i>';
+            closeButton.setAttribute('aria-label', 'Cerrar modal');
+            modalContent.appendChild(closeButton);
         }
 
         // Agregar a pila de modales
@@ -70,7 +88,6 @@ class ModalSystem {
         
         // Mostrar modal con animación
         modal.classList.remove('hidden');
-        modal.style.display = 'block';
         
         if (config.animation) {
             fadeIn(modal);
@@ -105,7 +122,6 @@ class ModalSystem {
         // Ocultar modal con animación
         const hideModal = () => {
             modal.classList.add('hidden');
-            modal.style.display = 'none';
             
             // Remover backdrop si no hay más modales abiertos
             if (this.activeModals.size === 0) {
@@ -183,7 +199,7 @@ class ModalSystem {
         // Cerrar al hacer clic en el backdrop
         if (config.closeOnBackdropClick) {
             const backdropClickHandler = (e) => {
-                if (e.target === modal) {
+                if (e.target === modal || e.target.classList.contains('modal-overlay')) {
                     this.close(modalId);
                 }
             };
@@ -193,9 +209,13 @@ class ModalSystem {
         }
         
         // Botones de cerrar dentro del modal
-        const closeButtons = modal.querySelectorAll('[data-dismiss="modal"], .close-modal');
+        const closeButtons = modal.querySelectorAll('[data-dismiss="modal"], .close-modal, .modal-close');
         closeButtons.forEach(button => {
-            const handler = () => this.close(modalId);
+            const handler = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.close(modalId);
+            };
             button.addEventListener('click', handler);
             this.eventListeners.set(`${modalId}-button-${button.className}`, handler);
         });
@@ -214,8 +234,6 @@ class ModalSystem {
                 } else if (key.includes('backdrop')) {
                     const modal = document.getElementById(modalId);
                     if (modal) modal.removeEventListener('click', handler);
-                } else if (key.includes('button')) {
-                    // Los botones se limpian automáticamente cuando se remueve el modal
                 }
                 
                 this.eventListeners.delete(key);
