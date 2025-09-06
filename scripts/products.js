@@ -6,7 +6,6 @@ import {
     loadProductsFromSupabase 
 } from './supabase.js';
 import { Utils } from './utils.js';
-import { getCategoryManager } from './categories.js';
 
 class ProductManager {
     constructor() {
@@ -285,10 +284,51 @@ class ProductManager {
                         </button>
                     </div>
                 </div>
+                
+                <!-- Detalles de planes -->
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <h5 class="font-medium text-gray-700 mb-2">Planes y Precios:</h5>
+                    <div class="space-y-2">
+                        ${this.renderPlansDetails(product.plans)}
+                    </div>
+                </div>
             </div>
         `).join('');
         
         this.attachAdminEventListeners(container, products);
+    }
+    
+    renderPlansDetails(plans) {
+        if (!plans || plans.length === 0) {
+            return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
+        }
+        
+        return plans.map(plan => `
+            <div class="bg-gray-50 p-3 rounded-lg">
+                <div class="flex justify-between items-center">
+                    <span class="font-medium">${plan.name || 'Plan sin nombre'}</span>
+                    <button class="text-blue-500 hover:text-blue-700 toggle-plan-details" data-plan-id="${plan.id}">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                </div>
+                <div class="plan-details mt-2 hidden">
+                    <div class="grid grid-cols-2 gap-2 text-sm">
+                        ${plan.price_soles ? `
+                            <div class="text-green-600">
+                                <span class="font-medium">Precio S/:</span>
+                                <span>${Utils.formatCurrency(plan.price_soles, 'PEN')}</span>
+                            </div>
+                        ` : ''}
+                        ${plan.price_dollars ? `
+                            <div class="text-blue-600">
+                                <span class="font-medium">Precio $:</span>
+                                <span>${Utils.formatCurrency(plan.price_dollars, 'USD')}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
     }
     
     getAdminEmptyStateHTML() {
@@ -334,6 +374,23 @@ class ProductManager {
                             });
                         }
                     });
+                }
+            });
+        });
+        
+        // Toggle para mostrar/ocultar detalles de planes
+        container.querySelectorAll('.toggle-plan-details').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const planDetails = e.currentTarget.closest('.bg-gray-50').querySelector('.plan-details');
+                planDetails.classList.toggle('hidden');
+                
+                const icon = e.currentTarget.querySelector('i');
+                if (planDetails.classList.contains('hidden')) {
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                } else {
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
                 }
             });
         });
@@ -402,4 +459,4 @@ window.productManager = getProductManager;
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
     window.productManager = await getProductManager();
-});
+});s
