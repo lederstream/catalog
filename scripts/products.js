@@ -1,11 +1,7 @@
 // scripts/products.js
-import { 
-    addProductToSupabase, 
-    updateProductInSupabase, 
-    deleteProductFromSupabase, 
-    loadProductsFromSupabase 
-} from './supabase.js';
+import { addProductToSupabase, updateProductInSupabase, deleteProductFromSupabase, loadProductsFromSupabase } from './supabase.js';
 import { Utils } from './utils.js';
+import { getCategoryManager } from './categories.js';
 
 class ProductManager {
     constructor() {
@@ -283,9 +279,8 @@ class ProductManager {
                             <i class="fas fa-trash"></i>
                         </button>
                     </div>
-                </div>
-                
-                <!-- Detalles de planes -->
+                </div>  
+                                <!-- Detalles de planes -->
                 <div class="mt-4 pt-4 border-t border-gray-100">
                     <h5 class="font-medium text-gray-700 mb-2">Planes y Precios:</h5>
                     <div class="space-y-2">
@@ -330,7 +325,7 @@ class ProductManager {
             </div>
         `).join('');
     }
-    
+
     getAdminEmptyStateHTML() {
         return `
             <div class="text-center py-12 fade-in-up">
@@ -377,7 +372,6 @@ class ProductManager {
                 }
             });
         });
-        
         // Toggle para mostrar/ocultar detalles de planes
         container.querySelectorAll('.toggle-plan-details').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -396,6 +390,7 @@ class ProductManager {
         });
     }
 }
+
 
 // Singleton instance
 let productManagerInstance = null;
@@ -459,4 +454,4 @@ window.productManager = getProductManager;
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
     window.productManager = await getProductManager();
-});s
+});
