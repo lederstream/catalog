@@ -31,9 +31,13 @@ class DigitalCatalogApp {
         try {
             this.showLoadingState();
             
+            // Limpiar notificaciones previas
+            Utils.clearAllNotifications();
+            
             // Configurar modo debug
             if (window.location.search.includes('debug=true')) {
-                Utils.enableDebugMode(true);
+                localStorage.setItem('debug', 'true');
+                Utils.debugMode = true;
             }
             
             // Inicializar componentes core
@@ -45,15 +49,17 @@ class DigitalCatalogApp {
             // Inicializar UI components
             this.initializeUIComponents();
             
+            // Configurar monitoreo de conexión
+            this.setupConnectionMonitoring();
+            
             // Finalizar inicialización
             await this.hideLoadingState();
             this.isInitialized = true;
             
-            Utils.showSuccess('🚀 Aplicación inicializada correctamente');
+            console.log('🚀 Aplicación inicializada correctamente');
             
         } catch (error) {
             console.error('❌ Error inicializando la aplicación:', error);
-            Utils.showError('Error al inicializar la aplicación');
             await this.hideLoadingState();
         }
     }
@@ -76,8 +82,6 @@ class DigitalCatalogApp {
         }
         
         try {
-            Utils.showInfo('🔄 Cargando datos...');
-            
             const categoryManager = await getCategoryManager();
             const productManager = await getProductManager();
             
@@ -98,7 +102,6 @@ class DigitalCatalogApp {
             
         } catch (error) {
             console.error('Error loading initial data:', error);
-            Utils.showWarning('⚠️ Error cargando datos iniciales');
             this.restoreState();
         }
     }
@@ -163,6 +166,9 @@ class DigitalCatalogApp {
         
         // Configurar animaciones de scroll
         this.setupScrollAnimations();
+        
+        // Configurar responsive design
+        this.setupResponsiveDesign();
     }
     
     setupScrollAnimations() {
@@ -180,6 +186,41 @@ class DigitalCatalogApp {
             
             animatedElements.forEach(el => observer.observe(el));
         }
+    }
+    
+    setupResponsiveDesign() {
+        // Ajustar elementos según el tamaño de pantalla
+        const adjustUIForScreenSize = () => {
+            const isMobile = window.innerWidth < 768;
+            
+            // Ajustar grid de productos
+            const productsGrid = document.getElementById('productsGrid');
+            if (productsGrid) {
+                if (isMobile) {
+                    productsGrid.classList.add('grid-cols-1');
+                    productsGrid.classList.remove('grid-cols-2', 'grid-cols-3', 'grid-cols-4');
+                } else {
+                    productsGrid.classList.remove('grid-cols-1');
+                    productsGrid.classList.add('grid-cols-2', 'md:grid-cols-3', 'lg:grid-cols-4');
+                }
+            }
+            
+            // Ajustar header
+            const header = document.getElementById('header');
+            if (header) {
+                if (isMobile) {
+                    header.classList.add('px-2');
+                    header.classList.remove('px-6');
+                } else {
+                    header.classList.remove('px-2');
+                    header.classList.add('px-6');
+                }
+            }
+        };
+        
+        // Ejecutar al cargar y al cambiar tamaño
+        adjustUIForScreenSize();
+        window.addEventListener('resize', adjustUIForScreenSize);
     }
     
     updateCategoryFilter() {
@@ -234,8 +275,6 @@ class DigitalCatalogApp {
         }
         
         try {
-            Utils.showInfo('🔄 Actualizando datos...');
-            
             const categoryManager = await getCategoryManager();
             const productManager = await getProductManager();
             
