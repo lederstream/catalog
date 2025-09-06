@@ -1,5 +1,10 @@
 // scripts/categories.js
-import { supabase } from './supabase.js';
+import { 
+    loadCategoriesFromSupabase, 
+    addCategoryToSupabase, 
+    updateCategoryInSupabase, 
+    deleteCategoryFromSupabase 
+} from './supabase.js';
 import { Utils } from './utils.js';
 
 class CategoryManager {
@@ -21,11 +26,7 @@ class CategoryManager {
         Utils.showInfo('📂 Cargando categorías...');
         
         try {
-            const data = await supabase.query('categories', {
-                select: '*',
-                order: { field: 'name', ascending: true }
-            });
-            
+            const data = await loadCategoriesFromSupabase();
             this.categories = data || [];
             Utils.showSuccess(`✅ ${this.categories.length} categorías cargadas`);
             return this.categories;
@@ -49,19 +50,12 @@ class CategoryManager {
     
     async addCategory(categoryData) {
         try {
-            const result = await supabase.insert('categories', {
-                name: categoryData.name,
-                description: categoryData.description,
-                icon: categoryData.icon || 'fas fa-tag',
-                color: categoryData.color || 'blue',
-                created_at: new Date().toISOString()
-            });
+            const result = await addCategoryToSupabase(categoryData);
             
-            if (result && result.length > 0) {
-                const newCategory = result[0];
-                this.categories.push(newCategory);
+            if (result) {
+                this.categories.push(result);
                 Utils.showSuccess('✅ Categoría agregada correctamente');
-                return newCategory;
+                return result;
             }
             
             return null;
@@ -74,19 +68,15 @@ class CategoryManager {
     
     async updateCategory(id, categoryData) {
         try {
-            const result = await supabase.update('categories', id, {
-                ...categoryData,
-                updated_at: new Date().toISOString()
-            });
+            const result = await updateCategoryInSupabase(id, categoryData);
             
-            if (result && result.length > 0) {
-                const updatedCategory = result[0];
+            if (result) {
                 const index = this.categories.findIndex(c => c.id === id);
                 if (index !== -1) {
-                    this.categories[index] = updatedCategory;
+                    this.categories[index] = result;
                 }
                 Utils.showSuccess('✅ Categoría actualizada correctamente');
-                return updatedCategory;
+                return result;
             }
             
             return null;
@@ -99,7 +89,7 @@ class CategoryManager {
     
     async deleteCategory(id) {
         try {
-            await supabase.delete('categories', id);
+            await deleteCategoryFromSupabase(id);
             this.categories = this.categories.filter(c => c.id !== id);
             Utils.showSuccess('✅ Categoría eliminada correctamente');
             return true;
@@ -265,7 +255,7 @@ export function renderCategoriesList(container) {
 
 // Hacer disponible globalmente
 window.CategoryManager = CategoryManager;
-window.categoryManager = getCategoryManager();
+window.categoryManager = getCategoryManager;
 
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
