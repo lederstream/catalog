@@ -338,6 +338,13 @@ const app = new DigitalCatalogApp();
 // Exportar para módulos
 export { app };
 
+// Hacer funciones disponibles globalmente
+window.showProductDetails = (productId) => {
+    if (window.productManager) {
+        window.productManager.showProductDetails(productId)
+    }
+};
+
 // Hacer disponible globalmente
 window.DigitalCatalogApp = DigitalCatalogApp;
 window.app = app;
