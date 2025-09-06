@@ -1,13 +1,6 @@
 // scripts/auth.js
 import { supabase } from './supabase.js';
-import { 
-    showNotification, 
-    validateEmail, 
-    validateRequired, 
-    debounce,
-    fadeIn,
-    fadeOut
-} from './utils.js';
+import { Utils } from './utils.js';
 
 // Estado de autenticación
 class AuthState {
@@ -85,14 +78,12 @@ export const checkAuth = async () => {
     const authState = AuthState.getInstance();
     
     try {
-        console.log('🔐 Verificando autenticación...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
             console.error('Error obteniendo sesión:', error);
             // Intentar restaurar desde localStorage
             if (authState.restoreUser()) {
-                console.log('✅ Usuario restaurado desde almacenamiento local');
                 currentUser = authState.currentUser;
                 return true;
             }
@@ -108,11 +99,10 @@ export const checkAuth = async () => {
             return true;
         }
         
-        console.log('ℹ️ No hay sesión activa');
         return false;
     } catch (error) {
         console.error('Error checking auth:', error);
-        showNotification('❌ Error al verificar la autenticación', 'error');
+        Utils.showError('❌ Error al verificar la autenticación');
         return false;
     }
 };
@@ -121,13 +111,13 @@ export const checkAuth = async () => {
 export const handleLogin = async (email, password) => {
     const authState = AuthState.getInstance();
     
-    if (!validateRequired(email) || !validateRequired(password)) {
-        showNotification('📝 Por favor completa todos los campos', 'error');
+    if (!Utils.validateRequired(email) || !Utils.validateRequired(password)) {
+        Utils.showError('📝 Por favor completa todos los campos');
         return false;
     }
     
-    if (!validateEmail(email)) {
-        showNotification('📧 Por favor ingresa un email válido', 'error');
+    if (!Utils.validateEmail(email)) {
+        Utils.showError('📧 Por favor ingresa un email válido');
         return false;
     }
     
@@ -160,7 +150,7 @@ export const handleLogin = async (email, password) => {
             
             setTimeout(async () => {
                 await showAdminPanel();
-                showNotification('✅ Sesión iniciada correctamente', 'success');
+                Utils.showSuccess('✅ Sesión iniciada correctamente');
                 
                 // Restaurar botón después de 2 segundos
                 setTimeout(() => {
@@ -190,13 +180,13 @@ export const handleLogin = async (email, password) => {
         }
         
         if (error.message.includes('Invalid login credentials')) {
-            showNotification('🔐 Credenciales inválidas', 'error');
+            Utils.showError('🔐 Credenciales inválidas');
         } else if (error.message.includes('Email not confirmed')) {
-            showNotification('📧 Por favor confirma tu email antes de iniciar sesión', 'warning');
+            Utils.showWarning('📧 Por favor confirma tu email antes de iniciar sesión');
         } else if (error.message.includes('Failed to fetch')) {
-            showNotification('📶 Error de conexión. Verifica tu conexión a internet.', 'error');
+            Utils.showError('📶 Error de conexión. Verifica tu conexión a internet.');
         } else {
-            showNotification('❌ Error al iniciar sesión: ' + error.message, 'error');
+            Utils.showError('❌ Error al iniciar sesión: ' + error.message);
         }
         
         return false;
@@ -209,23 +199,23 @@ export const handleRegister = async () => {
     const password = document.getElementById('registerPassword')?.value;
     const confirmPassword = document.getElementById('confirmPassword')?.value;
     
-    if (!validateRequired(email) || !validateRequired(password) || !validateRequired(confirmPassword)) {
-        showNotification('📝 Por favor completa todos los campos', 'error');
+    if (!Utils.validateRequired(email) || !Utils.validateRequired(password) || !Utils.validateRequired(confirmPassword)) {
+        Utils.showError('📝 Por favor completa todos los campos');
         return;
     }
     
-    if (!validateEmail(email)) {
-        showNotification('📧 Por favor ingresa un email válido', 'error');
+    if (!Utils.validateEmail(email)) {
+        Utils.showError('📧 Por favor ingresa un email válido');
         return;
     }
     
     if (password.length < 6) {
-        showNotification('🔒 La contraseña debe tener al menos 6 caracteres', 'error');
+        Utils.showError('🔒 La contraseña debe tener al menos 6 caracteres');
         return;
     }
     
     if (password !== confirmPassword) {
-        showNotification('🔒 Las contraseñas no coinciden', 'error');
+        Utils.showError('🔒 Las contraseñas no coinciden');
         return;
     }
     
@@ -254,7 +244,7 @@ export const handleRegister = async () => {
         if (error) throw error;
         
         if (data.user?.identities?.length === 0) {
-            showNotification('📧 Este email ya está registrado', 'warning');
+            Utils.showWarning('📧 Este email ya está registrado');
             return;
         }
         
@@ -265,7 +255,7 @@ export const handleRegister = async () => {
             registerBtn.classList.add('bg-green-600');
             
             setTimeout(() => {
-                showNotification('✅ Cuenta creada exitosamente. Revisa tu email para confirmar.', 'success');
+                Utils.showSuccess('✅ Cuenta creada exitosamente. Revisa tu email para confirmar.');
                 showLoginForm();
                 
                 // Restaurar botón después de 2 segundos
@@ -291,15 +281,15 @@ export const handleRegister = async () => {
         }
         
         if (error.message.includes('User already registered')) {
-            showNotification('📧 Este usuario ya está registrado', 'error');
+            Utils.showError('📧 Este usuario ya está registrado');
         } else if (error.message.includes('Password should be at least 6 characters')) {
-            showNotification('🔒 La contraseña debe tener al menos 6 caracteres', 'error');
+            Utils.showError('🔒 La contraseña debe tener al menos 6 caracteres');
         } else if (error.message.includes('Invalid email')) {
-            showNotification('📧 El formato del email no es válido', 'error');
+            Utils.showError('📧 El formato del email no es válido');
         } else if (error.message.includes('Failed to fetch')) {
-            showNotification('📶 Error de conexión. Verifica tu conexión a internet.', 'error');
+            Utils.showError('📶 Error de conexión. Verifica tu conexión a internet.');
         } else {
-            showNotification('❌ Error al crear la cuenta: ' + error.message, 'error');
+            Utils.showError('❌ Error al crear la cuenta: ' + error.message);
         }
     }
 };
@@ -323,10 +313,10 @@ export const handleLogout = async () => {
         currentUser = null;
         
         // Animación de salida
-        await fadeOut(document.getElementById('adminPanel'));
+        await Utils.fadeOut(document.getElementById('adminPanel'));
         hideAdminPanel();
         
-        showNotification('👋 Sesión cerrada correctamente', 'success');
+        Utils.showSuccess('👋 Sesión cerrada correctamente');
         
         // Restaurar botón
         if (logoutBtn) {
@@ -340,7 +330,7 @@ export const handleLogout = async () => {
         
     } catch (error) {
         console.error('Error logging out:', error);
-        showNotification('❌ Error al cerrar sesión', 'error');
+        Utils.showError('❌ Error al cerrar sesión');
         
         // Restaurar botón en caso de error
         const logoutBtn = document.getElementById('logoutBtn');
@@ -358,7 +348,7 @@ const showAdminPanel = async () => {
     const adminPanel = document.getElementById('adminPanel');
     
     if (loginForm) {
-        await fadeOut(loginForm);
+        await Utils.fadeOut(loginForm);
         loginForm.classList.add('hidden');
     }
     
@@ -368,7 +358,7 @@ const showAdminPanel = async () => {
     
     if (adminPanel) {
         adminPanel.classList.remove('hidden');
-        await fadeIn(adminPanel);
+        await Utils.fadeIn(adminPanel);
     }
     
     try {
@@ -396,7 +386,7 @@ const showAdminPanel = async () => {
         }
     } catch (error) {
         console.error('Error loading admin data:', error);
-        showNotification('❌ Error al cargar datos de administración', 'error');
+        Utils.showError('❌ Error al cargar datos de administración');
     }
 };
 
@@ -408,7 +398,7 @@ const hideAdminPanel = () => {
     if (adminPanel) adminPanel.classList.add('hidden');
     if (loginForm) {
         loginForm.classList.remove('hidden');
-        fadeIn(loginForm);
+        Utils.fadeIn(loginForm);
     }
 };
 
@@ -418,14 +408,14 @@ export const showLoginForm = () => {
     const loginForm = document.getElementById('loginForm');
     
     if (registerForm) {
-        fadeOut(registerForm).then(() => {
+        Utils.fadeOut(registerForm).then(() => {
             registerForm.classList.add('hidden');
         });
     }
     
     if (loginForm) {
         loginForm.classList.remove('hidden');
-        fadeIn(loginForm).then(() => {
+        Utils.fadeIn(loginForm).then(() => {
             // Enfocar el primer campo
             const emailInput = loginForm.querySelector('input[type="email"]');
             if (emailInput) emailInput.focus();
@@ -439,14 +429,14 @@ export const showRegisterForm = () => {
     const registerForm = document.getElementById('registerForm');
     
     if (loginForm) {
-        fadeOut(loginForm).then(() => {
+        Utils.fadeOut(loginForm).then(() => {
             loginForm.classList.add('hidden');
         });
     }
     
     if (registerForm) {
         registerForm.classList.remove('hidden');
-        fadeIn(registerForm).then(() => {
+        Utils.fadeIn(registerForm).then(() => {
             // Enfocar el primer campo
             const emailInput = registerForm.querySelector('input[type="email"]');
             if (emailInput) emailInput.focus();
@@ -467,119 +457,60 @@ export const isAuthenticated = () => {
 // Alias para compatibilidad
 export const isUserLoggedIn = isAuthenticated;
 
-// Configurar event listeners de manera más robusta
-const attachAuthEventListener = (elementId, event, handler) => {
-    const tryAttach = () => {
-        const element = document.getElementById(elementId);
-        if (element && !element.dataset.listenerAttached) {
-            element.addEventListener(event, handler);
-            element.dataset.listenerAttached = 'true';
-            console.log(`✅ Event listener attached to ${elementId}`);
-            return true;
-        }
-        return false;
-    };
-    
-    // Intentar inmediatamente
-    if (tryAttach()) return;
-    
-    // Si no funciona, usar observer
-    const observer = new MutationObserver(() => {
-        if (tryAttach()) {
-            observer.disconnect();
-        }
-    });
-    
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
-    
-    // Fallback con timeout
-    setTimeout(() => {
-        tryAttach();
-        observer.disconnect();
-    }, 5000);
-};
-
 // Configurar event listeners de autenticación
 export const setupAuthEventListeners = () => {
-    console.log('🔧 Configurando event listeners de autenticación...');
-    
-    // Listeners directos con observer
-    attachAuthEventListener('loginBtn', 'click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        
-        const email = document.getElementById('email')?.value;
-        const password = document.getElementById('password')?.value;
-        
-        if (!email || !password) {
-            showNotification('📝 Por favor ingresa email y contraseña', 'error');
-            return;
-        }
-        
-        await handleLogin(email, password);
-    });
-    
-    attachAuthEventListener('registerBtn', 'click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        await handleRegister();
-    });
-    
-    attachAuthEventListener('logoutBtn', 'click', async (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        await handleLogout();
-    });
-    
-    attachAuthEventListener('showRegister', 'click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showRegisterForm();
-    });
-    
-    attachAuthEventListener('showLogin', 'click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        showLoginForm();
-    });
-    
-    // Configurar tecla Enter
-    setupEnterKeyHandlers();
-    
-    console.log('✅ Event listeners de auth configurados');
-};
-
-// Configurar manejadores de tecla Enter
-const setupEnterKeyHandlers = () => {
-    // Usar event delegation para los campos de entrada
-    document.addEventListener('keypress', (e) => {
-        if (e.key !== 'Enter') return;
-        
-        const target = e.target;
-        const form = target.closest('form');
-        
-        if (!form) return;
-        
-        // Login form
-        if (form.id === 'loginForm') {
+    // Login form
+    const loginForm = document.getElementById('loginForm');
+    if (loginForm) {
+        loginForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const email = document.getElementById('email')?.value;
             const password = document.getElementById('password')?.value;
             
-            if (email && password) {
-                handleLogin(email, password);
+            if (!email || !password) {
+                Utils.showError('📝 Por favor ingresa email y contraseña');
+                return;
             }
-        }
-        
-        // Register form
-        if (form.id === 'registerForm') {
+            
+            await handleLogin(email, password);
+        });
+    }
+    
+    // Register form
+    const registerForm = document.getElementById('registerForm');
+    if (registerForm) {
+        registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            handleRegister();
-        }
-    });
+            await handleRegister();
+        });
+    }
+    
+    // Logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            await handleLogout();
+        });
+    }
+    
+    // Show register link
+    const showRegister = document.getElementById('showRegister');
+    if (showRegister) {
+        showRegister.addEventListener('click', (e) => {
+            e.preventDefault();
+            showRegisterForm();
+        });
+    }
+    
+    // Show login link
+    const showLogin = document.getElementById('showLogin');
+    if (showLogin) {
+        showLogin.addEventListener('click', (e) => {
+            e.preventDefault();
+            showLoginForm();
+        });
+    }
 };
 
 // Inicializar auth
@@ -589,9 +520,7 @@ export const initializeAuth = async () => {
         return;
     }
     
-    try {
-        console.log('🔄 Inicializando autenticación...');
-        
+    try {        
         // Configurar listeners
         setupAuthEventListeners();
         
@@ -599,11 +528,10 @@ export const initializeAuth = async () => {
         await checkAuth();
         
         authInitialized = true;
-        console.log('✅ Auth inicializado correctamente');
-        
+                
     } catch (error) {
         console.error('Error initializing auth:', error);
-        showNotification('❌ Error al inicializar autenticación', 'error');
+        Utils.showError('❌ Error al inicializar autenticación');
     }
 };
 
