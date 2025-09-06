@@ -1,12 +1,5 @@
 // scripts/components/product-card.js
-import { 
-    formatCurrency, 
-    truncateText, 
-    lazyLoadImages,
-    fadeIn,
-    fadeOut,
-    smoothScrollTo
-} from '../utils.js';
+import { Utils } from '../utils.js';
 
 // Crear tarjeta de producto
 export const createProductCard = (product, isListView = false, index = 0) => {
@@ -46,10 +39,10 @@ export const createProductCard = (product, isListView = false, index = 0) => {
                 
                 <div class="flex-1 p-6 flex flex-col">
                     <div class="flex justify-between items-start mb-3">
-                        <h3 class="text-xl font-semibold text-gray-800" title="${product.name}">${truncateText(product.name, 60)}</h3>
+                        <h3 class="text-xl font-semibold text-gray-800" title="${product.name}">${Utils.truncateText(product.name, 60)}</h3>
                     </div>
                     
-                    <p class="text-gray-600 mb-4 flex-1">${truncateText(product.description || 'Sin descripción', 120)}</p>
+                    <p class="text-gray-600 mb-4 flex-1">${Utils.truncateText(product.description || 'Sin descripción', 120)}</p>
                     
                     <div class="mb-4">
                         <h4 class="font-medium text-gray-700 mb-2">Planes disponibles:</h4>
@@ -60,7 +53,7 @@ export const createProductCard = (product, isListView = false, index = 0) => {
                     
                     <div class="flex justify-between items-center mt-auto">
                         <div class="text-lg font-bold text-blue-600">
-                            Desde ${formatCurrency(minPrice)}
+                            Desde ${Utils.formatCurrency(minPrice)}
                         </div>
                         <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all duration-200 flex items-center transform hover:scale-105 group/btn" 
                                 data-product-id="${product.id}"
@@ -94,13 +87,13 @@ export const createProductCard = (product, isListView = false, index = 0) => {
                 </div>
                 
                 <div class="p-4 flex-1 flex flex-col">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2" title="${product.name}">${truncateText(product.name, 50)}</h3>
-                    <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${truncateText(product.description || 'Sin descripción', 100)}</p>
+                    <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2" title="${product.name}">${Utils.truncateText(product.name, 50)}</h3>
+                    <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${Utils.truncateText(product.description || 'Sin descripción', 100)}</p>
                     
                     <div class="mb-4">
                         <div class="text-sm text-gray-500 mb-1">Desde:</div>
                         <div class="text-xl font-bold text-blue-600">
-                            ${formatCurrency(minPrice)}
+                            ${Utils.formatCurrency(minPrice)}
                         </div>
                     </div>
                     
@@ -207,12 +200,6 @@ export const renderProductsGrid = (products, containerId) => {
         
         addProductCardEventListeners();
         
-        // Configurar lazy loading para imágenes
-        const images = container.querySelectorAll('img[data-src]');
-        if (images.length > 0) {
-            lazyLoadImages(images);
-        }
-        
         // Animación de entrada
         animateProductsEntry();
         
@@ -287,7 +274,7 @@ export const showProductDetails = (productId) => {
         
         if (!product) {
             console.error('Producto no encontrado:', productId);
-            showNotification('❌ Producto no encontrado', 'error');
+            Utils.showError('❌ Producto no encontrado');
             return;
         }
         
@@ -296,7 +283,7 @@ export const showProductDetails = (productId) => {
         
     } catch (error) {
         console.error('Error al mostrar detalles:', error);
-        showNotification('❌ Error al cargar los detalles del producto', 'error');
+        Utils.showError('❌ Error al cargar los detalles del producto');
     }
 };
 
@@ -398,11 +385,11 @@ const showProductModal = (product) => {
     
     // Mostrar modal con animación
     const modal = modalContainer.querySelector('#productDetailModal');
-    fadeIn(modal);
+    Utils.fadeIn(modal);
     
     // Agregar event listeners para cerrar el modal
     const closeModal = () => {
-        fadeOut(modal).then(() => {
+        Utils.fadeOut(modal).then(() => {
             if (modalContainer.parentNode) {
                 document.body.removeChild(modalContainer);
             }
@@ -417,7 +404,7 @@ const showProductModal = (product) => {
     const contactBtn = modalContainer.querySelector('.contact-btn');
     if (contactBtn) {
         contactBtn.addEventListener('click', () => {
-            showNotification('📧 Función de contacto habilitada próximamente', 'info');
+            Utils.showInfo('📧 Función de contacto habilitada próximamente');
         });
     }
     
