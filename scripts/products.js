@@ -25,12 +25,10 @@ class ProductManager {
         if (this.isLoading) return this.products;
         
         this.isLoading = true;
-        Utils.showInfo('📦 Cargando productos...');
         
         try {
             const data = await loadProductsFromSupabase();
             this.products = this.processProducts(data);
-            Utils.showSuccess(`✅ ${this.products.length} productos cargados`);
             return this.products;
             
         } catch (error) {
