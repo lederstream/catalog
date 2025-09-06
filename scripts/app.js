@@ -1,20 +1,19 @@
 // scripts/app.js
 import { Utils } from './utils.js';
 import { supabase } from './supabase.js';
-import { CategoryManager } from './categories.js';
-import { ProductManager } from './products.js';
-import { ModalSystem } from './modals.js';
-import { AuthManager } from './auth.js';
+import { getCategoryManager } from './categories.js';
+import { getProductManager } from './products.js';
+import { initModals } from './modals.js';
+import { initializeAuth } from './auth.js';
 import { initAdminPanel } from './components/admin-panel.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
-import { setupAllEventListeners } from './event-listeners.js';
+import { renderHeader, updateHeader } from './components/header.js';
 
 class DigitalCatalogApp {
     constructor() {
         this.isInitialized = false;
         this.isOnline = navigator.onLine;
         this.currentUser = null;
-        this.pendingActions = [];
         this.state = {
             products: [],
             categories: [],
@@ -37,14 +36,8 @@ class DigitalCatalogApp {
                 Utils.enableDebugMode(true);
             }
             
-            // Configurar monitoreo de conexión
-            this.setupConnectionMonitoring();
-            
             // Inicializar componentes core
             await this.initializeCoreComponents();
-            
-            // Configurar event listeners globales
-            this.setupGlobalEventListeners();
             
             // Cargar datos iniciales
             await this.loadInitialData();
@@ -66,15 +59,12 @@ class DigitalCatalogApp {
     }
     
     async initializeCoreComponents() {
-        // Inicializar Supabase
-        await supabase.init();
-        
         // Inicializar managers
         await Promise.all([
-            CategoryManager.init(),
-            ProductManager.init(),
-            ModalSystem.init(),
-            AuthManager.init()
+            getCategoryManager(),
+            getProductManager(),
+            initModals(),
+            initializeAuth()
         ]);
     }
     
@@ -88,9 +78,12 @@ class DigitalCatalogApp {
         try {
             Utils.showInfo('🔄 Cargando datos...');
             
+            const categoryManager = await getCategoryManager();
+            const productManager = await getProductManager();
+            
             const [categories, products] = await Promise.all([
-                CategoryManager.loadCategories(),
-                ProductManager.loadProducts()
+                categoryManager.loadCategories(),
+                productManager.loadProducts()
             ]);
             
             this.state.categories = categories;
@@ -146,7 +139,6 @@ class DigitalCatalogApp {
         window.addEventListener('online', () => {
             this.isOnline = true;
             Utils.showSuccess('📶 Conexión restaurada. Sincronizando datos...');
-            this.executePendingActions();
             this.refreshData();
         });
         
@@ -156,77 +148,10 @@ class DigitalCatalogApp {
         });
     }
     
-    setupGlobalEventListeners() {
-        // Configurar event listeners globales
-        setupAllEventListeners();
-        
-        // Scroll to top button
-        this.createScrollToTopButton();
-        
-        // Keyboard shortcuts
-        this.setupKeyboardShortcuts();
-        
-        // Global error handling
-        this.setupErrorHandling();
-    }
-    
-    createScrollToTopButton() {
-        const scrollBtn = document.createElement('button');
-        scrollBtn.innerHTML = '<i class="fas fa-chevron-up"></i>';
-        scrollBtn.className = 'fixed bottom-6 right-6 w-12 h-12 bg-blue-600 text-white rounded-full shadow-lg opacity-0 transition-all duration-300 hover:bg-blue-700 transform translate-y-10 z-40';
-        scrollBtn.setAttribute('aria-label', 'Volver arriba');
-        
-        scrollBtn.addEventListener('click', () => {
-            Utils.smoothScrollTo(document.body);
-        });
-        
-        document.body.appendChild(scrollBtn);
-        
-        // Mostrar/ocultar según scroll
-        window.addEventListener('scroll', Utils.throttle(() => {
-            if (window.scrollY > 300) {
-                scrollBtn.classList.remove('opacity-0', 'translate-y-10');
-                scrollBtn.classList.add('opacity-100', 'translate-y-0');
-            } else {
-                scrollBtn.classList.remove('opacity-100', 'translate-y-0');
-                scrollBtn.classList.add('opacity-0', 'translate-y-10');
-            }
-        }, 100));
-    }
-    
-    setupKeyboardShortcuts() {
-        document.addEventListener('keydown', (e) => {
-            // Ctrl/Cmd + K para buscar
-            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
-                e.preventDefault();
-                const searchInput = document.getElementById('searchInput');
-                if (searchInput) {
-                    searchInput.focus();
-                    searchInput.select();
-                }
-            }
-            
-            // Escape para cerrar modales
-            if (e.key === 'Escape' && ModalSystem.currentModal) {
-                ModalSystem.closeCurrentModal();
-            }
-        });
-    }
-    
-    setupErrorHandling() {
-        window.addEventListener('error', (e) => {
-            console.error('Error global:', e.error);
-            Utils.showError('❌ Error inesperado en la aplicación');
-        });
-        
-        window.addEventListener('unhandledrejection', (e) => {
-            console.error('Promesa rechazada:', e.reason);
-            Utils.showError('❌ Error en operación asíncrona');
-            e.preventDefault();
-        });
-    }
-    
     initializeUIComponents() {
+        // Renderizar header
+        renderHeader();
+        
         // Inicializar componentes de UI
         if (typeof initAdminPanel === 'function') {
             initAdminPanel();
@@ -293,10 +218,13 @@ class DigitalCatalogApp {
         this.state.currentFilter = { category, search: searchText };
         
         // Filtrar productos
-        const filteredProducts = ProductManager.filterProducts(category, searchText);
+        const productManager = window.productManager;
+        const filteredProducts = productManager ? productManager.filterProducts(category, searchText) : [];
         
         // Renderizar productos
-        ProductManager.renderProductsGrid(filteredProducts, 'productsGrid');
+        if (productManager && typeof productManager.renderProductsGrid === 'function') {
+            productManager.renderProductsGrid(filteredProducts, 'productsGrid');
+        }
     }
     
     async refreshData() {
@@ -308,9 +236,12 @@ class DigitalCatalogApp {
         try {
             Utils.showInfo('🔄 Actualizando datos...');
             
+            const categoryManager = await getCategoryManager();
+            const productManager = await getProductManager();
+            
             const [products, categories] = await Promise.all([
-                ProductManager.loadProducts(),
-                CategoryManager.loadCategories()
+                productManager.loadProducts(),
+                categoryManager.loadCategories()
             ]);
             
             this.state.products = products;
@@ -326,23 +257,6 @@ class DigitalCatalogApp {
         } catch (error) {
             console.error('Error refreshing data:', error);
             Utils.showError('❌ Error al actualizar datos');
-        }
-    }
-    
-    addPendingAction(action) {
-        this.pendingActions.push(action);
-    }
-    
-    executePendingActions() {
-        if (this.pendingActions.length > 0 && this.isOnline) {
-            this.pendingActions.forEach(action => {
-                try {
-                    action();
-                } catch (error) {
-                    console.error('Error ejecutando acción pendiente:', error);
-                }
-            });
-            this.pendingActions = [];
         }
     }
     
