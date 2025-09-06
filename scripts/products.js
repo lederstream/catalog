@@ -174,7 +174,8 @@ class ProductManager {
         const minPrice = this.getProductMinPrice(product);
         
         return `
-            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 animate-fade-in">
+            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 animate-fade-in cursor-pointer"
+             onclick="window.showProductDetails && window.showProductDetails(${product.id})">
                 <div class="h-48 bg-gray-100 overflow-hidden relative">
                     <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Imagen+no+disponible'}" 
                          alt="${product.name}" 
@@ -192,8 +193,11 @@ class ProductManager {
                 <div class="p-4">
                     <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">${product.name}</h3>
                     <p class="text-gray-600 text-sm mb-3 line-clamp-2">${product.description || 'Sin descripción'}</p>
-                    
+                
                     <div class="flex items-center justify-between mt-4">
+                        <div class="mb-3">
+                            ${this.renderProductPlansPreview(product.plans)}
+                        </div>
                         <div class="text-blue-600 font-bold text-lg">
                             ${Utils.formatCurrency(minPrice)}
                         </div>
