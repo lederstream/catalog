@@ -15,14 +15,6 @@ export function initAdminPanel() {
             });
         }
 
-        // Botón para agregar nueva categoría
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        if (addCategoryBtn) {
-            addCategoryBtn.addEventListener('click', () => {
-                openCategoryModal();
-            });
-        }
-
         // Botón de cerrar sesión
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
@@ -43,10 +35,10 @@ export function initAdminPanel() {
         // Configurar formulario de producto solo si el usuario está autenticado
         if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
             setupProductForm();
+            
+            // Cargar productos en el panel de administración
+            loadAdminProducts();
         }
-        
-        // Configurar tabs de administración
-        setupAdminTabs();
         
     } catch (error) {
         console.error('Error initializing admin panel:', error);
@@ -54,160 +46,24 @@ export function initAdminPanel() {
     }
 }
 
-// Configurar tabs de administración
-function setupAdminTabs() {
-    const tabButtons = document.querySelectorAll('[data-tab]');
-    const tabPanes = document.querySelectorAll('[data-tab-pane]');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabName = button.dataset.tab;
+// Cargar productos en el panel de administración
+async function loadAdminProducts() {
+    try {
+        if (typeof window.loadProducts === 'function') {
+            await window.loadProducts();
             
-            // Actualizar botones activos
-            tabButtons.forEach(btn => {
-                btn.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
-                btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-            });
-            
-            button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-            button.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
-            
-            // Mostrar pane activo
-            tabPanes.forEach(pane => {
-                pane.classList.add('hidden');
-                if (pane.dataset.tabPane === tabName) {
-                    pane.classList.remove('hidden');
-                    Utils.fadeIn(pane);
+            if (typeof window.renderAdminProductsList === 'function') {
+                const adminProductsList = document.getElementById('adminProductsList');
+                if (adminProductsList) {
+                    const products = window.getProducts ? window.getProducts() : [];
+                    window.renderAdminProductsList(products, adminProductsList);
                 }
-            });
-            
-            // Cargar contenido específico del tab
-            loadTabContent(tabName);
-        });
-    });
-    
-    // Activar el primer tab por defecto
-    if (tabButtons.length > 0) {
-        tabButtons[0].click();
-    }
-}
-
-// Cargar contenido específico del tab
-function loadTabContent(tabName) {
-    switch (tabName) {
-        case 'products':
-            // Cargar productos si es necesario
-            if (typeof window.loadProducts === 'function') {
-                window.loadProducts().then(() => {
-                    if (typeof window.renderAdminProductsList === 'function') {
-                        const adminProductsList = document.getElementById('adminProductsList');
-                        if (adminProductsList) {
-                            const products = window.getProducts ? window.getProducts() : [];
-                            window.renderAdminProductsList(products, adminProductsList);
-                        }
-                    }
-                });
             }
-            break;
-            
-        case 'categories':
-            // Cargar categorías si es necesario
-            if (typeof window.loadCategories === 'function') {
-                window.loadCategories().then(() => {
-                    const categoriesList = document.getElementById('categoriesList');
-                    if (categoriesList && typeof renderCategoriesList === 'function') {
-                        renderCategoriesList(categoriesList);
-                    }
-                });
-            }
-            break;
-            
-        case 'stats':
-            // Cargar estadísticas
-            loadStats();
-            break;
+        }
+    } catch (error) {
+        console.error('Error loading admin products:', error);
+        Utils.showError('❌ Error al cargar productos en el panel de administración');
     }
-}
-
-// Cargar estadísticas
-function loadStats() {
-    const statsContainer = document.getElementById('statsContent');
-    if (!statsContainer) return;
-    
-    // Obtener datos reales
-    const products = window.getProducts ? window.getProducts() : [];
-    const categories = window.getCategories ? window.getCategories() : [];
-    
-    statsContainer.innerHTML = `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div class="flex items-center">
-                    <div class="p-3 bg-blue-100 rounded-lg mr-4">
-                        <i class="fas fa-box text-blue-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">${products.length}</p>
-                        <p class="text-gray-500">Productos totales</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div class="flex items-center">
-                    <div class="p-3 bg-green-100 rounded-lg mr-4">
-                        <i class="fas fa-tags text-green-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">${categories.length}</p>
-                        <p class="text-gray-500">Categorías</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div class="flex items-center">
-                    <div class="p-3 bg-purple-100 rounded-lg mr-4">
-                        <i class="fas fa-eye text-purple-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">${Math.floor(products.length * 12.5)}</p>
-                        <p class="text-gray-500">Visitas este mes</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Productos por categoría</h3>
-            <div class="space-y-3">
-                ${categories.map(category => {
-                    const productCount = products.filter(p => p.category_id == category.id).length;
-                    return `
-                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div class="flex items-center">
-                                <div class="w-8 h-8 ${getColorClass(category.color)} rounded-full flex items-center justify-center mr-3">
-                                    <i class="${category.icon || 'fas fa-tag'} text-white text-sm"></i>
-                                </div>
-                                <span class="text-sm font-medium">${category.name}</span>
-                            </div>
-                            <span class="text-sm text-gray-500">${productCount} productos</span>
-                        </div>
-                    `;
-                }).join('')}
-            </div>
-        </div>
-    `;
-}
-
-function getColorClass(color) {
-    const colorMap = {
-        blue: 'bg-blue-500',
-        green: 'bg-green-500',
-        red: 'bg-red-500',
-        yellow: 'bg-yellow-500',
-        purple: 'bg-purple-500'
-    };
-    return colorMap[color] || 'bg-blue-500';
 }
 
 // Cargar categorías en el selector del formulario
@@ -298,7 +154,7 @@ function addPlanRow() {
     const plansContainer = document.getElementById('plansContainer');
     if (!plansContainer) return;
 
-    const planId = Date.now() + Math.random().toString(36).substr(2, 5);
+    const planId = Date.now();
     const planItem = document.createElement('div');
     planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all duration-300 hover:border-blue-300';
     planItem.innerHTML = `
@@ -500,18 +356,8 @@ async function handleProductSubmit(e) {
                 Utils.showSuccess(productId ? '✅ Producto actualizado correctamente' : '✅ Producto agregado correctamente');
                 resetForm();
                 
-                if (typeof window.loadProducts === 'function') {
-                    window.loadProducts().then(() => {
-                        // Actualizar lista de productos en el admin
-                        if (typeof window.renderAdminProductsList === 'function') {
-                            const adminProductsList = document.getElementById('adminProductsList');
-                            if (adminProductsList) {
-                                const products = window.getProducts ? window.getProducts() : [];
-                                window.renderAdminProductsList(products, adminProductsList);
-                            }
-                        }
-                    });
-                }
+                // Recargar productos en el panel de administración
+                loadAdminProducts();
                 
                 // Restaurar botón después de 2 segundos
                 setTimeout(() => {
@@ -701,113 +547,10 @@ export function editProduct(id) {
     const product = window.getProductById(id);
     if (product) {
         prepareEditForm(product);
-        
-        // Cambiar al tab de productos si es necesario
-        const productsTab = document.querySelector('[data-tab="products"]');
-        if (productsTab) {
-            productsTab.click();
-        }
     } else {
         console.error('Producto no encontrado:', id);
         Utils.showError('❌ Producto no encontrado');
     }
-}
-
-// Renderizar lista de productos en el panel de administración
-export function renderAdminProductsList(products, container) {
-    if (!container) {
-        console.error('Contenedor de productos no encontrado');
-        return;
-    }
-
-    if (!products || products.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-12 fade-in-up">
-                <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
-                <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
-                <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = products.map((product, index) => `
-        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 transition-all duration-300 hover:shadow-md fade-in-up" 
-             style="animation-delay: ${index * 50}ms">
-            <div class="flex items-start justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <img src="${product.photo_url || 'https://via.placeholder.com/64?text=Imagen'}" 
-                             alt="${product.name}" 
-                             class="w-full h-full object-cover"
-                             onerror="this.src='https://via.placeholder.com/64?text=Error'">
-                    </div>
-                    <div>
-                        <h4 class="font-semibold text-gray-800">${product.name}</h4>
-                        <p class="text-sm text-gray-500 mt-1 line-clamp-2">${product.description || 'Sin descripción'}</p>
-                        <div class="flex items-center mt-2 space-x-2">
-                            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                ${product.categories ? product.categories.name : 'Sin categoría'}
-                            </span>
-                            <span class="text-xs text-gray-500">
-                                ${product.plans ? product.plans.length : 0} planes
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex space-x-2">
-                    <button class="edit-product bg-blue-100 text-blue-600 p-2 rounded-lg hover:bg-blue-200 transition-colors duration-200 transform hover:scale-105" 
-                            data-id="${product.id}"
-                            title="Editar producto">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="delete-product bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 transition-colors duration-200 transform hover:scale-105" 
-                            data-id="${product.id}"
-                            title="Eliminar producto">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-    // Agregar event listeners a los botones
-    container.querySelectorAll('.edit-product').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = e.currentTarget.dataset.id;
-            editProduct(productId);
-        });
-    });
-
-    container.querySelectorAll('.delete-product').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = e.currentTarget.dataset.id;
-            const product = products.find(p => p.id == productId);
-            
-            if (product) {
-                showConfirmationModal({
-                    title: 'Eliminar producto',
-                    message: `¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`,
-                    confirmText: 'Eliminar',
-                    cancelText: 'Cancelar',
-                    type: 'danger',
-                    onConfirm: () => {
-                        if (typeof window.deleteProduct === 'function') {
-                            window.deleteProduct(productId).then(success => {
-                                if (success) {
-                                    // Volver a renderizar la lista
-                                    renderAdminProductsList(
-                                        products.filter(p => p.id != productId), 
-                                        container
-                                    );
-                                }
-                            });
-                        }
-                    }
-                });
-            }
-        });
-    });
 }
 
 // Hacer funciones disponibles globalmente
@@ -816,7 +559,6 @@ window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
-window.renderAdminProductsList = renderAdminProductsList;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
 
 // Inicializar automáticamente cuando el DOM esté listo
