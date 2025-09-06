@@ -194,10 +194,11 @@ class ProductManager {
                     <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">${product.name}</h3>
                     <p class="text-gray-600 text-sm mb-3 line-clamp-2">${product.description || 'Sin descripción'}</p>
                 
+                    <div class="mb-3">
+                        ${this.renderProductPlansPreview(product.plans)}
+                    </div>
+
                     <div class="flex items-center justify-between mt-4">
-                        <div class="mb-3">
-                            ${this.renderProductPlansPreview(product.plans)}
-                        </div>
                         <div class="text-blue-600 font-bold text-lg">
                             ${Utils.formatCurrency(minPrice)}
                         </div>
@@ -212,6 +213,39 @@ class ProductManager {
         `;
     }
     
+    // Función para mostrar vista previa de planes en la tarjeta
+    renderProductPlansPreview(plans) {
+        if (!plans || plans.length === 0) {
+            return '<p class="text-gray-500 text-xs">No hay planes disponibles</p>';
+        }
+        
+        // Mostrar solo el primer plan o un resumen
+        const firstPlan = plans[0];
+        let previewHtml = '';
+        
+        if (firstPlan.name) {
+            previewHtml += `<p class="text-sm font-medium text-gray-700">${firstPlan.name}</p>`;
+        }
+        
+        if (firstPlan.price_soles || firstPlan.price_dollars) {
+            previewHtml += '<div class="flex space-x-2 mt-1">';
+            if (firstPlan.price_soles) {
+                previewHtml += `<span class="text-green-600 text-sm font-bold">S/ ${firstPlan.price_soles}</span>`;
+            }
+            if (firstPlan.price_dollars) {
+                previewHtml += `<span class="text-blue-600 text-sm font-bold">$ ${firstPlan.price_dollars}</span>`;
+            }
+            previewHtml += '</div>';
+        }
+        
+        // Si hay más de un plan, mostrar indicador
+        if (plans.length > 1) {
+            previewHtml += `<p class="text-xs text-gray-500 mt-1">+${plans.length - 1} plan(s) más</p>`;
+        }
+        
+        return previewHtml;
+    }
+
     getEmptyProductsHTML() {
         return `
             <div class="col-span-full text-center py-16 animate-pulse">
