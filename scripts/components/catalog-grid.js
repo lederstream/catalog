@@ -1,5 +1,5 @@
 // scripts/components/catalog-grid.js
-import { showNotification, catalogDebounce, fadeIn, observeElementIntersection, smoothScrollTo } from '../utils.js';
+import { Utils } from '../utils.js';
 
 class CatalogState {
     constructor() {
@@ -78,7 +78,6 @@ class CatalogState {
 
 // Inicializar catálogo
 export function initCatalogGrid() {
-    console.log('🔄 Inicializando catálogo...');
     
     const catalogState = CatalogState.getInstance();
     catalogState._restoreState();
@@ -94,9 +93,7 @@ export function initCatalogGrid() {
     
     // Configurar animaciones de scroll
     setupScrollAnimations();
-    
-    console.log('✅ Catálogo inicializado');
-}
+    }
 
 // Configurar filtros del catálogo
 function setupCatalogFilters() {
@@ -119,7 +116,7 @@ function setupCatalogFilters() {
     
     // Búsqueda
     if (searchInput) {
-        searchInput.addEventListener('input', catalogDebounce(() => {
+        searchInput.addEventListener('input', Utils.debounce(() => {
             const searchText = searchInput.value.toLowerCase().trim();
             catalogState.setFilters({ search: searchText });
             filterAndRenderProducts();
@@ -164,7 +161,7 @@ function setupCatalogFilters() {
             filterButton.classList.toggle('bg-gray-600');
             
             if (!filterPanel.classList.contains('hidden')) {
-                fadeIn(filterPanel);
+                Utils.fadeIn(filterPanel);
             }
         });
         
@@ -305,13 +302,9 @@ function setupScrollAnimations() {
     // Animación para cards de productos
     const productCards = document.querySelectorAll('.product-card');
     productCards.forEach(card => {
-        observeElementIntersection(card, (isIntersecting) => {
-            if (isIntersecting) {
-                card.style.transition = 'all 0.5s ease';
-                card.style.opacity = '1';
-                card.style.transform = 'translateY(0)';
-            }
-        }, { threshold: 0.1 });
+        card.style.transition = 'all 0.5s ease';
+        card.style.opacity = '1';
+        card.style.transform = 'translateY(0)';
     });
 }
 
@@ -319,7 +312,7 @@ function setupScrollAnimations() {
 export function filterAndRenderProducts() {
     try {
         // Obtener el estado de la aplicación
-        const appState = window.AppState ? window.AppState.getInstance() : null;
+        const appState = window.app ? window.app.state : null;
         const catalogState = CatalogState.getInstance();
         
         if (!appState) {
@@ -524,7 +517,7 @@ function createProductCard(product, isListView = false, index = 0) {
     const imageUrl = product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen';
     const categoryName = getCategoryName(product);
     const minPrice = getProductMinPrice(product);
-    const formattedPrice = formatCurrency(minPrice);
+    const formattedPrice = Utils.formatCurrency(minPrice);
 
     
     if (isListView) {
@@ -559,7 +552,7 @@ function createProductCard(product, isListView = false, index = 0) {
                     
                     <div class="flex justify-between items-center">
                         <div class="text-lg font-bold text-blue-600">
-                            Desde ${formatCurrency(minPrice)}
+                            Desde ${Utils.formatCurrency(minPrice)}
                         </div>
                         <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center">
                             <i class="fas fa-eye mr-2"></i>
@@ -594,7 +587,7 @@ function createProductCard(product, isListView = false, index = 0) {
                     <div class="mb-4">
                         <div class="text-sm text-gray-500 mb-1">Desde:</div>
                         <div class="text-xl font-bold text-blue-600">
-                            ${formatCurrency(minPrice)}
+                            ${Utils.formatCurrency(minPrice)}
                         </div>
                     </div>
                     
@@ -636,6 +629,7 @@ function renderPlansList(plans) {
         </div>
     `).join('');
 }
+
 // Formatear moneda
 function formatCurrency(amount) {
     if (amount === Infinity || isNaN(amount)) return 'S/ 0.00';
