@@ -1,5 +1,10 @@
 // scripts/products.js
-import { supabase } from './supabase.js';
+import { 
+    addProductToSupabase, 
+    updateProductInSupabase, 
+    deleteProductFromSupabase, 
+    loadProductsFromSupabase 
+} from './supabase.js';
 import { Utils } from './utils.js';
 import { getCategoryManager } from './categories.js';
 
@@ -23,12 +28,8 @@ class ProductManager {
         Utils.showInfo('📦 Cargando productos...');
         
         try {
-            const data = await supabase.query('products', {
-                select: '*, categories(*)',
-                order: { field: 'created_at', ascending: false }
-            });
-            
-            this.products = this.processProducts(data || []);
+            const data = await loadProductsFromSupabase();
+            this.products = this.processProducts(data);
             Utils.showSuccess(`✅ ${this.products.length} productos cargados`);
             return this.products;
             
@@ -111,17 +112,10 @@ class ProductManager {
     
     async addProduct(productData) {
         try {
-            const result = await supabase.insert('products', {
-                name: productData.name,
-                description: productData.description,
-                category_id: productData.category_id,
-                photo_url: productData.photo_url,
-                plans: productData.plans || [],
-                created_at: new Date().toISOString()
-            });
+            const result = await addProductToSupabase(productData);
             
-            if (result && result.length > 0) {
-                const newProduct = this.processProducts(result)[0];
+            if (result) {
+                const newProduct = this.processProducts([result])[0];
                 this.products.unshift(newProduct);
                 Utils.showSuccess('✅ Producto agregado correctamente');
                 return newProduct;
@@ -137,17 +131,10 @@ class ProductManager {
     
     async updateProduct(id, productData) {
         try {
-            const result = await supabase.update('products', id, {
-                name: productData.name,
-                description: productData.description,
-                category_id: productData.category_id,
-                photo_url: productData.photo_url,
-                plans: productData.plans || [],
-                updated_at: new Date().toISOString()
-            });
+            const result = await updateProductInSupabase(id, productData);
             
-            if (result && result.length > 0) {
-                const updatedProduct = this.processProducts(result)[0];
+            if (result) {
+                const updatedProduct = this.processProducts([result])[0];
                 const index = this.products.findIndex(p => p.id === id);
                 if (index !== -1) {
                     this.products[index] = updatedProduct;
@@ -166,7 +153,7 @@ class ProductManager {
     
     async deleteProduct(id) {
         try {
-            await supabase.delete('products', id);
+            await deleteProductFromSupabase(id);
             this.products = this.products.filter(p => p.id !== id);
             Utils.showSuccess('✅ Producto eliminado correctamente');
             return true;
@@ -412,7 +399,7 @@ export function renderAdminProductsList(products, container) {
 
 // Hacer disponible globalmente
 window.ProductManager = ProductManager;
-window.productManager = getProductManager();
+window.productManager = getProductManager;
 
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
