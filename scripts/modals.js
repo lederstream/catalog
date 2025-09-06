@@ -1,5 +1,5 @@
 // scripts/modals.js
-import { showNotification, fadeIn, fadeOut } from './utils.js';
+import { Utils } from './utils.js';
 
 // Sistema de modales
 class ModalSystem {
@@ -305,7 +305,7 @@ class ModalSystem {
         closeBtn.addEventListener('click', () => this.closeModal(id));
         
         // Animación de entrada
-        fadeIn(modal);
+        Utils.fadeIn(modal);
         
         // Ejecutar callback de mostrar
         onShow(modal);
@@ -317,7 +317,7 @@ class ModalSystem {
     closeModal(modalId) {
         const modal = document.getElementById(modalId);
         if (modal) {
-            fadeOut(modal).then(() => {
+            Utils.fadeOut(modal).then(() => {
                 if (modal.parentNode) {
                     modal.parentNode.removeChild(modal);
                 }
