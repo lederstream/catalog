@@ -19,6 +19,7 @@ export function initAdminPanel() {
         const addCategoryBtn = document.getElementById('addCategoryBtn');
         if (addCategoryBtn) {
             addCategoryBtn.addEventListener('click', () => {
+                // Abrir modal de categorias
                 openCategoryModal();
             });
         }
@@ -60,14 +61,24 @@ export function initAdminPanel() {
 // Cargar productos en el panel de administración
 async function loadAdminProducts() {
     try {
+        // Asegurarse de que los productos estén cargados
         if (typeof window.loadProducts === 'function') {
             await window.loadProducts();
             
-            if (typeof window.renderAdminProductsList === 'function') {
-                const adminProductsList = document.getElementById('adminProductsList');
-                if (adminProductsList) {
-                    const products = window.getProducts ? window.getProducts() : [];
-                    window.renderAdminProductsList(products, adminProductsList);
+            const adminProductsList = document.getElementById('adminProductsList');
+            if (adminProductsList) {
+                const products = window.getProducts ? window.getProducts() : [];
+                
+                if (products.length > 0) {
+                    renderAdminProductsList(products, adminProductsList);
+                } else {
+                    adminProductsList.innerHTML = `
+                        <div class="text-center py-12 fade-in-up">
+                            <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
+                            <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
+                            <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
+                        </div>
+                    `;
                 }
             }
         }
@@ -794,14 +805,24 @@ export function renderAdminProductsList(products, container) {
                     </button>
                 </div>
             </div>
+            
+            <!-- Detalles de planes - FIXED: Ahora se muestran correctamente -->
+            <div class="mt-4 pt-4 border-t border-gray-100">
+                <h5 class="font-medium text-gray-700 mb-2">Planes y Precios:</h5>
+                <div class="space-y-2">
+                    ${renderPlansDetails(product.plans)}
+                </div>
+            </div>
         </div>
     `).join('');
 
-    // Agregar event listeners a los botones
+// Agregar event listeners a los botones
     container.querySelectorAll('.edit-product').forEach(button => {
         button.addEventListener('click', (e) => {
             const productId = e.currentTarget.dataset.id;
-            editProduct(productId);
+            if (typeof window.editProduct === 'function') {
+                window.editProduct(productId);
+            }
         });
     });
 
@@ -821,11 +842,8 @@ export function renderAdminProductsList(products, container) {
                         if (typeof window.deleteProduct === 'function') {
                             window.deleteProduct(productId).then(success => {
                                 if (success) {
-                                    // Volver a renderizar la lista
-                                    renderAdminProductsList(
-                                        products.filter(p => p.id != productId), 
-                                        container
-                                    );
+                                    // Recargar la lista de productos
+                                    loadAdminProducts();
                                 }
                             });
                         }
@@ -834,6 +852,35 @@ export function renderAdminProductsList(products, container) {
             }
         });
     });
+}
+
+// Función auxiliar para renderizar detalles de planes
+function renderPlansDetails(plans) {
+    if (!plans || plans.length === 0) {
+        return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
+    }
+    
+    return plans.map(plan => `
+        <div class="bg-gray-50 p-3 rounded-lg">
+            <div class="flex justify-between items-center mb-2">
+                <span class="font-medium">${plan.name || 'Plan sin nombre'}</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                ${plan.price_soles ? `
+                    <div class="text-green-600">
+                        <span class="font-medium">Precio S/:</span>
+                        <span>${Utils.formatCurrency(plan.price_soles, 'PEN')}</span>
+                    </div>
+                ` : ''}
+                ${plan.price_dollars ? `
+                    <div class="text-blue-600">
+                        <span class="font-medium">Precio $:</span>
+                        <span>${Utils.formatCurrency(plan.price_dollars, 'USD')}</span>
+                    </div>
+                ` : ''}
+            </div>
+        </div>
+    `).join('');
 }
 
 // Hacer funciones disponibles globalmente
