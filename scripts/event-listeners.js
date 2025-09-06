@@ -1,5 +1,5 @@
-// scripts/event-listeners.js - Event listeners mejorados
-import { debounce, showNotification } from './utils.js';
+// scripts/event-listeners.js
+import { Utils } from './utils.js';
 import { openImageSearchModal, openCategoriesModal } from './modals.js';
 
 // Configurar todos los event listeners globales
@@ -15,13 +15,13 @@ export function setupAllEventListeners() {
         console.log('✅ Todos los event listeners configurados');
     } catch (error) {
         console.error('Error configurando event listeners:', error);
-        showNotification('Error al configurar interactividad', 'error');
+        Utils.showError('Error al configurar interactividad');
     }
 }
 
 // Listeners globales de clic
 function setupGlobalClickListeners() {
-    document.addEventListener('click', debounce((e) => {
+    document.addEventListener('click', Utils.debounce((e) => {
         // Solo registrar clicks en modo desarrollo
         if (localStorage.getItem('debug') === 'true') {
             console.log('🖱️ Global click detected on:', e.target.className);
@@ -74,14 +74,14 @@ function setupFormEventListeners() {
     // Validación en tiempo real para formularios
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
-        form.addEventListener('input', debounce((e) => {
+        form.addEventListener('input', Utils.debounce((e) => {
             validateField(e.target);
         }, 300));
         
         form.addEventListener('submit', (e) => {
             if (!validateForm(form)) {
                 e.preventDefault();
-                showNotification('Por favor, completa todos los campos requeridos', 'error');
+                Utils.showError('Por favor, completa todos los campos requeridos');
             }
         });
     });
