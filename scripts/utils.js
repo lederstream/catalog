@@ -1,10 +1,19 @@
 // scripts/utils.js
-// Sistema de utilidades - Versión corregida y simplificada
+// Sistema de utilidades - Versión optimizada y corregida
 class Utils {
     static debugMode = localStorage.getItem('debug') === 'true';
+    static notificationCounter = 0;
+    static maxNotifications = 3;
     
     // ===== NOTIFICACIONES =====
     static showNotification(message, type = 'info', duration = 5000) {
+        // Limitar número de notificaciones simultáneas
+        if (this.notificationCounter >= this.maxNotifications) {
+            return { close: () => {}, element: null };
+        }
+        
+        this.notificationCounter++;
+        
         // Crear contenedor si no existe
         let container = document.getElementById('notifications-container');
         if (!container) {
@@ -14,6 +23,7 @@ class Utils {
             document.body.appendChild(container);
         }
 
+        const notificationId = `notification-${Date.now()}`;
         const notification = document.createElement('div');
         const icons = {
             success: '✅',
@@ -29,6 +39,7 @@ class Utils {
             info: 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
         };
         
+        notification.id = notificationId;
         notification.className = `p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-x-full ${colors[type]}`;
         notification.innerHTML = `
             <div class="flex items-center">
@@ -56,6 +67,7 @@ class Utils {
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
+                    this.notificationCounter--;
                 }
             }, 300);
         };
@@ -196,6 +208,15 @@ class Utils {
     static truncateText(text, maxLength = 100, suffix = '...') {
         if (!text || typeof text !== 'string') return '';
         return text.length <= maxLength ? text : text.substr(0, maxLength) + suffix;
+    }
+    
+    // Limpiar todas las notificaciones
+    static clearAllNotifications() {
+        const container = document.getElementById('notifications-container');
+        if (container) {
+            container.innerHTML = '';
+            this.notificationCounter = 0;
+        }
     }
 }
 
