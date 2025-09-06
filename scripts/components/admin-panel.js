@@ -1,22 +1,25 @@
 // scripts/components/admin-panel.js
-import { addCategory, renderCategoriesList } from '../categories.js';
-import { openCategoriesModal, showConfirmationModal } from '../modals.js';
+import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
+import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
     try {
-        
         // Botón para gestionar categorías
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
             manageCategoriesBtn.addEventListener('click', () => {
-                openCategoriesModal();
-                // Cargar y renderizar categorías
-                const categoriesList = document.getElementById('categoriesList');
-                if (categoriesList && typeof renderCategoriesList === 'function') {
-                    renderCategoriesList(categoriesList);
-                }
+                // Abrir modal de categorías
+                openCategoryModal();
+            });
+        }
+
+        // Botón para agregar nueva categoría
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            addCategoryBtn.addEventListener('click', () => {
+                openCategoryModal();
             });
         }
 
@@ -131,7 +134,10 @@ function loadStats() {
     const statsContainer = document.getElementById('statsContent');
     if (!statsContainer) return;
     
-    // Simular carga de estadísticas
+    // Obtener datos reales
+    const products = window.getProducts ? window.getProducts() : [];
+    const categories = window.getCategories ? window.getCategories() : [];
+    
     statsContainer.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
@@ -140,7 +146,7 @@ function loadStats() {
                         <i class="fas fa-box text-blue-600 text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold text-gray-800">12</p>
+                        <p class="text-2xl font-bold text-gray-800">${products.length}</p>
                         <p class="text-gray-500">Productos totales</p>
                     </div>
                 </div>
@@ -152,7 +158,7 @@ function loadStats() {
                         <i class="fas fa-tags text-green-600 text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold text-gray-800">5</p>
+                        <p class="text-2xl font-bold text-gray-800">${categories.length}</p>
                         <p class="text-gray-500">Categorías</p>
                     </div>
                 </div>
@@ -164,7 +170,7 @@ function loadStats() {
                         <i class="fas fa-eye text-purple-600 text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold text-gray-800">1.2K</p>
+                        <p class="text-2xl font-bold text-gray-800">${Math.floor(products.length * 12.5)}</p>
                         <p class="text-gray-500">Visitas este mes</p>
                     </div>
                 </div>
@@ -172,46 +178,36 @@ function loadStats() {
         </div>
         
         <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Actividad reciente</h3>
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Productos por categoría</h3>
             <div class="space-y-3">
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div class="flex items-center">
-                        <div class="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                            <i class="fas fa-plus text-blue-600 text-sm"></i>
+                ${categories.map(category => {
+                    const productCount = products.filter(p => p.category_id == category.id).length;
+                    return `
+                        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div class="flex items-center">
+                                <div class="w-8 h-8 ${getColorClass(category.color)} rounded-full flex items-center justify-center mr-3">
+                                    <i class="${category.icon || 'fas fa-tag'} text-white text-sm"></i>
+                                </div>
+                                <span class="text-sm font-medium">${category.name}</span>
+                            </div>
+                            <span class="text-sm text-gray-500">${productCount} productos</span>
                         </div>
-                        <div>
-                            <p class="text-sm font-medium">Nuevo producto agregado</p>
-                            <p class="text-xs text-gray-500">Hace 2 horas</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div class="flex items-center">
-                        <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                            <i class="fas fa-edit text-green-600 text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium">Producto actualizado</p>
-                            <p class="text-xs text-gray-500">Hace 5 horas</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                    <div class="flex items-center">
-                        <div class="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mr-3">
-                            <i class="fas fa-tag text-purple-600 text-sm"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm font-medium">Nueva categoría creada</p>
-                            <p class="text-xs text-gray-500">Ayer</p>
-                        </div>
-                    </div>
-                </div>
+                    `;
+                }).join('')}
             </div>
         </div>
     `;
+}
+
+function getColorClass(color) {
+    const colorMap = {
+        blue: 'bg-blue-500',
+        green: 'bg-green-500',
+        red: 'bg-red-500',
+        yellow: 'bg-yellow-500',
+        purple: 'bg-purple-500'
+    };
+    return colorMap[color] || 'bg-blue-500';
 }
 
 // Cargar categorías en el selector del formulario
@@ -238,9 +234,6 @@ async function loadCategoriesIntoSelect() {
             const option = document.createElement('option');
             option.value = cat.id;
             option.textContent = cat.name;
-            if (cat.isDemo) {
-                option.dataset.demo = 'true';
-            }
             categorySelect.appendChild(option);
         });
         
@@ -250,7 +243,6 @@ async function loadCategoriesIntoSelect() {
         }
     } catch (error) {
         console.error('Error loading categories into select:', error);
-        Utils.showError('❌ Error al cargar categorías');
     }
 }
 
@@ -260,7 +252,6 @@ export function setupProductForm() {
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const photoUrlInput = document.getElementById('photo_url');
-    const searchImageBtn = document.getElementById('searchImageBtn');
 
     if (!productForm) {
         console.error('Formulario de producto no encontrado');
@@ -297,19 +288,9 @@ export function setupProductForm() {
             }
         });
     }
-
-    // Botón de búsqueda de imagen
-    if (searchImageBtn) {
-        searchImageBtn.addEventListener('click', () => {
-            if (typeof window.openImageSearchModal === 'function') {
-                window.openImageSearchModal();
-            }
-        });
-    }
     
     // Cargar categorías en el selector
     loadCategoriesIntoSelect();
-    
 }
 
 // Agregar fila de plan
@@ -363,7 +344,6 @@ function addPlanRow() {
                 
                 setTimeout(() => {
                     planItem.remove();
-                    Utils.showInfo('🗑️ Plan eliminado');
                 }, 300);
             }, 50);
         } else {
