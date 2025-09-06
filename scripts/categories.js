@@ -23,12 +23,10 @@ class CategoryManager {
         if (this.isLoading) return this.categories;
         
         this.isLoading = true;
-        Utils.showInfo('📂 Cargando categorías...');
         
         try {
             const data = await loadCategoriesFromSupabase();
             this.categories = data || [];
-            Utils.showSuccess(`✅ ${this.categories.length} categorías cargadas`);
             return this.categories;
             
         } catch (error) {
@@ -182,8 +180,8 @@ class CategoryManager {
     handleEditCategory(id) {
         const category = this.getCategoryById(id);
         if (category) {
-            Utils.showInfo(`✏️ Editando: ${category.name}`);
-            // Aquí implementarías la lógica de edición
+            // Abrir modal de edición
+            this.openCategoryModal(category);
         }
     }
     
@@ -204,6 +202,163 @@ class CategoryManager {
             }
         } catch (error) {
             // Error ya manejado en deleteCategory
+        }
+    }
+    
+    openCategoryModal(category = null) {
+        const isEdit = category !== null;
+        const modalId = 'categoryModal';
+        
+        // Crear modal
+        const modalHTML = `
+            <div id="${modalId}" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div class="bg-white rounded-lg max-w-md w-full">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">${isEdit ? 'Editar' : 'Agregar'} Categoría</h3>
+                        
+                        <form id="categoryForm" class="space-y-4">
+                            <input type="hidden" id="categoryId" value="${isEdit ? category.id : ''}">
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                <input type="text" id="categoryName" value="${isEdit ? category.name : ''}" required 
+                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
+                                <textarea id="categoryDescription" rows="2"
+                                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">${isEdit ? category.description : ''}</textarea>
+                            </div>
+                            
+                            <div class="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Icono</label>
+                                    <select id="categoryIcon" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <option value="fas fa-tag" ${isEdit && category.icon === 'fas fa-tag' ? 'selected' : ''}>🏷️ Etiqueta</option>
+                                        <option value="fas fa-box" ${isEdit && category.icon === 'fas fa-box' ? 'selected' : ''}>📦 Caja</option>
+                                        <option value="fas fa-mobile" ${isEdit && category.icon === 'fas fa-mobile' ? 'selected' : ''}>📱 Móvil</option>
+                                        <option value="fas fa-laptop" ${isEdit && category.icon === 'fas fa-laptop' ? 'selected' : ''}>💻 Laptop</option>
+                                        <option value="fas fa-tshirt" ${isEdit && category.icon === 'fas fa-tshirt' ? 'selected' : ''}>👕 Ropa</option>
+                                        <option value="fas fa-utensils" ${isEdit && category.icon === 'fas fa-utensils' ? 'selected' : ''}>🍴 Comida</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                                    <select id="categoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                        <option value="blue" ${isEdit && category.color === 'blue' ? 'selected' : ''}>Azul</option>
+                                        <option value="green" ${isEdit && category.color === 'green' ? 'selected' : ''}>Verde</option>
+                                        <option value="red" ${isEdit && category.color === 'red' ? 'selected' : ''}>Rojo</option>
+                                        <option value="yellow" ${isEdit && category.color === 'yellow' ? 'selected' : ''}>Amarillo</option>
+                                        <option value="purple" ${isEdit && category.color === 'purple' ? 'selected' : ''}>Morado</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="flex justify-end space-x-3 pt-4">
+                                <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors close-modal">
+                                    Cancelar
+                                </button>
+                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    ${isEdit ? 'Actualizar' : 'Agregar'} Categoría
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Eliminar modal existente si hay uno
+        const existingModal = document.getElementById(modalId);
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // Agregar modal al documento
+        const modalContainer = document.createElement('div');
+        modalContainer.innerHTML = modalHTML;
+        document.body.appendChild(modalContainer);
+        
+        // Mostrar modal con animación
+        const modal = modalContainer.querySelector(`#${modalId}`);
+        Utils.fadeIn(modal);
+        
+        // Configurar formulario
+        const form = modal.querySelector('#categoryForm');
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const categoryData = {
+                name: document.getElementById('categoryName').value,
+                description: document.getElementById('categoryDescription').value,
+                icon: document.getElementById('categoryIcon').value,
+                color: document.getElementById('categoryColor').value
+            };
+            
+            const categoryId = document.getElementById('categoryId').value;
+            
+            try {
+                if (categoryId) {
+                    // Editar categoría existente
+                    await this.updateCategory(categoryId, categoryData);
+                } else {
+                    // Agregar nueva categoría
+                    await this.addCategory(categoryData);
+                }
+                
+                // Cerrar modal
+                this.closeCategoryModal(modalId);
+                
+                // Recargar lista de categorías
+                const categoriesList = document.getElementById('categoriesList');
+                if (categoriesList) {
+                    this.renderCategoriesList(categoriesList);
+                }
+                
+                // Recargar selector de categorías en formulario de productos
+                if (typeof window.loadCategoriesIntoSelect === 'function') {
+                    window.loadCategoriesIntoSelect();
+                }
+                
+            } catch (error) {
+                console.error('Error al guardar categoría:', error);
+            }
+        });
+        
+        // Agregar event listeners para cerrar el modal
+        const closeModal = () => this.closeCategoryModal(modalId);
+        
+        modalContainer.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', closeModal);
+        });
+        
+        // Cerrar modal al hacer clic fuera del contenido
+        modalContainer.addEventListener('click', (e) => {
+            if (e.target === modalContainer) {
+                closeModal();
+            }
+        });
+        
+        // Cerrar con tecla Escape
+        const handleEscape = (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                document.removeEventListener('keydown', handleEscape);
+            }
+        };
+        
+        document.addEventListener('keydown', handleEscape);
+    }
+    
+    closeCategoryModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            Utils.fadeOut(modal).then(() => {
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            });
         }
     }
 }
@@ -253,9 +408,17 @@ export function renderCategoriesList(container) {
     }
 }
 
+// Función para abrir modal de categoría
+export function openCategoryModal(category = null) {
+    if (categoryManagerInstance) {
+        categoryManagerInstance.openCategoryModal(category);
+    }
+}
+
 // Hacer disponible globalmente
 window.CategoryManager = CategoryManager;
 window.categoryManager = getCategoryManager;
+window.openCategoryModal = openCategoryModal;
 
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
