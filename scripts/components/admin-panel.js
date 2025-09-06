@@ -1,20 +1,11 @@
 // scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList } from '../categories.js';
 import { openCategoriesModal, showConfirmationModal } from '../modals.js';
-import { 
-    validateRequired, 
-    validateUrl, 
-    validateNumber, 
-    showNotification,
-    debounce,
-    fadeIn,
-    fadeOut
-} from '../utils.js';
+import { Utils } from '../utils.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
     try {
-        console.log('🛠️ Inicializando panel de administración...');
         
         // Botón para gestionar categorías
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
@@ -54,10 +45,9 @@ export function initAdminPanel() {
         // Configurar tabs de administración
         setupAdminTabs();
         
-        console.log('✅ Panel de administración inicializado');
     } catch (error) {
         console.error('Error initializing admin panel:', error);
-        showNotification('❌ Error al inicializar el panel de administración', 'error');
+        Utils.showError('❌ Error al inicializar el panel de administración');
     }
 }
 
@@ -84,7 +74,7 @@ function setupAdminTabs() {
                 pane.classList.add('hidden');
                 if (pane.dataset.tabPane === tabName) {
                     pane.classList.remove('hidden');
-                    fadeIn(pane);
+                    Utils.fadeIn(pane);
                 }
             });
             
@@ -260,7 +250,7 @@ async function loadCategoriesIntoSelect() {
         }
     } catch (error) {
         console.error('Error loading categories into select:', error);
-        showNotification('❌ Error al cargar categorías', 'error');
+        Utils.showError('❌ Error al cargar categorías');
     }
 }
 
@@ -295,14 +285,14 @@ export function setupProductForm() {
 
     // Configurar vista previa de imagen
     if (photoUrlInput) {
-        photoUrlInput.addEventListener('input', debounce((e) => {
+        photoUrlInput.addEventListener('input', Utils.debounce((e) => {
             updateImagePreview(e.target.value);
         }, 300));
         
         // Validar URL en tiempo real
         photoUrlInput.addEventListener('blur', (e) => {
-            if (e.target.value && !validateUrl(e.target.value)) {
-                showNotification('❌ La URL de la imagen no es válida', 'error');
+            if (e.target.value && !Utils.validateUrl(e.target.value)) {
+                Utils.showError('❌ La URL de la imagen no es válida');
                 e.target.focus();
             }
         });
@@ -320,7 +310,6 @@ export function setupProductForm() {
     // Cargar categorías en el selector
     loadCategoriesIntoSelect();
     
-    console.log('✅ Formulario de producto configurado');
 }
 
 // Agregar fila de plan
@@ -374,11 +363,11 @@ function addPlanRow() {
                 
                 setTimeout(() => {
                     planItem.remove();
-                    showNotification('🗑️ Plan eliminado', 'info');
+                    Utils.showInfo('🗑️ Plan eliminado');
                 }, 300);
             }, 50);
         } else {
-            showNotification('⚠️ Debe haber al menos un plan', 'warning');
+            Utils.showWarning('⚠️ Debe haber al menos un plan');
         }
     });
 
@@ -401,19 +390,19 @@ function addPlanRow() {
 function validateProductForm(formData) {
     const errors = [];
     
-    if (!validateRequired(formData.name)) {
+    if (!Utils.validateRequired(formData.name)) {
         errors.push('El nombre del producto es requerido');
     }
     
-    if (!validateRequired(formData.category_id)) {
+    if (!Utils.validateRequired(formData.category_id)) {
         errors.push('La categoría es requerida');
     }
     
-    if (!validateRequired(formData.description)) {
+    if (!Utils.validateRequired(formData.description)) {
         errors.push('La descripción es requerida');
     }
     
-    if (!validateUrl(formData.photo_url)) {
+    if (!Utils.validateUrl(formData.photo_url)) {
         errors.push('La URL de la imagen no es válida');
     }
     
@@ -427,12 +416,12 @@ function validateProductForm(formData) {
             const priceSoles = item.querySelector('.plan-price-soles').value;
             const priceDollars = item.querySelector('.plan-price-dollars').value;
             
-            if (!validateRequired(name)) {
+            if (!Utils.validateRequired(name)) {
                 errors.push(`El nombre del plan ${index + 1} es requerido`);
             }
             
-            const hasSoles = validateNumber(priceSoles) && parseFloat(priceSoles) >= 0;
-            const hasDollars = validateNumber(priceDollars) && parseFloat(priceDollars) >= 0;
+            const hasSoles = Utils.validateNumber(priceSoles) && parseFloat(priceSoles) >= 0;
+            const hasDollars = Utils.validateNumber(priceDollars) && parseFloat(priceDollars) >= 0;
             
             if (!hasSoles && !hasDollars) {
                 errors.push(`El plan ${index + 1} debe tener al menos un precio válido (soles o dólares)`);
@@ -480,7 +469,7 @@ async function handleProductSubmit(e) {
     // Validar formulario
     const validationErrors = validateProductForm(productData);
     if (validationErrors.length > 0) {
-        validationErrors.forEach(error => showNotification(`❌ ${error}`, 'error'));
+        validationErrors.forEach(error => Utils.showError(`❌ ${error}`));
         
         // Resaltar campos con error
         validationErrors.forEach(error => {
@@ -528,7 +517,7 @@ async function handleProductSubmit(e) {
             submitBtn.classList.add('bg-green-600');
             
             setTimeout(() => {
-                showNotification(productId ? '✅ Producto actualizado correctamente' : '✅ Producto agregado correctamente', 'success');
+                Utils.showSuccess(productId ? '✅ Producto actualizado correctamente' : '✅ Producto agregado correctamente');
                 resetForm();
                 
                 if (typeof window.loadProducts === 'function') {
@@ -555,7 +544,7 @@ async function handleProductSubmit(e) {
         }
     } catch (error) {
         console.error('Error al procesar el producto:', error);
-        showNotification(`❌ Error al procesar el producto: ${error.message}`, 'error');
+        Utils.showError(`❌ Error al procesar el producto: ${error.message}`);
         
         // Restaurar botón
         const submitBtn = document.querySelector('#productForm button[type="submit"]');
@@ -725,7 +714,7 @@ export function prepareEditForm(product) {
 export function editProduct(id) {
     if (typeof window.getProductById !== 'function') {
         console.error('getProductById no está disponible');
-        showNotification('❌ Error: Función no disponible', 'error');
+        Utils.showError('❌ Error: Función no disponible');
         return;
     }
     
@@ -740,7 +729,7 @@ export function editProduct(id) {
         }
     } else {
         console.error('Producto no encontrado:', id);
-        showNotification('❌ Producto no encontrado', 'error');
+        Utils.showError('❌ Producto no encontrado');
     }
 }
 
