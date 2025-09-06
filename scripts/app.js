@@ -31,6 +31,8 @@ class DigitalCatalogApp {
         try {
             this.showLoadingState();
             
+            // Limpiar notificaciones previas
+            Utils.clearAllNotifications();
             
             // Configurar modo debug
             if (window.location.search.includes('debug=true')) {
