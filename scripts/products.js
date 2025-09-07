@@ -2,6 +2,7 @@
 import { addProductToSupabase, updateProductInSupabase, deleteProductFromSupabase, loadProductsFromSupabase } from './supabase.js';
 import { Utils } from './utils.js';
 import { getCategoryManager } from './categories.js';
+import { prepareEditForm } from './components/admin-panel.js';
 
 class ProductManager {
     constructor() {
@@ -414,9 +415,11 @@ class ProductManager {
                 this.addPlanRow();
             }
         }
-        
         // Scroll al formulario
-        document.getElementById('productForm').scrollIntoView({ behavior: 'smooth' });
+        const productForm = document.getElementById('productForm');
+        if (productForm) {
+            productForm.scrollIntoView({ behavior: 'smooth' });
+        }
     }
 
     // Helper para añadir filas de plan
@@ -600,6 +603,7 @@ export function renderAdminProductsList(products, container) {
 
 // Hacer disponible globalmente
 window.ProductManager = ProductManager;
+window.prepareEditForm = prepareEditForm;
 window.productManager = getProductManager;
 
 // Inicializar automáticamente
