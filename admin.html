@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinebestial - Panel de Administración</title>
+    
+    <!-- Tailwind CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Estilos propios -->
+    <link rel="stylesheet" href="../styles/main.css">
+    <link rel="stylesheet" href="../styles/components.css">
+    <link rel="stylesheet" href="../styles/utilities.css">
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center">
+                <a href="../index.html" class="text-2xl font-bold text-blue-600">Cinebestial</a>
+                <span class="ml-3 text-gray-500">| Panel Admin</span>
+            </div>
+            <div class="flex items-center space-x-4">
+                <a href="../index.html" class="text-gray-600 hover:text-blue-600 hidden md:block">
+                    <i class="fas fa-home mr-1"></i> Ver Catálogo
+                </a>
+                <button id="logoutBtn" class="bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg flex items-center">
+                    <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
+                </button>
+            </div>
+        </nav>
+    </header>
+
+    <main class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">Panel de Administración</h1>
+        <p class="text-center text-gray-600 mb-8">Gestiona tu catálogo de productos</p>
+        
+        <!-- Panel de Administración -->
+        <div class="bg-white rounded-lg shadow-lg p-4 md:p-6">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h3 class="text-xl font-semibold">Gestionar Productos</h3>
+                <div class="flex space-x-4">
+                    <button id="manageCategoriesBtn" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
+                        <i class="fas fa-tags mr-2"></i>Gestionar Categorías
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Formulario de Producto -->
+            <div class="bg-gray-50 p-4 md:p-6 rounded-lg shadow mb-8">
+                <h4 class="text-lg font-semibold mb-4" id="formTitle">Agregar Nuevo Producto</h4>
+                
+                <form id="productForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" id="productId">
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-gray-700 mb-2" for="name">Nombre del Producto *</label>
+                        <input type="text" id="name" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 mb-2" for="category">Categoría *</label>
+                        <select id="category" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="">Seleccionar categoría</option>
+                            <!-- Las categorías se cargarán dinámicamente -->
+                        </select>
+                    </div>
+                    
+                    <div class="md:col-span-2">
+                        <label class="block text-gray-700 mb-2" for="description">Descripción *</label>
+                        <textarea id="description" rows="3" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    
+                    <!-- Campo para URL de imagen -->
+                    <div class="md:col-span-2">
+                        <label class="block text-gray-700 mb-2" for="photo_url">URL de la Imagen *</label>
+                        <div class="flex gap-2">
+                            <input type="url" id="photo_url" class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://ejemplo.com/imagen.jpg">
+                            <button type="button" id="searchImageBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                                <i class="fas fa-search"></i> Buscar
+                            </button>
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Pega el enlace de una imagen desde Google Images o cualquier otra fuente</p>
+                    </div>
+                    
+                    <!-- Vista previa de imagen -->
+                    <div class="md:col-span-2">
+                        <label class="block text-gray-700 mb-2">Vista Previa</label>
+                        <div id="imagePreview" class="border-2 border-dashed border-gray-300 rounded-lg h-48 flex items-center justify-center bg-gray-50">
+                            <p class="text-gray-500">La imagen aparecerá aquí</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Planes y precios -->
+                    <div class="md:col-span-2">
+                        <label class="block text-gray-700 mb-2">Planes y Precios *</label>
+                        <div id="plansContainer" class="space-y-3 mb-4">
+                            <div class="plan-item">
+                                <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name">
+                                    <input type="number" step="0.01" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles">
+                                    <input type="number" step="0.01" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars">
+                                </div>
+                                <button type="button" class="remove-plan ml-2 text-red-500 hover:text-red-700">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <button type="button" id="addPlanBtn" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
+                            <i class="fas fa-plus mr-2"></i>Agregar otro plan
+                        </button>
+                    </div>
+                    
+                    <div class="md:col-span-2 flex justify-end space-x-4 mt-4">
+                        <button type="button" id="cancelBtn" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 hidden">Cancelar</button>
+                        <button type="submit" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                            <span id="submitText">Agregar Producto</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <!-- Lista de productos en admin -->
+            <div>
+                <h4 class="text-lg font-semibold mb-4">Productos Existentes</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 text-left">Imagen</th>
+                                <th class="py-3 px-4 text-left">Nombre</th>
+                                <th class="py-3 px-4 text-left">Categoría</th>
+                                <th class="py-3 px-4 text-left">Planes</th>
+                                <th class="py-3 px-4 text-left">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminProductsList">
+                            <!-- Los productos se cargarán aquí dinámicamente -->
+                            <tr>
+                                <td colspan="5" class="py-4 text-center text-gray-500">Cargando productos...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white py-8 mt-12">
+        <div class="container mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-4">Cinebestial Admin</h3>
+                    <p class="text-gray-400">Panel de administración del catálogo digital.</p>
+                </div>
+                <div>
+                    <h4 class="text-lg font-semibold mb-4">Enlaces Rápidos</h4>
+                    <ul class="space-y-2">
+                        <li><a href="../index.html" class="text-gray-400 hover:text-white">Ver Catálogo Público</a></li>
+                        <li><a href="../contact.html" class="text-gray-400 hover:text-white">Contacto</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
+                <p>&copy; 2025 Cinebestial. Todos los derechos reservados.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modal de búsqueda de imágenes -->
+    <div id="imageSearchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 h-3/4 overflow-hidden flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Buscar Imágenes</h3>
+                <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 border-b">
+                <div class="flex gap-2">
+                    <input type="text" id="imageSearchQuery" placeholder="Buscar imágenes..." class="flex-grow px-4 py-2 border rounded-lg">
+                    <button id="performSearch" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
+                        <i class="fas fa-search"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="flex-grow overflow-auto p-4">
+                <div id="imageSearchResults" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <p class="text-gray-500 col-span-full text-center py-8">Realiza una búsqueda para ver resultados</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Gestión de Categorías -->
+    <div id="categoriesModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 max-h-screen overflow-hidden flex flex-col">
+            <div class="p-4 border-b flex justify-between items-center">
+                <h3 class="text-lg font-semibold">Gestionar Categorías</h3>
+                <button id="closeCategoriesModal" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-4 border-b">
+                <div class="flex gap-2">
+                    <input type="text" id="newCategoryName" placeholder="Nombre de nueva categoría" class="flex-grow px-4 py-2 border rounded-lg">
+                    <button id="addCategoryBtn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                        <i class="fas fa-plus"></i> Agregar
+                    </button>
+                </div>
+            </div>
+            <div class="flex-grow overflow-auto p-4">
+                <h4 class="font-semibold mb-3">Categorías Existentes</h4>
+                <div id="categoriesList" class="space-y-2">
+                    <!-- Las categorías se cargarán aquí dinámicamente -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="module" src="../scripts/supabase.js"></script>
+    <script type="module" src="../scripts/utils.js"></script>
+    <script type="module" src="../scripts/products.js"></script>
+    <script type="module" src="../scripts/categories.js"></script>
+    <script type="module" src="../scripts/auth.js"></script>
+    <script type="module" src="../scripts/modals.js"></script>
+    <script type="module" src="../scripts/notifications.js"></script>
+    <script type="module" src="../scripts/event-listeners.js"></script>
+    <script type="module" src="../scripts/components/admin-panel.js"></script>
+    <script type="module" src="../scripts/app-admin.js"></script>
+</body>
+</html>
