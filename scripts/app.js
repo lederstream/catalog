@@ -347,7 +347,7 @@ window.showProductDetails = (productId) => {
 
 // Hacer disponible globalmente
 window.DigitalCatalogApp = DigitalCatalogApp;
-window.app = app;
+window.app = app
 
 // Inicializar automáticamente cuando el DOM esté listo
 if (document.readyState === 'loading') {
