@@ -1,5 +1,4 @@
 // scripts/app.js
-// scripts/app.js
 import { Utils } from './utils.js';
 import { supabase } from './supabase.js';
 import { getCategoryManager } from './categories.js';
@@ -160,9 +159,13 @@ class DigitalCatalogApp {
         
         // Inicializar componentes de UI solo si existen
         if (typeof initAdminPanel === 'function') {
-            // Esperar a que el panel admin esté en el DOM
-            await this.waitForElement('#adminPanel');
-            initAdminPanel();
+            // Solo inicializar el panel de admin si existe en la página actual
+            const adminPanel = document.getElementById('adminPanel');
+            if (adminPanel) {
+                initAdminPanel();
+            } else {
+                console.log('ℹ️ Panel de administración no encontrado en esta página');
+            }
         }
         
         if (typeof initCatalogGrid === 'function') {
@@ -174,35 +177,6 @@ class DigitalCatalogApp {
         
         // Configurar responsive design
         this.setupResponsiveDesign();
-    }
-    
-    // Función auxiliar para esperar elementos
-    waitForElement(selector, timeout = 5000) {
-        return new Promise((resolve, reject) => {
-            const element = document.querySelector(selector);
-            if (element) {
-                resolve(element);
-                return;
-            }
-            
-            const observer = new MutationObserver(() => {
-                const element = document.querySelector(selector);
-                if (element) {
-                    observer.disconnect();
-                    resolve(element);
-                }
-            });
-            
-            observer.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            
-            setTimeout(() => {
-                observer.disconnect();
-                reject(new Error(`Element ${selector} not found within ${timeout}ms`));
-            }, timeout);
-        });
     }
     
     setupScrollAnimations() {
