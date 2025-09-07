@@ -150,7 +150,7 @@ export const updateProductInSupabase = async (id, productData) => {
                 category_id: productData.category_id,
                 photo_url: productData.photo_url,
                 plans: productData.plans,
-                created_at_at: new Date().toISOString()
+                created_at: new Date().toISOString()
             })
             .eq('id', id)
             .select();
