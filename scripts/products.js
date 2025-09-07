@@ -474,14 +474,6 @@ class ProductManager {
             });
         });
     }
-        prepareEditForm(product) {
-        if (!product) return;
-        
-        // Implementa la lógica para llenar el formulario de edición
-        if (typeof window.prepareEditForm === 'function') {
-            window.prepareEditForm(product);
-        }
-    }
 }
 
 // Singleton instance
