@@ -29,6 +29,7 @@ class DigitalCatalogApp {
         }
         
         try {
+            // AÑADIR: Mostrar estado de carga
             this.showLoadingState();
             
             // Limpiar notificaciones previas
@@ -62,6 +63,42 @@ class DigitalCatalogApp {
             console.error('❌ Error inicializando la aplicación:', error);
             await this.hideLoadingState();
         }
+    }
+    
+    // AÑADIR: Función para mostrar estado de carga
+    showLoadingState() {
+        // Verificar si ya existe un loader para no duplicar
+        if (document.querySelector('.loading-state')) return;
+        
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50 loading-state';
+        loadingDiv.innerHTML = `
+            <div class="text-center">
+                <div class="loading-spinner inline-block w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p class="text-gray-600 font-medium">Cargando DigitalCatalog</p>
+                <p class="text-gray-400 text-sm mt-1">Estamos preparando todo para ti...</p>
+            </div>
+        `;
+        document.body.appendChild(loadingDiv);
+        document.body.style.overflow = 'hidden';
+    }
+    
+    // AÑADIR: Función para ocultar estado de carga
+    async hideLoadingState() {
+        const loader = document.querySelector('.loading-state');
+        if (loader) {
+            // Usar una transición suave en lugar de fadeOut si existe
+            if (typeof Utils !== 'undefined' && typeof Utils.fadeOut === 'function') {
+                await Utils.fadeOut(loader);
+            } else {
+                // Fallback si Utils no está disponible
+                loader.style.opacity = '0';
+                loader.style.transition = 'opacity 0.5s ease';
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
+            loader.remove();
+        }
+        document.body.style.overflow = '';
     }
     
     async initializeCoreComponents() {
@@ -162,9 +199,10 @@ class DigitalCatalogApp {
             // Solo inicializar el panel de admin si existe en la página actual
             const adminPanel = document.getElementById('adminPanel');
             if (adminPanel) {
+                console.log('✅ Inicializando panel de administración...');
                 initAdminPanel();
             } else {
-                console.log('ℹ️ Panel de administración no encontrado en esta página');
+                console.log('ℹ️ Panel de administración no encontrado en esta página (esto es normal para la página principal)');
             }
         }
         
@@ -305,23 +343,6 @@ class DigitalCatalogApp {
             console.error('Error refreshing data:', error);
             Utils.showError('❌ Error al actualizar datos');
         }
-    }
-    
-    async hideLoadingState() {
-        const loader = document.querySelector('.loading-state');
-        if (loader) {
-            // Usar una transición suave en lugar de fadeOut si existe
-            if (typeof Utils !== 'undefined' && typeof Utils.fadeOut === 'function') {
-                await Utils.fadeOut(loader);
-            } else {
-                // Fallback si Utils no está disponible
-                loader.style.opacity = '0';
-                loader.style.transition = 'opacity 0.5s ease';
-                await new Promise(resolve => setTimeout(resolve, 500));
-            }
-            loader.remove();
-        }
-        document.body.style.overflow = '';
     }
     
     // Métodos públicos para compatibilidad
