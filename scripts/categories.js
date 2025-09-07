@@ -6,6 +6,7 @@ import {
     deleteCategoryFromSupabase 
 } from './supabase.js';
 import { Utils } from './utils.js';
+import { showConfirmationModal } from './modals.js';
 
 class CategoryManager {
     constructor() {
@@ -110,23 +111,23 @@ class CategoryManager {
         }
         
         container.innerHTML = this.categories.map(category => `
-            <div class="category-item bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300 transform hover:-translate-y-1">
+            <div class="category-item bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center ${this.getColorClass(category.color)}">
-                            <i class="${category.icon || 'fas fa-tag'} text-white"></i>
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500">
+                            <i class="fas fa-tag text-white"></i>
                         </div>
                         <div>
                             <h4 class="font-semibold text-gray-800">${category.name}</h4>
-                            ${category.description ? `<p class="text-sm text-gray-500 mt-1">${category.description}</p>` : ''}
+                            <p class="text-sm text-gray-500 mt-1">ID: ${category.id}</p>
                         </div>
                     </div>
                     <div class="flex space-x-2">
-                        <button class="edit-category p-2 text-blue-600 hover:text-blue-800 transition-colors duration-200 transform hover:scale-110" 
+                        <button class="edit-category p-2 text-blue-600 hover:text-blue-800 transition-colors duration-200" 
                                 data-id="${category.id}" title="Editar categoría">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="delete-category p-2 text-red-600 hover:text-red-800 transition-colors duration-200 transform hover:scale-110" 
+                        <button class="delete-category p-2 text-red-600 hover:text-red-800 transition-colors duration-200" 
                                 data-id="${category.id}" title="Eliminar categoría">
                             <i class="fas fa-trash"></i>
                         </button>
@@ -140,25 +141,12 @@ class CategoryManager {
     
     getEmptyStateHTML() {
         return `
-            <div class="text-center py-8 animate-pulse">
+            <div class="text-center py-8">
                 <i class="fas fa-tags text-4xl text-gray-300 mb-4"></i>
                 <p class="text-gray-500">No hay categorías</p>
                 <p class="text-sm text-gray-400 mt-2">Agrega tu primera categoría</p>
             </div>
         `;
-    }
-    
-    getColorClass(color) {
-        const colorMap = {
-            blue: 'bg-blue-500',
-            green: 'bg-green-500',
-            red: 'bg-red-500',
-            yellow: 'bg-yellow-500',
-            purple: 'bg-purple-500',
-            pink: 'bg-pink-500',
-            indigo: 'bg-indigo-500'
-        };
-        return colorMap[color] || 'bg-blue-500';
     }
     
     attachCategoryEventListeners(container) {
@@ -180,7 +168,6 @@ class CategoryManager {
     handleEditCategory(id) {
         const category = this.getCategoryById(id);
         if (category) {
-            // Abrir modal de edición
             this.openCategoryModal(category);
         }
     }
@@ -189,27 +176,34 @@ class CategoryManager {
         const category = this.getCategoryById(id);
         if (!category) return;
         
-        const confirmed = confirm(`¿Eliminar categoría "${category.name}"?`);
-        if (!confirmed) return;
-        
-        try {
-            await this.deleteCategory(id);
-            
-            // Recargar lista si hay un contenedor visible
-            const visibleContainer = document.querySelector('#categoriesList:not([style*="display: none"])');
-            if (visibleContainer) {
-                this.renderCategoriesList(visibleContainer);
+        // Usar el modal de confirmación en lugar de confirm nativo
+        showConfirmationModal({
+            title: 'Eliminar Categoría',
+            message: `¿Estás seguro de que deseas eliminar la categoría "${category.name}"?`,
+            confirmText: 'Eliminar',
+            cancelText: 'Cancelar',
+            type: 'danger',
+            onConfirm: async () => {
+                try {
+                    await this.deleteCategory(id);
+                    
+                    // Recargar lista en todos los contenedores visibles
+                    document.querySelectorAll('#categoriesListContainer, #categoriesList').forEach(container => {
+                        if (container.offsetParent !== null) { // Si el elemento es visible
+                            this.renderCategoriesList(container);
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error al eliminar categoría:', error);
+                }
             }
-        } catch (error) {
-            // Error ya manejado en deleteCategory
-        }
+        });
     }
     
     openCategoryModal(category = null) {
         const isEdit = category !== null;
         const modalId = 'categoryModal';
         
-        // Crear modal
         const modalHTML = `
             <div id="${modalId}" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                 <div class="bg-white rounded-lg max-w-md w-full">
@@ -220,11 +214,11 @@ class CategoryManager {
                             <input type="hidden" id="categoryId" value="${isEdit ? category.id : ''}">
                             
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                                 <input type="text" id="categoryName" value="${isEdit ? category.name : ''}" required 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
-
+                            
                             <div class="flex justify-end space-x-3 pt-4">
                                 <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors close-modal">
                                     Cancelar
@@ -245,48 +239,40 @@ class CategoryManager {
             existingModal.remove();
         }
         
-        // Agregar modal al documento
         const modalContainer = document.createElement('div');
         modalContainer.innerHTML = modalHTML;
         document.body.appendChild(modalContainer);
         
-        // Mostrar modal con animación
         const modal = modalContainer.querySelector(`#${modalId}`);
         Utils.fadeIn(modal);
         
-        // Configurar formulario
         const form = modal.querySelector('#categoryForm');
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const categoryData = {
-                name: document.getElementById('categoryName').value,
-                description: document.getElementById('categoryDescription').value,
-                icon: document.getElementById('categoryIcon').value,
-                color: document.getElementById('categoryColor').value
+                name: document.getElementById('categoryName').value.trim()
             };
             
             const categoryId = document.getElementById('categoryId').value;
             
             try {
                 if (categoryId) {
-                    // Editar categoría existente
                     await this.updateCategory(categoryId, categoryData);
                 } else {
-                    // Agregar nueva categoría
                     await this.addCategory(categoryData);
                 }
                 
-                // Cerrar modal
                 this.closeCategoryModal(modalId);
                 
-                // Recargar lista de categorías
-                const categoriesList = document.getElementById('categoriesList');
-                if (categoriesList) {
-                    this.renderCategoriesList(categoriesList);
-                }
+                // Recargar lista en todos los contenedores visibles
+                document.querySelectorAll('#categoriesListContainer, #categoriesList').forEach(container => {
+                    if (container.offsetParent !== null) { // Si el elemento es visible
+                        this.renderCategoriesList(container);
+                    }
+                });
                 
-                // Recargar selector de categorías en formulario de productos
+                // Actualizar selector de categorías en formularios de productos
                 if (typeof window.loadCategoriesIntoSelect === 'function') {
                     window.loadCategoriesIntoSelect();
                 }
@@ -296,21 +282,18 @@ class CategoryManager {
             }
         });
         
-        // Agregar event listeners para cerrar el modal
         const closeModal = () => this.closeCategoryModal(modalId);
         
         modalContainer.querySelectorAll('.close-modal').forEach(btn => {
             btn.addEventListener('click', closeModal);
         });
         
-        // Cerrar modal al hacer clic fuera del contenido
         modalContainer.addEventListener('click', (e) => {
             if (e.target === modalContainer) {
                 closeModal();
             }
         });
         
-        // Cerrar con tecla Escape
         const handleEscape = (e) => {
             if (e.key === 'Escape') {
                 closeModal();
@@ -392,5 +375,9 @@ window.openCategoryModal = openCategoryModal;
 
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
-    window.categoryManager = await getCategoryManager();
+    try {
+        window.categoryManager = await getCategoryManager();
+    } catch (error) {
+        console.error('Error inicializando category manager:', error);
+    }
 });
