@@ -1,5 +1,4 @@
 // scripts/components/admin-panel.js
-// scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
@@ -44,10 +43,8 @@ export function initAdminPanel() {
             });
         }
 
-        // Configurar formulario de producto solo si el usuario está autenticado
-        if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
-            setupProductForm();
-        }
+        // Configurar formulario de producto solo si existe
+        setupProductForm();
         
         // Cargar productos en el panel de administración
         loadAdminProducts();
