@@ -2,6 +2,7 @@
 import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
+import { getProductManager } from '../products.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
@@ -12,7 +13,6 @@ export function initAdminPanel() {
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
             manageCategoriesBtn.addEventListener('click', () => {
-                // Abrir modal de categorías
                 openCategoryModal();
             });
         }
@@ -21,7 +21,6 @@ export function initAdminPanel() {
         const addCategoryBtn = document.getElementById('addCategoryBtn');
         if (addCategoryBtn) {
             addCategoryBtn.addEventListener('click', () => {
-                // Abrir modal de categorias
                 openCategoryModal();
             });
         }
@@ -43,10 +42,8 @@ export function initAdminPanel() {
             });
         }
 
-        // Configurar formulario de producto solo si existe
-        if (typeof window.setupProductForm === 'function') {
-            window.setupProductForm();
-        }
+        // Configurar formulario de producto
+        setupProductForm();
         
         // Cargar productos en el panel de administración
         loadAdminProducts();
@@ -71,7 +68,7 @@ async function loadAdminProducts() {
             const products = manager.getProducts();
             
             if (products.length > 0) {
-                renderAdminProductsList(products, adminProductsList);
+                manager.renderAdminProductsList(products, adminProductsList);
             } else {
                 adminProductsList.innerHTML = `
                     <div class="text-center py-12 fade-in-up">
@@ -127,49 +124,42 @@ function setupAdminTabs() {
 }
 
 // Cargar contenido específico del tab
-function loadTabContent(tabName) {
+async function loadTabContent(tabName) {
+    const manager = await getProductManager();
+    
     switch (tabName) {
         case 'products':
-            // Cargar productos si es necesario
-            if (typeof window.loadProducts === 'function') {
-                window.loadProducts().then(() => {
-                    if (typeof window.renderAdminProductsList === 'function') {
-                        const adminProductsList = document.getElementById('adminProductsList');
-                        if (adminProductsList) {
-                            const products = window.getProducts ? window.getProducts() : [];
-                            window.renderAdminProductsList(products, adminProductsList);
-                        }
-                    }
-                });
+            await manager.loadProducts();
+            const adminProductsList = document.getElementById('adminProductsList');
+            if (adminProductsList) {
+                const products = manager.getProducts();
+                manager.renderAdminProductsList(products, adminProductsList);
             }
             break;
             
         case 'categories':
-            // Cargar categorías si es necesario
             if (typeof window.loadCategories === 'function') {
-                window.loadCategories().then(() => {
-                    const categoriesList = document.getElementById('categoriesList');
-                    if (categoriesList && typeof renderCategoriesList === 'function') {
-                        renderCategoriesList(categoriesList);
-                    }
-                });
+                await window.loadCategories();
+                const categoriesList = document.getElementById('categoriesList');
+                if (categoriesList && typeof renderCategoriesList === 'function') {
+                    renderCategoriesList(categoriesList);
+                }
             }
             break;
             
         case 'stats':
-            // Cargar estadísticas
             loadStats();
             break;
     }
 }
 
 // Cargar estadísticas
-function loadStats() {
+async function loadStats() {
     const statsContainer = document.getElementById('statsContent');
     if (!statsContainer) return;
     
-    // Obtener datos reales
-    const products = window.getProducts ? window.getProducts() : [];
+    const manager = await getProductManager();
+    const products = manager.getProducts();
     const categories = window.getCategories ? window.getCategories() : [];
     
     statsContainer.innerHTML = `
@@ -245,7 +235,7 @@ function getColorClass(color) {
 }
 
 // Cargar categorías en el selector del formulario
-async function loadCategoriesIntoSelect() {
+export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
     if (!categorySelect) return;
 
@@ -260,6 +250,7 @@ async function loadCategoriesIntoSelect() {
 
         // Guardar la selección actual si existe
         const currentValue = categorySelect.value;
+        const productId = document.getElementById('productId')?.value;
         
         // Limpiar y poblar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
@@ -271,8 +262,8 @@ async function loadCategoriesIntoSelect() {
             categorySelect.appendChild(option);
         });
         
-        // Restaurar la selección anterior si existe
-        if (currentValue) {
+        // Restaurar la selección anterior para edición
+        if (productId && currentValue) {
             categorySelect.value = currentValue;
         }
     } catch (error) {
@@ -286,7 +277,7 @@ export function setupProductForm() {
     
     // Verificar si el formulario existe y está en el DOM visible
     if (!productForm || productForm.offsetParent === null) {
-        console.log('ℹ️ Formulario de producto no visible en esta página (normal para página principal)');
+        console.log('ℹ️ Formulario de producto no visible en esta página');
         return;
     }
     
@@ -330,11 +321,10 @@ export function setupProductForm() {
 }
 
 // Agregar fila de plan
-function addPlanRow() {
+function addPlanRow(planData = null) {
     const plansContainer = document.getElementById('plansContainer');
     if (!plansContainer) return;
 
-    const planId = Date.now() + Math.random().toString(36).substr(2, 5);
     const planItem = document.createElement('div');
     planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all duration-300 hover:border-blue-300';
     planItem.innerHTML = `
@@ -343,17 +333,20 @@ function addPlanRow() {
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del plan</label>
                 <input type="text" placeholder="Ej: Básico, Premium" 
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" 
+                       value="${planData?.name || ''}" 
                        required>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
                 <input type="number" step="0.01" min="0" placeholder="0.00" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors">
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
+                       value="${planData?.price_soles || ''}">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Precio $</label>
                 <input type="number" step="0.01" min="0" placeholder="0.00" 
-                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors">
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
+                       value="${planData?.price_dollars || ''}">
             </div>
         </div>
         <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200 transform hover:scale-110" 
@@ -516,14 +509,12 @@ async function handleProductSubmit(e) {
         submitBtn.disabled = true;
         submitBtn.classList.add('opacity-75');
         
+        const manager = await getProductManager();
+        
         if (productId) {
-            if (typeof window.updateProduct === 'function') {
-                result = await window.updateProduct(productId, productData);
-            }
+            result = await manager.updateProduct(productId, productData);
         } else {
-            if (typeof window.addProduct === 'function') {
-                result = await window.addProduct(productData);
-            }
+            result = await manager.addProduct(productData);
         }
 
         if (result) {
@@ -538,19 +529,6 @@ async function handleProductSubmit(e) {
 
                 // Recargar productos en el panel de administración
                 loadAdminProducts();
-                
-                if (typeof window.loadProducts === 'function') {
-                    window.loadProducts().then(() => {
-                        // Actualizar lista de productos en el admin
-                        if (typeof window.renderAdminProductsList === 'function') {
-                            const adminProductsList = document.getElementById('adminProductsList');
-                            if (adminProductsList) {
-                                const products = window.getProducts ? window.getProducts() : [];
-                                window.renderAdminProductsList(products, adminProductsList);
-                            }
-                        }
-                    });
-                }
                 
                 // Restaurar botón después de 2 segundos
                 setTimeout(() => {
@@ -649,11 +627,16 @@ export function prepareEditForm(product) {
     document.getElementById('description').value = product.description || '';
     document.getElementById('photo_url').value = product.photo_url || '';
     
-    // Cargar categorías antes de establecer el valor
-    loadCategoriesIntoSelect().then(() => {
+    // Establecer categoría después de cargar las opciones
+    const setCategory = () => {
         if (product.category_id) {
             document.getElementById('category').value = product.category_id;
         }
+    };
+    
+    // Cargar categorías y luego establecer el valor
+    loadCategoriesIntoSelect().then(() => {
+        setTimeout(setCategory, 100);
     });
     
     const formTitle = document.getElementById('formTitle');
@@ -672,44 +655,7 @@ export function prepareEditForm(product) {
         
         if (product.plans && product.plans.length > 0) {
             product.plans.forEach(plan => {
-                const planItem = document.createElement('div');
-                planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200';
-                planItem.innerHTML = `
-                    <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del plan</label>
-                            <input type="text" placeholder="Ej: Básico, Premium" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                   value="${plan.name || ''}" 
-                                   required>
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
-                            <input type="number" step="0.01" min="0" placeholder="0.00" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" 
-                                   value="${plan.price_soles || ''}">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700 mb-1">Precio $</label>
-                            <input type="number" step="0.01" min="0" placeholder="0.00" 
-                                   class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                                   value="${plan.price_dollars || ''}">
-                        </div>
-                    </div>
-                    <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200" 
-                            title="Eliminar plan">
-                        <i class="fas fa-times-circle"></i>
-                    </button>
-                `;
-                
-                const removeBtn = planItem.querySelector('.remove-plan');
-                removeBtn.addEventListener('click', () => {
-                    if (document.querySelectorAll('.plan-item').length > 1) {
-                        planItem.remove();
-                    }
-                });
-                
-                plansContainer.appendChild(planItem);
+                addPlanRow(plan);
             });
         } else {
             addPlanRow();
@@ -730,159 +676,27 @@ export function prepareEditForm(product) {
 }
 
 // Función para editar producto
-export function editProduct(id) {
-    if (typeof window.getProductById !== 'function') {
-        console.error('getProductById no está disponible');
-        Utils.showError('❌ Error: Función no disponible');
-        return;
-    }
-    
-    const product = window.getProductById(id);
-    if (product) {
-        prepareEditForm(product);
+export async function editProduct(id) {
+    try {
+        const manager = await getProductManager();
+        const product = manager.getProductById(id);
         
-        // Cambiar al tab de productos si es necesario
-        const productsTab = document.querySelector('[data-tab="products"]');
-        if (productsTab) {
-            productsTab.click();
+        if (product) {
+            prepareEditForm(product);
+            
+            // Cambiar al tab de productos si es necesario
+            const productsTab = document.querySelector('[data-tab="products"]');
+            if (productsTab) {
+                productsTab.click();
+            }
+        } else {
+            console.error('Producto no encontrado:', id);
+            Utils.showError('❌ Producto no encontrado');
         }
-    } else {
-        console.error('Producto no encontrado:', id);
-        Utils.showError('❌ Producto no encontrado');
+    } catch (error) {
+        console.error('Error al editar producto:', error);
+        Utils.showError('❌ Error: No se pudo cargar el producto');
     }
-}
-
-// Renderizar lista de productos en el panel de administración
-export function renderAdminProductsList(products, container) {
-    if (!container) {
-        console.error('Contenedor de productos no encontrado');
-        return;
-    }
-
-    if (!products || products.length === 0) {
-        container.innerHTML = `
-            <div class="text-center py-12 fade-in-up">
-                <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
-                <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
-                <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
-            </div>
-        `;
-        return;
-    }
-
-    container.innerHTML = products.map((product, index) => `
-        <div class="bg-white rounded-lg border border-gray-200 p-4 mb-4 transition-all duration-300 hover:shadow-md fade-in-up" 
-             style="animation-delay: ${index * 50}ms">
-            <div class="flex items-start justify-between">
-                <div class="flex items-center space-x-4">
-                    <div class="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                        <img src="${product.photo_url || 'https://via.placeholder.com/64?text=Imagen'}" 
-                             alt="${product.name}" 
-                             class="w-full h-full object-cover"
-                             onerror="this.src='https://via.placeholder.com/64?text=Error'">
-                    </div>
-                    <div>
-                        <h4 class="font-semibold text-gray-800">${product.name}</h4>
-                        <p class="text-sm text-gray-500 mt-1 line-clamp-2">${product.description || 'Sin descripción'}</p>
-                        <div class="flex items-center mt-2 space-x-2">
-                            <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
-                                ${product.categories ? product.categories.name : 'Sin categoría'}
-                            </span>
-                            <span class="text-xs text-gray-500">
-                                ${product.plans ? product.plans.length : 0} planes
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                <div class="flex space-x-2">
-                    <button class="edit-product bg-blue-100 text-blue-600 p-2 rounded-lg hover:bg-blue-200 transition-colors duration-200 transform hover:scale-105" 
-                            data-id="${product.id}"
-                            title="Editar producto">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="delete-product bg-red-100 text-red-600 p-2 rounded-lg hover:bg-red-200 transition-colors duration-200 transform hover:scale-105" 
-                            data-id="${product.id}"
-                            title="Eliminar producto">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Detalles de planes - FIXED: Ahora se muestran correctamente -->
-            <div class="mt-4 pt-4 border-t border-gray-100">
-                <h5 class="font-medium text-gray-700 mb-2">Planes y Precios:</h5>
-                <div class="space-y-2">
-                    ${renderPlansDetails(product.plans)}
-                </div>
-            </div>
-        </div>
-    `).join('');
-
-    // Agregar event listeners a los botones
-    container.querySelectorAll('.edit-product').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = e.currentTarget.dataset.id;
-            if (typeof window.editProduct === 'function') {
-                window.editProduct(productId);
-            }
-        });
-    });
-
-    container.querySelectorAll('.delete-product').forEach(button => {
-        button.addEventListener('click', (e) => {
-            const productId = e.currentTarget.dataset.id;
-            const product = products.find(p => p.id == productId);
-            
-            if (product) {
-                showConfirmationModal({
-                    title: 'Eliminar producto',
-                    message: `¿Estás seguro de que deseas eliminar "${product.name}"? Esta acción no se puede deshacer.`,
-                    confirmText: 'Eliminar',
-                    cancelText: 'Cancelar',
-                    type: 'danger',
-                    onConfirm: () => {
-                        if (typeof window.deleteProduct === 'function') {
-                            window.deleteProduct(productId).then(success => {
-                                if (success) {
-                                    // Recargar la lista de productos
-                                    loadAdminProducts();
-                                }
-                            });
-                        }
-                    }
-                });
-            }
-        });
-    });
-}
-
-// Función auxiliar para renderizar detalles de planes
-function renderPlansDetails(plans) {
-    if (!plans || plans.length === 0) {
-        return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
-    }
-    
-    return plans.map(plan => `
-        <div class="bg-gray-50 p-3 rounded-lg">
-            <div class="flex justify-between items-center mb-2">
-                <span class="font-medium">${plan.name || 'Plan sin nombre'}</span>
-            </div>
-            <div class="grid grid-cols-2 gap-2 text-sm">
-                ${plan.price_soles ? `
-                    <div class="text-green-600">
-                        <span class="font-medium">Precio S/:</span>
-                        <span>${Utils.formatCurrency(plan.price_soles, 'PEN')}</span>
-                    </div>
-                ` : ''}
-                ${plan.price_dollars ? `
-                    <div class="text-blue-600">
-                        <span class="font-medium">Precio $:</span>
-                        <span>${Utils.formatCurrency(plan.price_dollars, 'USD')}</span>
-                    </div>
-                ` : ''}
-            </div>
-        </div>
-    `).join('');
 }
 
 // Hacer funciones disponibles globalmente
@@ -891,7 +705,6 @@ window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
-window.renderAdminProductsList = renderAdminProductsList;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
 
 // Inicializar automáticamente cuando el DOM esté listo
