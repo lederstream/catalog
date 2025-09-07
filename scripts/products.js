@@ -425,7 +425,7 @@ class ProductManager {
                     <img src="${url}" 
                         alt="Vista previa" 
                         class="w-full h-full object-cover"
-                        onerror="this.src='https://via.placeholder.com/400x200?text=Error+al+cargar+imagen'">
+                        onerror="this.src='https://via.placeholder.com/400x200?text=Error+al+cargar+imagen'>
                 </div>
             `;
         } else {
@@ -473,6 +473,14 @@ class ProductManager {
                 }
             });
         });
+    }
+        prepareEditForm(product) {
+        if (!product) return;
+        
+        // Implementa la lógica para llenar el formulario de edición
+        if (typeof window.prepareEditForm === 'function') {
+            window.prepareEditForm(product);
+        }
     }
 }
 
@@ -528,6 +536,13 @@ export function renderProductsGrid(products, containerId) {
 export function renderAdminProductsList(products, container) {
     if (productManagerInstance) {
         productManagerInstance.renderAdminProductsList(products, container);
+    }
+}
+
+export function prepareEditForm(product) {
+    if (productManagerInstance) {
+        // Necesitas implementar este método en la clase ProductManager
+        productManagerInstance.prepareEditForm(product);
     }
 }
 
