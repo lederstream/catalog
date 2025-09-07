@@ -1,3 +1,4 @@
+
 // scripts/supabase.js
 const SUPABASE_URL = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
@@ -71,7 +72,7 @@ export const updateCategoryInSupabase = async (id, categoryData) => {
             .from('categories')
             .update({
                 name: categoryData.name,
-                created_at: new Date().toISOString()
+                updated_at: new Date().toISOString()
             })
             .eq('id', id)
             .select();
@@ -116,19 +117,24 @@ export const loadProductsFromSupabase = async () => {
     }
 };
 
-// Función para agregar producto en Supabase
+// Función para agregar producto en Supabase - CORREGIDO
 export const addProductToSupabase = async (productData) => {
     try {
+        // Asegurar que los campos requeridos tengan valores por defecto
+        const productToInsert = {
+            name: productData.name || 'Producto sin nombre',
+            description: productData.description || '',
+            category_id: productData.category_id || null,
+            photo_url: productData.photo_url || '',
+            plans: productData.plans || [],
+            price_soles: 0,
+            price_dollars: 0,
+            created_at: new Date().toISOString()
+        };
+
         const { data, error } = await supabase
             .from('products')
-            .insert([{
-                name: productData.name,
-                description: productData.description,
-                category_id: productData.category_id,
-                photo_url: productData.photo_url,
-                plans: productData.plans,
-                created_at: new Date().toISOString()
-            }])
+            .insert([productToInsert])
             .select();
         
         if (error) throw error;
@@ -139,7 +145,7 @@ export const addProductToSupabase = async (productData) => {
     }
 };
 
-// Función para actualizar producto en Supabase
+// Función para actualizar producto en Supabase - CORREGIDO
 export const updateProductInSupabase = async (id, productData) => {
     try {
         const { data, error } = await supabase
@@ -150,6 +156,8 @@ export const updateProductInSupabase = async (id, productData) => {
                 category_id: productData.category_id,
                 photo_url: productData.photo_url,
                 plans: productData.plans,
+                price_soles: 0,
+                price_dollars: 0,
                 created_at: new Date().toISOString()
             })
             .eq('id', id)
