@@ -123,9 +123,6 @@ class ModalSystem {
                     
                     const categoryData = {
                         name: formData.get('name'),
-                        description: formData.get('description'),
-                        icon: formData.get('icon'),
-                        color: formData.get('color')
                     };
                     
                     if (typeof window.addCategory === 'function') {
