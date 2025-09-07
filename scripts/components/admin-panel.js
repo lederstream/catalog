@@ -63,25 +63,23 @@ export function initAdminPanel() {
 // Cargar productos en el panel de administración
 async function loadAdminProducts() {
     try {
-        // Asegurarse de que los productos estén cargados
-        if (typeof window.loadProducts === 'function') {
-            await window.loadProducts();
+        const manager = await getProductManager();
+        await manager.loadProducts();
+        
+        const adminProductsList = document.getElementById('adminProductsList');
+        if (adminProductsList) {
+            const products = manager.getProducts();
             
-            const adminProductsList = document.getElementById('adminProductsList');
-            if (adminProductsList) {
-                const products = window.getProducts ? window.getProducts() : [];
-                
-                if (products.length > 0) {
-                    renderAdminProductsList(products, adminProductsList);
-                } else {
-                    adminProductsList.innerHTML = `
-                        <div class="text-center py-12 fade-in-up">
-                            <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
-                            <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
-                            <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
-                        </div>
-                    `;
-                }
+            if (products.length > 0) {
+                renderAdminProductsList(products, adminProductsList);
+            } else {
+                adminProductsList.innerHTML = `
+                    <div class="text-center py-12 fade-in-up">
+                        <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
+                        <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
+                        <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
+                    </div>
+                `;
             }
         }
     } catch (error) {
