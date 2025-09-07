@@ -1,5 +1,63 @@
 // scripts/app-admin.js
-import { app } from './app.js';
+import { initAdminPanel } from './components/admin-panel.js';
+import { getProductManager } from './products.js';
+import { getCategoryManager } from './categories.js';
+import { checkAuth, handleLogout } from './auth.js';
+
+
+// Inicializar la aplicación de administración
+async function initAdminApp() {
+    try {
+        // Verificar autenticación
+        if (!checkAuth()) {
+            window.location.href = 'login.html';
+            return;
+        }
+
+        // Inicializar managers
+        window.productManager = await getProductManager();
+        window.categoryManager = await getCategoryManager();
+
+        // Hacer funciones disponibles globalmente
+        window.getProducts = () => window.productManager.getProducts();
+        window.getProductById = (id) => window.productManager.getProductById(id);
+        window.editProduct = (id) => window.productManager.prepareEditForm(window.productManager.getProductById(id));
+        window.deleteProduct = (id) => window.productManager.deleteProduct(id);
+        window.loadProducts = () => window.productManager.loadProducts();
+        window.addProduct = (productData) => window.productManager.addProduct(productData);
+        window.updateProduct = (id, productData) => window.productManager.updateProduct(id, productData);
+        window.renderAdminProductsList = (products, container) => window.productManager.renderAdminProductsList(products, container);
+        
+        window.getCategories = () => window.categoryManager.getCategories();
+        window.loadCategories = () => window.categoryManager.loadCategories();
+        window.handleLogout = handleLogout;
+
+        // Inicializar panel de administración
+        initAdminPanel();
+
+        // Cargar productos y categorías inicialmente
+        await window.productManager.loadProducts();
+        await window.categoryManager.loadCategories();
+
+        // Renderizar lista de productos en admin
+        const adminProductsList = document.getElementById('adminProductsList');
+        if (adminProductsList) {
+            window.productManager.renderAdminProductsList(window.productManager.getProducts(), adminProductsList);
+        }
+
+        console.log('✅ Panel de administración inicializado correctamente');
+
+    } catch (error) {
+        console.error('❌ Error al inicializar la aplicación de administración:', error);
+    }
+}
+
+// Inicializar cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdminApp);
+} else {
+    initAdminApp();
+}
 
 // Inicializar la aplicación para la página de administración
 document.addEventListener('DOMContentLoaded', () => {
