@@ -2,12 +2,13 @@
 import { initAdminPanel } from './components/admin-panel.js';
 import { getProductManager } from './products.js';
 import { getCategoryManager } from './categories.js';
-import { checkAuth, handleLogout } from './auth.js';
-
+import { checkAuth, handleLogout, isAuthenticated } from './auth.js';
 
 // Inicializar la aplicación de administración
 async function initAdminApp() {
     try {
+        console.log('🚀 Inicializando aplicación para panel de administración...');
+        
         // Verificar autenticación
         if (!checkAuth()) {
             window.location.href = 'login.html';
@@ -21,7 +22,12 @@ async function initAdminApp() {
         // Hacer funciones disponibles globalmente
         window.getProducts = () => window.productManager.getProducts();
         window.getProductById = (id) => window.productManager.getProductById(id);
-        window.editProduct = (id) => window.productManager.prepareEditForm(window.productManager.getProductById(id));
+        window.editProduct = (id) => {
+            const product = window.productManager.getProductById(id);
+            if (product && typeof window.prepareEditForm === 'function') {
+                window.prepareEditForm(product);
+            }
+        };
         window.deleteProduct = (id) => window.productManager.deleteProduct(id);
         window.loadProducts = () => window.productManager.loadProducts();
         window.addProduct = (productData) => window.productManager.addProduct(productData);
@@ -33,44 +39,28 @@ async function initAdminApp() {
         window.handleLogout = handleLogout;
 
         // Inicializar panel de administración
-        initAdminPanel();
+        if (typeof initAdminPanel === 'function') {
+            initAdminPanel();
+        }
 
         // Cargar productos y categorías inicialmente
-        await window.productManager.loadProducts();
-        await window.categoryManager.loadCategories();
+        await window.loadProducts();
+        await window.loadCategories();
 
         // Renderizar lista de productos en admin
         const adminProductsList = document.getElementById('adminProductsList');
-        if (adminProductsList) {
-            window.productManager.renderAdminProductsList(window.productManager.getProducts(), adminProductsList);
+        if (adminProductsList && typeof window.renderAdminProductsList === 'function') {
+            window.renderAdminProductsList(window.getProducts(), adminProductsList);
         }
 
         console.log('✅ Panel de administración inicializado correctamente');
 
     } catch (error) {
         console.error('❌ Error al inicializar la aplicación de administración:', error);
-    }
-}
-
-// Inicializar cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAdminApp);
-} else {
-    initAdminApp();
-}
-
-// Inicializar la aplicación para la página de administración
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🚀 Inicializando aplicación para panel de administración...');
-    
-    // Verificar si app y initialize existen antes de llamarlos
-    if (window.app && typeof window.app.initialize === 'function') {
-        window.app.initialize();
-    } else {
-        console.error('❌ Error: app o app.initialize no están definidos');
+        // Cargar componentes directamente como fallback
         loadAdminComponents();
     }
-});
+}
 
 // Cargar componentes de administración directamente
 async function loadAdminComponents() {
@@ -102,12 +92,37 @@ async function loadAdminComponents() {
     }
 }
 
+// Inicializar cuando el DOM esté listo
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        // Solo inicializar si estamos en una página de administración
+        const isAdminPage = document.getElementById('adminProductsList') || 
+                           document.getElementById('productForm') ||
+                           document.getElementById('manageCategoriesBtn');
+        
+        if (isAdminPage && isAuthenticated()) {
+            initAdminApp();
+        }
+    });
+} else {
+    const isAdminPage = document.getElementById('adminProductsList') || 
+                       document.getElementById('productForm') ||
+                       document.getElementById('manageCategoriesBtn');
+    
+    if (isAdminPage && isAuthenticated()) {
+        initAdminApp();
+    }
+}
+
 // Hacer funciones disponibles globalmente
 window.refreshAdminData = () => {
-    if (window.app && typeof window.app.refresh === 'function') {
-        window.app.refresh();
-    } else if (window.refreshData) {
-        window.refreshData();
+    if (typeof window.loadProducts === 'function') {
+        window.loadProducts().then(() => {
+            const adminProductsList = document.getElementById('adminProductsList');
+            if (adminProductsList && typeof window.renderAdminProductsList === 'function') {
+                window.renderAdminProductsList(window.getProducts(), adminProductsList);
+            }
+        });
     }
 };
 
