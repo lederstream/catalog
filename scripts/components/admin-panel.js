@@ -1,4 +1,5 @@
 // scripts/components/admin-panel.js
+// scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
@@ -6,6 +7,8 @@ import { Utils } from '../utils.js';
 // Inicializar panel de administración
 export function initAdminPanel() {
     try {
+        console.log('🔄 Inicializando panel de administración...');
+        
         // Botón para gestionar categorías
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
@@ -283,14 +286,16 @@ async function loadCategoriesIntoSelect() {
 // Configurar el formulario de producto
 export function setupProductForm() {
     const productForm = document.getElementById('productForm');
+    
+    // Verificar si el formulario existe
+    if (!productForm) {
+        console.warn('⚠️ Formulario de producto no encontrado. El panel de admin puede no estar visible.');
+        return;
+    }
+    
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const photoUrlInput = document.getElementById('photo_url');
-
-    if (!productForm) {
-        console.error('Formulario de producto no encontrado');
-        return;
-    }
 
     // Agregar nuevo plan
     if (addPlanBtn) {
@@ -816,7 +821,7 @@ export function renderAdminProductsList(products, container) {
         </div>
     `).join('');
 
-// Agregar event listeners a los botones
+    // Agregar event listeners a los botones
     container.querySelectorAll('.edit-product').forEach(button => {
         button.addEventListener('click', (e) => {
             const productId = e.currentTarget.dataset.id;
