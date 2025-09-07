@@ -12,6 +12,7 @@ class CategoryManager {
     constructor() {
         this.categories = [];
         this.isLoading = false;
+        this.currentlyEditing = null;
     }
     
     static async init() {
@@ -111,7 +112,7 @@ class CategoryManager {
         }
         
         container.innerHTML = this.categories.map(category => `
-            <div class="category-item bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300">
+            <div class="category-item bg-white rounded-lg p-4 mb-3 shadow-sm border border-gray-100 hover:shadow-md transition-all duration-300" data-category-id="${category.id}">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center space-x-3">
                         <div class="w-10 h-10 rounded-full flex items-center justify-center bg-blue-500">
@@ -150,13 +151,15 @@ class CategoryManager {
     }
     
     attachCategoryEventListeners(container) {
+        // Botones de editar
         container.querySelectorAll('.edit-category').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.dataset.id;
-                this.handleEditCategory(id);
+                this.startEditCategory(id);
             });
         });
         
+        // Botones de eliminar
         container.querySelectorAll('.delete-category').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.dataset.id;
@@ -165,10 +168,29 @@ class CategoryManager {
         });
     }
     
-    handleEditCategory(id) {
-        const category = this.getCategoryById(id);
-        if (category) {
-            this.openCategoryModal(category);
+    async startEditCategory(id) {
+        try {
+            const category = this.getCategoryById(id);
+            
+            if (category) {
+                this.currentlyEditing = id;
+                
+                // Llenar formulario con datos de la categoría
+                document.getElementById('categoryId').value = id;
+                document.getElementById('categoryName').value = category.name || '';
+                
+                // Cambiar texto del botón
+                document.getElementById('categorySubmitText').textContent = 'Actualizar Categoría';
+                
+                // Mostrar botón de cancelar
+                document.getElementById('cancelCategoryEdit').classList.remove('hidden');
+                
+                // Scroll al formulario
+                document.getElementById('categoryForm').scrollIntoView({ behavior: 'smooth' });
+            }
+        } catch (error) {
+            console.error('Error starting category edit:', error);
+            Utils.showError('Error al preparar la edición');
         }
     }
     
@@ -176,143 +198,168 @@ class CategoryManager {
         const category = this.getCategoryById(id);
         if (!category) return;
         
-        // Usar el modal de confirmación en lugar de confirm nativo
         showConfirmationModal({
             title: 'Eliminar Categoría',
-            message: `¿Estás seguro de que deseas eliminar la categoría "${category.name}"?`,
+            message: `¿Estás seguro de que deseas eliminar la categoría "${category.name}"? Esta acción no se puede deshacer.`,
             confirmText: 'Eliminar',
             cancelText: 'Cancelar',
             type: 'danger',
             onConfirm: async () => {
                 try {
                     await this.deleteCategory(id);
+                    Utils.showSuccess('✅ Categoría eliminada correctamente');
                     
                     // Recargar lista en todos los contenedores visibles
                     document.querySelectorAll('#categoriesListContainer, #categoriesList').forEach(container => {
-                        if (container.offsetParent !== null) { // Si el elemento es visible
+                        if (container.offsetParent !== null) {
                             this.renderCategoriesList(container);
                         }
                     });
                 } catch (error) {
                     console.error('Error al eliminar categoría:', error);
+                    Utils.showError('Error al eliminar categoría');
                 }
             }
         });
     }
     
+    // Modal mejorado para gestión de categorías
     openCategoryModal(category = null) {
         const isEdit = category !== null;
-        const modalId = 'categoryModal';
+        const modalId = 'categoriesModal';
         
-        const modalHTML = `
-            <div id="${modalId}" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                <div class="bg-white rounded-lg max-w-md w-full">
-                    <div class="p-6">
-                        <h3 class="text-lg font-semibold text-gray-800 mb-4">${isEdit ? 'Editar' : 'Agregar'} Categoría</h3>
+        // Crear o actualizar el modal
+        let modal = document.getElementById(modalId);
+        
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = modalId;
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 hidden';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-hidden">
+                    <div class="p-4 border-b flex justify-between items-center">
+                        <h3 class="text-lg font-semibold">Gestión de Categorías</h3>
+                        <button class="close-modal text-gray-500 hover:text-gray-700">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="p-4 overflow-y-auto max-h-[calc(90vh-100px)]">
+                        <div class="mb-6 bg-blue-50 p-4 rounded-lg">
+                            <h4 class="font-medium text-blue-800 mb-2">${isEdit ? 'Editar' : 'Agregar'} Categoría</h4>
+                            <form id="categoryForm" class="space-y-3">
+                                <input type="hidden" id="categoryId" value="">
+                                <div>
+                                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+                                    <input type="text" id="categoryName" required 
+                                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                                </div>
+                                <div class="flex justify-end space-x-2">
+                                    <button type="button" id="cancelCategoryEdit" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 hidden">
+                                        Cancelar
+                                    </button>
+                                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                        <span id="categorySubmitText">${isEdit ? 'Actualizar' : 'Agregar'} Categoría</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                         
-                        <form id="categoryForm" class="space-y-4">
-                            <input type="hidden" id="categoryId" value="${isEdit ? category.id : ''}">
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                                <input type="text" id="categoryName" value="${isEdit ? category.name : ''}" required 
-                                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <div>
+                            <h4 class="font-medium text-gray-800 mb-3">Categorías Existentes</h4>
+                            <div id="categoriesListContainer" class="space-y-2 max-h-64 overflow-y-auto">
+                                <!-- Las categorías se cargarán aquí -->
                             </div>
-                            
-                            <div class="flex justify-end space-x-3 pt-4">
-                                <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors close-modal">
-                                    Cancelar
-                                </button>
-                                <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
-                                    ${isEdit ? 'Actualizar' : 'Agregar'} Categoría
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
                 </div>
-            </div>
-        `;
-        
-        // Eliminar modal existente si hay uno
-        const existingModal = document.getElementById(modalId);
-        if (existingModal) {
-            existingModal.remove();
-        }
-        
-        const modalContainer = document.createElement('div');
-        modalContainer.innerHTML = modalHTML;
-        document.body.appendChild(modalContainer);
-        
-        const modal = modalContainer.querySelector(`#${modalId}`);
-        Utils.fadeIn(modal);
-        
-        const form = modal.querySelector('#categoryForm');
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
+            `;
+            document.body.appendChild(modal);
             
-            const categoryData = {
-                name: document.getElementById('categoryName').value.trim()
-            };
+            // Configurar event listeners del modal
+            modal.querySelector('.close-modal').addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
             
-            const categoryId = document.getElementById('categoryId').value;
-            
-            try {
-                if (categoryId) {
-                    await this.updateCategory(categoryId, categoryData);
-                } else {
-                    await this.addCategory(categoryData);
-                }
-                
-                this.closeCategoryModal(modalId);
-                
-                // Recargar lista en todos los contenedores visibles
-                document.querySelectorAll('#categoriesListContainer, #categoriesList').forEach(container => {
-                    if (container.offsetParent !== null) { // Si el elemento es visible
-                        this.renderCategoriesList(container);
-                    }
-                });
-                
-                // Actualizar selector de categorías en formularios de productos
-                if (typeof window.loadCategoriesIntoSelect === 'function') {
-                    window.loadCategoriesIntoSelect();
-                }
-                
-            } catch (error) {
-                console.error('Error al guardar categoría:', error);
-            }
-        });
-        
-        const closeModal = () => this.closeCategoryModal(modalId);
-        
-        modalContainer.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', closeModal);
-        });
-        
-        modalContainer.addEventListener('click', (e) => {
-            if (e.target === modalContainer) {
-                closeModal();
-            }
-        });
-        
-        const handleEscape = (e) => {
-            if (e.key === 'Escape') {
-                closeModal();
-                document.removeEventListener('keydown', handleEscape);
-            }
-        };
-        
-        document.addEventListener('keydown', handleEscape);
-    }
-    
-    closeCategoryModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            Utils.fadeOut(modal).then(() => {
-                if (modal.parentNode) {
-                    modal.parentNode.removeChild(modal);
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.add('hidden');
                 }
             });
+            
+            // Configurar formulario
+            const form = modal.querySelector('#categoryForm');
+            form.addEventListener('submit', (e) => this.handleCategorySubmit(e));
+            
+            // Configurar botón de cancelar
+            modal.querySelector('#cancelCategoryEdit').addEventListener('click', () => {
+                this.cancelEdit();
+            });
         }
+        
+        // Si estamos editando, llenar el formulario
+        if (isEdit) {
+            this.startEditCategory(category.id);
+        } else {
+            this.cancelEdit();
+        }
+        
+        // Cargar categorías
+        this.renderCategoriesList(modal.querySelector('#categoriesListContainer'));
+        
+        // Mostrar modal
+        modal.classList.remove('hidden');
+        Utils.fadeIn(modal);
+    }
+    
+    async handleCategorySubmit(e) {
+        e.preventDefault();
+        
+        const formData = {
+            name: document.getElementById('categoryName').value.trim()
+        };
+        
+        const categoryId = document.getElementById('categoryId').value;
+        
+        if (!formData.name) {
+            Utils.showError('El nombre de la categoría es requerido');
+            return;
+        }
+        
+        try {
+            if (categoryId) {
+                // Actualizar categoría existente
+                await this.updateCategory(categoryId, formData);
+            } else {
+                // Crear nueva categoría
+                await this.addCategory(formData);
+            }
+            
+            // Recargar lista
+            const modal = document.getElementById('categoriesModal');
+            if (modal) {
+                this.renderCategoriesList(modal.querySelector('#categoriesListContainer'));
+            }
+            
+            // Recargar selector de categorías en formularios de productos
+            if (typeof window.loadCategoriesIntoSelect === 'function') {
+                window.loadCategoriesIntoSelect();
+            }
+            
+            // Resetear formulario
+            this.cancelEdit();
+            
+        } catch (error) {
+            console.error('Error saving category:', error);
+            Utils.showError('Error al guardar la categoría');
+        }
+    }
+    
+    cancelEdit() {
+        document.getElementById('categoryForm').reset();
+        document.getElementById('categoryId').value = '';
+        document.getElementById('categorySubmitText').textContent = 'Agregar Categoría';
+        document.getElementById('cancelCategoryEdit').classList.add('hidden');
+        this.currentlyEditing = null;
     }
 }
 
