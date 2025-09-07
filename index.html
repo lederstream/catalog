@@ -11,9 +11,6 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Supabase JS -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    
     <!-- Estilos propios -->
     <link rel="stylesheet" href="styles/main.css">
     <link rel="stylesheet" href="styles/components.css">
@@ -21,8 +18,19 @@
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
     <!-- Header -->
-    <header id="header" class="bg-white shadow-md sticky top-0 z-10">
-        <!-- El contenido del header se cargará dinámicamente -->
+    <header class="bg-white shadow-md sticky top-0 z-10">
+        <nav class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <a href="index.html" class="text-2xl font-bold text-blue-600">Cinebestial</a>
+            <div class="hidden md:flex space-x-6">
+                <a href="index.html" class="text-gray-800 hover:text-blue-600 font-medium">Inicio</a>
+                <a href="#catalog" class="text-gray-800 hover:text-blue-600 font-medium">Catálogo</a>
+                <a href="contact.html" class="text-gray-800 hover:text-blue-600 font-medium">Contacto</a>
+                <a href="login.html" class="text-gray-800 hover:text-blue-600 font-medium">Admin</a>
+            </div>
+            <button class="md:hidden text-gray-800">
+                <i class="fas fa-bars text-xl"></i>
+            </button>
+        </nav>
     </header>
 
     <main class="container mx-auto px-4 py-8">
@@ -64,200 +72,14 @@
             </div>
         </section>
 
-        <!-- Panel de Administración -->
-        <section id="admin" class="py-12 bg-white rounded-lg shadow-lg mt-12 p-4 md:p-6 fade-in">
-            <h2 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">Panel de Administración</h2>
-            <p class="text-center text-gray-600 mb-8">Gestiona tu catálogo de productos</p>
-            
-            <!-- Formulario de Login -->
-            <div id="loginForm" class="max-w-md mx-auto bg-gray-50 p-4 md:p-6 rounded-lg shadow">
-                <h3 class="text-xl font-semibold text-gray-800 mb-4">Iniciar Sesión</h3>
-                <div class="mb-4">
-                    <label class="block text-gray-700 mb-2" for="email">Correo Electrónico</label>
-                    <input type="email" id="email" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="admin@ejemplo.com">
-                </div>
-                <div class="mb-6">
-                    <label class="block text-gray-700 mb-2" for="password">Contraseña</label>
-                    <input type="password" id="password" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Tu contraseña">
-                </div>
-                <button id="loginBtn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                    Iniciar Sesión
-                </button>
-                <p class="text-center text-gray-500 text-sm mt-4">
-                    ¿No tienes cuenta? <a href="#" id="showRegister" class="text-blue-600 hover:underline">Regístrate aquí</a>
-                </p>
-                <div class="mt-4 p-3 bg-yellow-100 rounded-lg text-yellow-800 text-sm">
-                    <p class="font-semibold">Nota:</p>
-                    <p>Para usar esta aplicación, primero debes configurar las políticas de seguridad en Supabase.</p>
-                </div>
-            </div>
-
-            <!-- Formulario de Registro -->
-            <div id="registerForm" class="max-w-md mx-auto bg-gray-50 p-4 md:p-6 rounded-lg shadow hidden">
-                <h3 class="text-xl font-semibold text-gray-800 mb-4">Crear Cuenta</h3>
-                <div class="mb-4">
-                    <label class="block text-gray-700 mb-2" for="registerEmail">Correo Electrónico</label>
-                    <input type="email" id="registerEmail" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="mb-4">
-                    <label class="block text-gray-700 mb-2" for="registerPassword">Contraseña (mínimo 6 caracteres)</label>
-                    <input type="password" id="registerPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <div class="mb-6">
-                    <label class="block text-gray-700 mb-2" for="confirmPassword">Confirmar Contraseña</label>
-                    <input type="password" id="confirmPassword" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                </div>
-                <button id="registerBtn" class="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                    Crear Cuenta
-                </button>
-                <p class="text-center text-gray-500 text-sm mt-4">
-                    ¿Ya tienes cuenta? <a href="#" id="showLogin" class="text-blue-600 hover:underline">Inicia sesión aquí</a>
-                </p>
-            </div>
-            
-            <!-- Panel de Administración (inicialmente oculto) -->
-            <div id="adminPanel" class="hidden mt-8">
-                <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <h3 class="text-xl font-semibold">Gestionar Productos</h3>
-                    <div class="flex space-x-4">
-                        <button id="manageCategoriesBtn" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600">
-                            <i class="fas fa-tags mr-2"></i>Gestionar Categorías
-                        </button>
-                        <button id="logoutBtn" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 flex items-center">
-                            <i class="fas fa-sign-out-alt mr-2"></i>Cerrar Sesión
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- Formulario de Producto -->
-                <div class="bg-gray-50 p-4 md:p-6 rounded-lg shadow mb-8">
-                    <h4 class="text-lg font-semibold mb-4" id="formTitle">Agregar Nuevo Producto</h4>
-                    
-                    <form id="productForm" class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <input type="hidden" id="productId">
-                        
-                        <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2" for="name">Nombre del Producto *</label>
-                            <input type="text" id="name" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        
-                        <div>
-                            <label class="block text-gray-700 mb-2" for="category">Categoría *</label>
-                            <select id="category" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="">Seleccionar categoría</option>
-                                <!-- Las categorías se cargarán dinámicamente -->
-                            </select>
-                        </div>
-                        
-                        <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2" for="description">Descripción *</label>
-                            <textarea id="description" rows="3" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                        </div>
-                        
-                        <!-- Campo para URL de imagen -->
-                        <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2" for="photo_url">URL de la Imagen *</label>
-                            <div class="flex gap-2">
-                                <input type="url" id="photo_url" class="flex-grow px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://ejemplo.com/imagen.jpg">
-                                <button type="button" id="searchImageBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                                    <i class="fas fa-search"></i> Buscar
-                                </button>
-                            </div>
-                            <p class="text-sm text-gray-500 mt-1">Pega el enlace de una imagen desde Google Images o cualquier otra fuente</p>
-                        </div>
-                        
-                        <!-- Vista previa de imagen -->
-                        <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2">Vista Previa</label>
-                            <div id="imagePreview" class="border-2 border-dashed border-gray-300 rounded-lg h-48 flex items-center justify-center bg-gray-50">
-                                <p class="text-gray-500">La imagen aparecerá aquí</p>
-                            </div>
-                        </div>
-                        
-                        <!-- Planes y precios -->
-                        <div class="md:col-span-2">
-                            <label class="block text-gray-700 mb-2">Planes y Precios *</label>
-                            <div id="plansContainer" class="space-y-3 mb-4">
-                                <div class="plan-item">
-                                    <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
-                                        <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name">
-                                        <input type="number" step="0.01" placeholder="Precio S/." class="px-3 py-2 border rounded-lg plan-price-soles">
-                                        <input type="number" step="0.01" placeholder="Precio $" class="px-3 py-2 border rounded-lg plan-price-dollars">
-                                    </div>
-                                    <button type="button" class="remove-plan ml-2 text-red-500 hover:text-red-700">
-                                        <i class="fas fa-times"></i>
-                                    </button>
-                                </div>
-                            </div>
-                            <button type="button" id="addPlanBtn" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200">
-                                <i class="fas fa-plus mr-2"></i>Agregar otro plan
-                            </button>
-                        </div>
-                        
-                        <div class="md:col-span-2 flex justify-end space-x-4 mt-4">
-                            <button type="button" id="cancelBtn" class="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 hidden">Cancelar</button>
-                            <button type="submit" class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                                <span id="submitText">Agregar Producto</span>
-                            </button>
-                        </div>
-                    </form>
-                </div>
-                
-                <!-- Lista de productos en admin -->
-                <div>
-                    <h4 class="text-lg font-semibold mb-4">Productos Existentes</h4>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full bg-white">
-                            <thead>
-                                <tr class="bg-gray-100">
-                                    <th class="py-3 px-4 text-left">Imagen</th>
-                                    <th class="py-3 px-4 text-left">Nombre</th>
-                                    <th class="py-3 px-4 text-left">Categoría</th>
-                                    <th class="py-3 px-4 text-left">Planes</th>
-                                    <th class="py-3 px-4 text-left">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="adminProductsList">
-                                <!-- Los productos se cargarán aquí dinámicamente -->
-                                <tr>
-                                    <td colspan="5" class="py-4 text-center text-gray-500">Cargando productos...</td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Contact Section -->
-        <section id="contact" class="py-12 mt-12 fade-in">
-            <h2 class="text-2xl md:text-3xl font-bold text-center text-gray-800 mb-2">Contacto</h2>
-            <p class="text-center text-gray-600 mb-8">¿Tienes preguntas? Contáctanos</p>
-            
-            <div class="bg-white rounded-lg shadow-lg p-6 md:p-8 max-w-2xl mx-auto">
-                <form id="contactForm" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="md:col-span-2">
-                        <label class="block text-gray-700 mb-2" for="contactName">Nombre Completo *</label>
-                        <input type="text" id="contactName" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-2" for="contactEmail">Correo Electrónico *</label>
-                        <input type="email" id="contactEmail" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label class="block text-gray-700 mb-2" for="contactPhone">Teléfono</label>
-                        <input type="tel" id="contactPhone" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-gray-700 mb-2" for="contactMessage">Mensaje *</label>
-                        <textarea id="contactMessage" rows="4" required class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                    <div class="md:col-span-2">
-                        <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
-                            Enviar Mensaje
-                        </button>
-                    </div>
-                </form>
+        <!-- Call to Action -->
+        <section class="py-12 text-center">
+            <div class="bg-blue-600 text-white rounded-lg shadow-lg p-8 md:p-12">
+                <h2 class="text-2xl md:text-3xl font-bold mb-4">¿Necesitas administrar los productos?</h2>
+                <p class="text-lg mb-6 max-w-2xl mx-auto">Accede al panel de administración para agregar, editar o eliminar productos del catálogo.</p>
+                <a href="login.html" class="bg-white text-blue-600 hover:bg-blue-50 font-bold py-3 px-6 rounded-lg transition duration-300 inline-block">
+                    Acceder al Panel Admin
+                </a>
             </div>
         </section>
     </main>
@@ -273,10 +95,10 @@
                 <div>
                     <h4 class="text-lg font-semibold mb-4">Enlaces Rápidos</h4>
                     <ul class="space-y-2">
-                        <li><a href="#" class="text-gray-400 hover:text-white">Inicio</a></li>
+                        <li><a href="index.html" class="text-gray-400 hover:text-white">Inicio</a></li>
                         <li><a href="#catalog" class="text-gray-400 hover:text-white">Catálogo</a></li>
-                        <li><a href="#admin" class="text-gray-400 hover:text-white">Admin</a></li>
-                        <li><a href="#contact" class="text-gray-400 hover:text-white">Contacto</a></li>
+                        <li><a href="login.html" class="text-gray-400 hover:text-white">Admin</a></li>
+                        <li><a href="contact.html" class="text-gray-400 hover:text-white">Contacto</a></li>
                     </ul>
                 </div>
                 <div>
@@ -294,70 +116,14 @@
         </div>
     </footer>
 
-    <!-- Modal de búsqueda de imágenes -->
-    <div id="imageSearchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 h-3/4 overflow-hidden flex flex-col">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h3 class="text-lg font-semibold">Buscar Imágenes</h3>
-                <button id="closeModal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="p-4 border-b">
-                <div class="flex gap-2">
-                    <input type="text" id="imageSearchQuery" placeholder="Buscar imágenes..." class="flex-grow px-4 py-2 border rounded-lg">
-                    <button id="performSearch" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="flex-grow overflow-auto p-4">
-                <div id="imageSearchResults" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <p class="text-gray-500 col-span-full text-center py-8">Realiza una búsqueda para ver resultados</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Modal de Gestión de Categorías -->
-    <div id="categoriesModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-        <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 max-h-screen overflow-hidden flex flex-col">
-            <div class="p-4 border-b flex justify-between items-center">
-                <h3 class="text-lg font-semibold">Gestionar Categorías</h3>
-                <button id="closeCategoriesModal" class="text-gray-500 hover:text-gray-700">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="p-4 border-b">
-                <div class="flex gap-2">
-                    <input type="text" id="newCategoryName" placeholder="Nombre de nueva categoría" class="flex-grow px-4 py-2 border rounded-lg">
-                    <button id="addCategoryBtn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                        <i class="fas fa-plus"></i> Agregar
-                    </button>
-                </div>
-            </div>
-            <div class="flex-grow overflow-auto p-4">
-                <h4 class="font-semibold mb-3">Categorías Existentes</h4>
-                <div id="categoriesList" class="space-y-2">
-                    <!-- Las categorías se cargarán aquí dinámicamente -->
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="scripts/supabase.js"></script>
     <script type="module" src="scripts/utils.js"></script>
     <script type="module" src="scripts/products.js"></script>
     <script type="module" src="scripts/categories.js"></script>
-    <script type="module" src="scripts/auth.js"></script>
-    <script type="module" src="scripts/modals.js"></script>
-    <script type="module" src="scripts/notifications.js"></script>
-    <script type="module" src="scripts/event-listeners.js"></script>
-    <script type="module" src="scripts/components/header.js"></script>
     <script type="module" src="scripts/components/product-card.js"></script>
-    <script type="module" src="scripts/components/admin-panel.js"></script>
     <script type="module" src="scripts/components/catalog-grid.js"></script>
-    <script type="module" src="scripts/app.js"></script>
+    <script type="module" src="scripts/app-index.js"></script>
 </body>
 </html>
