@@ -1,4 +1,5 @@
 // scripts/auth.js
+// scripts/auth.js
 import { supabase } from './supabase.js';
 import { Utils } from './utils.js';
 
@@ -343,6 +344,11 @@ export const handleLogout = async () => {
 
 // Mostrar panel de administración
 const showAdminPanel = async () => {
+    // Esperar a que el DOM esté completamente cargado
+    if (document.readyState === 'loading') {
+        await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve));
+    }
+    
     const loginForm = document.getElementById('loginForm');
     const registerForm = document.getElementById('registerForm');
     const adminPanel = document.getElementById('adminPanel');
@@ -362,6 +368,9 @@ const showAdminPanel = async () => {
     }
     
     try {
+        // Esperar a que los componentes estén disponibles
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         // Cargar datos de administración
         if (typeof window.loadProducts === 'function') {
             await window.loadProducts();
@@ -371,6 +380,11 @@ const showAdminPanel = async () => {
             await window.loadCategories();
         }
         
+        // Configurar formulario de productos si existe
+        if (typeof window.setupProductForm === 'function') {
+            window.setupProductForm();
+        }
+        
         // Renderizar lista de productos en el panel de administración
         if (typeof window.renderAdminProductsList === 'function') {
             const adminProductsList = document.getElementById('adminProductsList');
@@ -378,11 +392,6 @@ const showAdminPanel = async () => {
                 const products = window.getProducts ? window.getProducts() : [];
                 window.renderAdminProductsList(products, adminProductsList);
             }
-        }
-        
-        // Configurar formulario de productos
-        if (typeof window.setupProductForm === 'function') {
-            window.setupProductForm();
         }
     } catch (error) {
         console.error('Error loading admin data:', error);
