@@ -52,9 +52,6 @@ export const addCategoryToSupabase = async (categoryData) => {
             .from('categories')
             .insert([{
                 name: categoryData.name,
-                description: categoryData.description,
-                icon: categoryData.icon,
-                color: categoryData.color,
                 created_at: new Date().toISOString()
             }])
             .select();
@@ -74,9 +71,6 @@ export const updateCategoryInSupabase = async (id, categoryData) => {
             .from('categories')
             .update({
                 name: categoryData.name,
-                description: categoryData.description,
-                icon: categoryData.icon,
-                color: categoryData.color,
                 updated_at: new Date().toISOString()
             })
             .eq('id', id)
