@@ -71,7 +71,7 @@ export const updateCategoryInSupabase = async (id, categoryData) => {
             .from('categories')
             .update({
                 name: categoryData.name,
-                updated_at: new Date().toISOString()
+                created_at_at: new Date().toISOString()
             })
             .eq('id', id)
             .select();
@@ -150,7 +150,7 @@ export const updateProductInSupabase = async (id, productData) => {
                 category_id: productData.category_id,
                 photo_url: productData.photo_url,
                 plans: productData.plans,
-                updated_at: new Date().toISOString()
+                created_at_at: new Date().toISOString()
             })
             .eq('id', id)
             .select();
