@@ -284,16 +284,16 @@ async function loadCategoriesIntoSelect() {
 export function setupProductForm() {
     const productForm = document.getElementById('productForm');
     
-    // Verificar si el formulario existe
-    if (!productForm) {
-        console.warn('⚠️ Formulario de producto no encontrado. El panel de admin puede no estar visible.');
+    // Verificar si el formulario existe y está en el DOM visible
+    if (!productForm || productForm.offsetParent === null) {
+        console.log('ℹ️ Formulario de producto no visible en esta página (normal para página principal)');
         return;
     }
     
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const photoUrlInput = document.getElementById('photo_url');
-
+    
     // Agregar nuevo plan
     if (addPlanBtn) {
         addPlanBtn.addEventListener('click', addPlanRow);
