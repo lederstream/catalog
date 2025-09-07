@@ -1,4 +1,4 @@
-// app-index.js - Punto de entrada para la página principal
+// scripts/app-index.js
 import { app } from './app.js';
 
 // Inicializar la aplicación cuando el DOM esté listo
