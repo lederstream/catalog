@@ -75,6 +75,14 @@ let currentUser = null;
 let authInitialized = false;
 
 // Verificar autenticación al cargar
+function redirectToLogin() {
+    // Verificar si ya estamos en la página de login
+    if (!window.location.pathname.includes('login.html')) {
+        window.location.href = 'login.html';
+    }
+}
+
+// Y modifica checkAuth para redirigir cuando no hay usuario autenticado:
 export const checkAuth = async () => {
     const authState = AuthState.getInstance();
     
@@ -83,11 +91,8 @@ export const checkAuth = async () => {
         
         if (error) {
             console.error('Error obteniendo sesión:', error);
-            // Intentar restaurar desde localStorage
-            if (authState.restoreUser()) {
-                currentUser = authState.currentUser;
-                return true;
-            }
+            // Redirigir a login si hay error
+            redirectToLogin();
             return false;
         }
         
@@ -100,10 +105,13 @@ export const checkAuth = async () => {
             return true;
         }
         
+        // Redirigir a login si no hay sesión
+        redirectToLogin();
         return false;
     } catch (error) {
         console.error('Error checking auth:', error);
         Utils.showError('❌ Error al verificar la autenticación');
+        redirectToLogin();
         return false;
     }
 };
