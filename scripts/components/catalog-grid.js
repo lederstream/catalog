@@ -269,15 +269,6 @@ function setupSorting() {
     }
 }
 
-// Actualizar icono de ordenamiento
-function updateSortOrderIcon(button, order) {
-    if (order === 'asc') {
-        button.innerHTML = '<i class="fas fa-arrow-up"></i>';
-    } else {
-        button.innerHTML = '<i class="fas fa-arrow-down"></i>';
-    }
-}
-
 // Configurar animaciones de scroll
 function setupScrollAnimations() {
     // Animación para elementos que entran en vista
