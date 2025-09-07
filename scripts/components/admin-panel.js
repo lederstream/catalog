@@ -619,26 +619,42 @@ function updateImagePreview(url) {
 }
 
 // Preparar formulario para edición
-export function prepareEditForm(product) {
+export async function prepareEditForm(product) {
     if (!product) return;
 
+    console.log('🔄 Preparando formulario para edición:', product);
+    
+    // Establecer valores inmediatos
     document.getElementById('productId').value = product.id;
     document.getElementById('name').value = product.name || '';
     document.getElementById('description').value = product.description || '';
     document.getElementById('photo_url').value = product.photo_url || '';
     
-    // Establecer categoría después de cargar las opciones
-    const setCategory = () => {
-        if (product.category_id) {
-            document.getElementById('category').value = product.category_id;
+    // Cargar categorías y ESPERAR a que se completen
+    await loadCategoriesIntoSelect();
+    
+    // Establecer categoría DESPUÉS de cargar las opciones
+    if (product.category_id) {
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            // Usar setTimeout para asegurar que el DOM esté actualizado
+            setTimeout(() => {
+                categorySelect.value = product.category_id;
+                console.log('✅ Categoría establecida:', product.category_id);
+                
+                // Verificar si se estableció correctamente
+                if (categorySelect.value !== product.category_id.toString()) {
+                    console.warn('⚠️ No se pudo establecer la categoría, reintentando...');
+                    // Reintentar después de un breve delay
+                    setTimeout(() => {
+                        categorySelect.value = product.category_id;
+                    }, 100);
+                }
+            }, 100);
         }
-    };
+    }
     
-    // Cargar categorías y luego establecer el valor
-    loadCategoriesIntoSelect().then(() => {
-        setTimeout(setCategory, 100);
-    });
-    
+    // Actualizar UI
     const formTitle = document.getElementById('formTitle');
     const submitText = document.getElementById('submitText');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -649,6 +665,7 @@ export function prepareEditForm(product) {
     
     updateImagePreview(product.photo_url);
     
+    // Configurar planes
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
