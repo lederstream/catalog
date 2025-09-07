@@ -1,4 +1,5 @@
 // scripts/app.js
+// scripts/app.js
 import { Utils } from './utils.js';
 import { supabase } from './supabase.js';
 import { getCategoryManager } from './categories.js';
@@ -47,7 +48,7 @@ class DigitalCatalogApp {
             await this.loadInitialData();
             
             // Inicializar UI components
-            this.initializeUIComponents();
+            await this.initializeUIComponents();
             
             // Configurar monitoreo de conexión
             this.setupConnectionMonitoring();
@@ -151,12 +152,16 @@ class DigitalCatalogApp {
         });
     }
     
-    initializeUIComponents() {
+    async initializeUIComponents() {
         // Renderizar header
-        renderHeader();
+        if (typeof renderHeader === 'function') {
+            renderHeader();
+        }
         
-        // Inicializar componentes de UI
+        // Inicializar componentes de UI solo si existen
         if (typeof initAdminPanel === 'function') {
+            // Esperar a que el panel admin esté en el DOM
+            await this.waitForElement('#adminPanel');
             initAdminPanel();
         }
         
@@ -169,6 +174,35 @@ class DigitalCatalogApp {
         
         // Configurar responsive design
         this.setupResponsiveDesign();
+    }
+    
+    // Función auxiliar para esperar elementos
+    waitForElement(selector, timeout = 5000) {
+        return new Promise((resolve, reject) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                resolve(element);
+                return;
+            }
+            
+            const observer = new MutationObserver(() => {
+                const element = document.querySelector(selector);
+                if (element) {
+                    observer.disconnect();
+                    resolve(element);
+                }
+            });
+            
+            observer.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            setTimeout(() => {
+                observer.disconnect();
+                reject(new Error(`Element ${selector} not found within ${timeout}ms`));
+            }, timeout);
+        });
     }
     
     setupScrollAnimations() {
@@ -347,7 +381,7 @@ window.showProductDetails = (productId) => {
 
 // Hacer disponible globalmente
 window.DigitalCatalogApp = DigitalCatalogApp;
-window.app = app
+window.app = app;
 
 // Inicializar automáticamente cuando el DOM esté listo
 if (document.readyState === 'loading') {
