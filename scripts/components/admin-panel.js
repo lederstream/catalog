@@ -44,10 +44,9 @@ export function initAdminPanel() {
         }
 
         // Configurar formulario de producto solo si existe
-        if (typeof window.setupProductForm === 'function'){
+        if (typeof window.setupProductForm === 'function') {
             window.setupProductForm();
         }
-        
         
         // Cargar productos en el panel de administración
         loadAdminProducts();
