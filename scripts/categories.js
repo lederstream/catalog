@@ -355,7 +355,7 @@ class CategoryManager {
     }
     
     cancelEdit() {
-        document.getElementById('categoryForm').reset();
+        document.getElementById('categoryForm').reset();    
         document.getElementById('categoryId').value = '';
         document.getElementById('categorySubmitText').textContent = 'Agregar Categoría';
         document.getElementById('cancelCategoryEdit').classList.add('hidden');
