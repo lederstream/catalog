@@ -224,37 +224,7 @@ class CategoryManager {
                                 <input type="text" id="categoryName" value="${isEdit ? category.name : ''}" required 
                                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                             </div>
-                            
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                                <textarea id="categoryDescription" rows="2"
-                                          class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">${isEdit ? category.description : ''}</textarea>
-                            </div>
-                            
-                            <div class="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Icono</label>
-                                    <select id="categoryIcon" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                        <option value="fas fa-tag" ${isEdit && category.icon === 'fas fa-tag' ? 'selected' : ''}>🏷️ Etiqueta</option>
-                                        <option value="fas fa-box" ${isEdit && category.icon === 'fas fa-box' ? 'selected' : ''}>📦 Caja</option>
-                                        <option value="fas fa-mobile" ${isEdit && category.icon === 'fas fa-mobile' ? 'selected' : ''}>📱 Móvil</option>
-                                        <option value="fas fa-laptop" ${isEdit && category.icon === 'fas fa-laptop' ? 'selected' : ''}>💻 Laptop</option>
-                                        <option value="fas fa-tshirt" ${isEdit && category.icon === 'fas fa-tshirt' ? 'selected' : ''}>👕 Ropa</option>
-                                        <option value="fas fa-utensils" ${isEdit && category.icon === 'fas fa-utensils' ? 'selected' : ''}>🍴 Comida</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                                    <select id="categoryColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                        <option value="blue" ${isEdit && category.color === 'blue' ? 'selected' : ''}>Azul</option>
-                                        <option value="green" ${isEdit && category.color === 'green' ? 'selected' : ''}>Verde</option>
-                                        <option value="red" ${isEdit && category.color === 'red' ? 'selected' : ''}>Rojo</option>
-                                        <option value="yellow" ${isEdit && category.color === 'yellow' ? 'selected' : ''}>Amarillo</option>
-                                        <option value="purple" ${isEdit && category.color === 'purple' ? 'selected' : ''}>Morado</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
+
                             <div class="flex justify-end space-x-3 pt-4">
                                 <button type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors close-modal">
                                     Cancelar
