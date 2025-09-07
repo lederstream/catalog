@@ -307,20 +307,6 @@ class DigitalCatalogApp {
         }
     }
     
-    showLoadingState() {
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'fixed inset-0 bg-white bg-opacity-90 flex items-center justify-center z-50 loading-state';
-        loadingDiv.innerHTML = `
-            <div class="text-center">
-                <div class="loading-spinner inline-block w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p class="text-gray-600 font-medium">Cargando DigitalCatalog</p>
-                <p class="text-gray-400 text-sm mt-1">Estamos preparando todo para ti...</p>
-            </div>
-        `;
-        document.body.appendChild(loadingDiv);
-        document.body.style.overflow = 'hidden';
-    }
-    
     async hideLoadingState() {
         const loader = document.querySelector('.loading-state');
         if (loader) {
