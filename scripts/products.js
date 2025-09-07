@@ -1,8 +1,6 @@
 // scripts/products.js
 import { addProductToSupabase, updateProductInSupabase, deleteProductFromSupabase, loadProductsFromSupabase } from './supabase.js';
 import { Utils } from './utils.js';
-import { getCategoryManager } from './categories.js';
-import { prepareEditForm } from './components/admin-panel.js';
 
 class ProductManager {
     constructor() {
@@ -319,7 +317,7 @@ class ProductManager {
                         </button>
                     </div>
                 </div>  
-                                <!-- Detalles de planes -->
+                <!-- Detalles de planes -->
                 <div class="mt-4 pt-4 border-t border-gray-100">
                     <h5 class="font-medium text-gray-700 mb-2">Planes y Precios:</h5>
                     <div class="space-y-2">
@@ -341,25 +339,20 @@ class ProductManager {
             <div class="bg-gray-50 p-3 rounded-lg">
                 <div class="flex justify-between items-center">
                     <span class="font-medium">${plan.name || 'Plan sin nombre'}</span>
-                    <button class="text-blue-500 hover:text-blue-700 toggle-plan-details" data-plan-id="${plan.id}">
-                        <i class="fas fa-chevron-down"></i>
-                    </button>
                 </div>
-                <div class="plan-details mt-2 hidden">
-                    <div class="grid grid-cols-2 gap-2 text-sm">
-                        ${plan.price_soles ? `
-                            <div class="text-green-600">
-                                <span class="font-medium">Precio S/:</span>
-                                <span>${Utils.formatCurrency(plan.price_soles, 'PEN')}</span>
-                            </div>
-                        ` : ''}
-                        ${plan.price_dollars ? `
-                            <div class="text-blue-600">
-                                <span class="font-medium">Precio $:</span>
-                                <span>${Utils.formatCurrency(plan.price_dollars, 'USD')}</span>
-                            </div>
-                        ` : ''}
-                    </div>
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    ${plan.price_soles ? `
+                        <div class="text-green-600">
+                            <span class="font-medium">Precio S/:</span>
+                            <span>${Utils.formatCurrency(plan.price_soles, 'PEN')}</span>
+                        </div>
+                    ` : ''}
+                    ${plan.price_dollars ? `
+                        <div class="text-blue-600">
+                            <span class="font-medium">Precio $:</span>
+                            <span>${Utils.formatCurrency(plan.price_dollars, 'USD')}</span>
+                        </div>
+                    ` : ''}
                 </div>
             </div>
         `).join('');
@@ -373,53 +366,6 @@ class ProductManager {
                 <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
             </div>
         `;
-    }
-    // Preparar formulario para edición
-    prepareEditForm(product) {
-        if (!product) return;
-
-        // Llenar formulario con datos del producto
-        document.getElementById('productId').value = product.id;
-        document.getElementById('name').value = product.name || '';
-        document.getElementById('description').value = product.description || '';
-        document.getElementById('photo_url').value = product.photo_url || '';
-        
-        // Establecer categoría
-        const categorySelect = document.getElementById('category');
-        if (categorySelect && product.category_id) {
-            categorySelect.value = product.category_id;
-        }
-        
-        // Actualizar UI del formulario
-        const formTitle = document.getElementById('formTitle');
-        const submitText = document.getElementById('submitText');
-        const cancelBtn = document.getElementById('cancelBtn');
-        
-        if (formTitle) formTitle.textContent = 'Editar Producto';
-        if (submitText) submitText.textContent = 'Actualizar Producto';
-        if (cancelBtn) cancelBtn.classList.remove('hidden');
-        
-        // Actualizar vista previa de imagen
-        this.updateImagePreview(product.photo_url);
-        
-        // Llenar planes
-        const plansContainer = document.getElementById('plansContainer');
-        if (plansContainer) {
-            plansContainer.innerHTML = '';
-            
-            if (product.plans && product.plans.length > 0) {
-                product.plans.forEach(plan => {
-                    this.addPlanRow(plan);
-                });
-            } else {
-                this.addPlanRow();
-            }
-        }
-        // Scroll al formulario
-        const productForm = document.getElementById('productForm');
-        if (productForm) {
-            productForm.scrollIntoView({ behavior: 'smooth' });
-        }
     }
 
     // Helper para añadir filas de plan
@@ -490,6 +436,7 @@ class ProductManager {
             `;
         }
     }
+
     attachAdminEventListeners(container, products) {
         container.querySelectorAll('.edit-product').forEach(button => {
             button.addEventListener('click', (e) => {
@@ -526,25 +473,8 @@ class ProductManager {
                 }
             });
         });
-        // Toggle para mostrar/ocultar detalles de planes
-        container.querySelectorAll('.toggle-plan-details').forEach(button => {
-            button.addEventListener('click', (e) => {
-                const planDetails = e.currentTarget.closest('.bg-gray-50').querySelector('.plan-details');
-                planDetails.classList.toggle('hidden');
-                
-                const icon = e.currentTarget.querySelector('i');
-                if (planDetails.classList.contains('hidden')) {
-                    icon.classList.remove('fa-chevron-up');
-                    icon.classList.add('fa-chevron-down');
-                } else {
-                    icon.classList.remove('fa-chevron-down');
-                    icon.classList.add('fa-chevron-up');
-                }
-            });
-        });
     }
 }
-
 
 // Singleton instance
 let productManagerInstance = null;
@@ -603,7 +533,6 @@ export function renderAdminProductsList(products, container) {
 
 // Hacer disponible globalmente
 window.ProductManager = ProductManager;
-window.prepareEditForm = prepareEditForm;
 window.productManager = getProductManager;
 
 // Inicializar automáticamente
