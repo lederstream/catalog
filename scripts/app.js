@@ -324,7 +324,15 @@ class DigitalCatalogApp {
     async hideLoadingState() {
         const loader = document.querySelector('.loading-state');
         if (loader) {
-            await Utils.fadeOut(loader);
+            // Usar una transición suave en lugar de fadeOut si existe
+            if (typeof Utils !== 'undefined' && typeof Utils.fadeOut === 'function') {
+                await Utils.fadeOut(loader);
+            } else {
+                // Fallback si Utils no está disponible
+                loader.style.opacity = '0';
+                loader.style.transition = 'opacity 0.5s ease';
+                await new Promise(resolve => setTimeout(resolve, 500));
+            }
             loader.remove();
         }
         document.body.style.overflow = '';
