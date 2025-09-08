@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.app && typeof window.app.initialize === 'function') {
         window.app.initialize();
     } else {
-        console.error('❌ Error: app o app.initialize no están definidos');
+        console.log('ℹ️ app.initialize no está definido, cargando componentes directamente');
         loadAdminComponents();
     }
 });
