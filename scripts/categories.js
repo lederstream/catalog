@@ -1,4 +1,4 @@
-// scripts/categories.js - VERSIÓN CORREGIDA
+// scripts/categories.js - VERSIÓN FINAL
 import { 
     loadCategoriesFromSupabase, 
     addCategoryToSupabase, 
@@ -13,6 +13,7 @@ class CategoryManager {
         this.categories = [];
         this.isLoading = false;
         this.currentlyEditing = null;
+        this.loadPromise = null;
     }
     
     static async init() {
@@ -22,21 +23,23 @@ class CategoryManager {
     }
     
     async loadCategories() {
+        if (this.loadPromise) return this.loadPromise;
         if (this.isLoading) return this.categories;
         
         this.isLoading = true;
         
         try {
-            const data = await loadCategoriesFromSupabase();
+            this.loadPromise = loadCategoriesFromSupabase();
+            const data = await this.loadPromise;
             this.categories = data || [];
             return this.categories;
             
         } catch (error) {
             console.error('❌ Error cargando categorías:', error);
-            Utils.showError('Error al cargar categorías');
             return [];
         } finally {
             this.isLoading = false;
+            this.loadPromise = null;
         }
     }
     
@@ -51,13 +54,11 @@ class CategoryManager {
     async addCategory(categoryData) {
         try {
             const result = await addCategoryToSupabase(categoryData);
-            
             if (result) {
                 this.categories.push(result);
                 Utils.showSuccess('✅ Categoría agregada correctamente');
                 return result;
             }
-            
             return null;
         } catch (error) {
             console.error('Error al agregar categoría:', error);
@@ -69,16 +70,12 @@ class CategoryManager {
     async updateCategory(id, categoryData) {
         try {
             const result = await updateCategoryInSupabase(id, categoryData);
-            
             if (result) {
                 const index = this.categories.findIndex(c => c.id === id);
-                if (index !== -1) {
-                    this.categories[index] = result;
-                }
+                if (index !== -1) this.categories[index] = result;
                 Utils.showSuccess('✅ Categoría actualizada correctamente');
                 return result;
             }
-            
             return null;
         } catch (error) {
             console.error('Error al actualizar categoría:', error);
@@ -101,10 +98,7 @@ class CategoryManager {
     }
     
     renderCategoriesList(container) {
-        if (!container) {
-            console.error('Contenedor de categorías no encontrado');
-            return;
-        }
+        if (!container) return;
         
         if (this.categories.length === 0) {
             container.innerHTML = this.getEmptyStateHTML();
@@ -151,7 +145,6 @@ class CategoryManager {
     }
     
     attachCategoryEventListeners(container) {
-        // Botones de editar
         container.querySelectorAll('.edit-category').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.dataset.id;
@@ -159,7 +152,6 @@ class CategoryManager {
             });
         });
         
-        // Botones de eliminar
         container.querySelectorAll('.delete-category').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.dataset.id;
@@ -171,33 +163,24 @@ class CategoryManager {
     async startEditCategory(id) {
         try {
             const category = this.getCategoryById(id);
+            if (!category) return;
             
-            if (category) {
-                this.currentlyEditing = id;
-                
-                const modal = document.getElementById('categoriesModal');
-                if (!modal) return;
-                
-                // Llenar formulario con datos de la categoría
-                const categoryIdInput = modal.querySelector('#categoryId');
-                const categoryNameInput = modal.querySelector('#categoryName');
-                const submitText = modal.querySelector('#categorySubmitText');
-                const cancelBtn = modal.querySelector('#cancelCategoryEdit');
-                
-                if (categoryIdInput) categoryIdInput.value = id;
-                if (categoryNameInput) categoryNameInput.value = category.name || '';
-                if (submitText) submitText.textContent = 'Actualizar Categoría';
-                if (cancelBtn) cancelBtn.classList.remove('hidden');
-                
-                // Scroll al formulario
-                const form = modal.querySelector('#categoryForm');
-                if (form) {
-                    form.scrollIntoView({ behavior: 'smooth' });
-                }
-            }
+            this.currentlyEditing = id;
+            const modal = document.getElementById('categoriesModal');
+            if (!modal) return;
+            
+            const categoryIdInput = modal.querySelector('#categoryId');
+            const categoryNameInput = modal.querySelector('#categoryName');
+            const submitText = modal.querySelector('#categorySubmitText');
+            const cancelBtn = modal.querySelector('#cancelCategoryEdit');
+            
+            if (categoryIdInput) categoryIdInput.value = id;
+            if (categoryNameInput) categoryNameInput.value = category.name || '';
+            if (submitText) submitText.textContent = 'Actualizar Categoría';
+            if (cancelBtn) cancelBtn.classList.remove('hidden');
+            
         } catch (error) {
             console.error('Error starting category edit:', error);
-            Utils.showError('Error al preparar la edición');
         }
     }
     
@@ -207,41 +190,31 @@ class CategoryManager {
         
         showConfirmationModal({
             title: 'Eliminar Categoría',
-            message: `¿Estás seguro de que deseas eliminar la categoría "${category.name}"? Esta acción no se puede deshacer.`,
+            message: `¿Estás seguro de que deseas eliminar la categoría "${category.name}"?`,
             confirmText: 'Eliminar',
             cancelText: 'Cancelar',
             type: 'danger',
             onConfirm: async () => {
                 try {
                     await this.deleteCategory(id);
-                    Utils.showSuccess('✅ Categoría eliminada correctamente');
-                    
-                    // Recargar lista en todos los contenedores visibles
                     document.querySelectorAll('#categoriesListContainer, #categoriesList').forEach(container => {
-                        if (container.offsetParent !== null) {
-                            this.renderCategoriesList(container);
-                        }
+                        if (container.offsetParent !== null) this.renderCategoriesList(container);
                     });
                 } catch (error) {
                     console.error('Error al eliminar categoría:', error);
-                    Utils.showError('Error al eliminar categoría');
                 }
             }
         });
     }
     
-    // Modal mejorado para gestión de categorías - VERSIÓN CORREGIDA
     openCategoryModal(category = null) {
         const isEdit = category !== null;
         const modalId = 'categoriesModal';
         
-        // Eliminar modal existente si hay uno
+        // Eliminar modal existente
         const existingModal = document.getElementById(modalId);
-        if (existingModal) {
-            existingModal.remove();
-        }
+        if (existingModal) existingModal.remove();
 
-        // Crear modal nuevo
         const modal = document.createElement('div');
         modal.id = modalId;
         modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
@@ -276,95 +249,54 @@ class CategoryManager {
                     
                     <div>
                         <h4 class="font-medium text-gray-800 mb-3">Categorías Existentes</h4>
-                        <div id="categoriesListContainer" class="space-y-2 max-h-64 overflow-y-auto">
-                            <!-- Las categorías se cargarán aquí -->
-                        </div>
+                        <div id="categoriesListContainer" class="space-y-2 max-h-64 overflow-y-auto"></div>
                     </div>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
-        
-        // Configurar event listeners inmediatamente
         this.setupModalEvents(modal);
         
-        // Si estamos editando, llenar el formulario
-        if (isEdit) {
-            this.startEditCategory(category.id);
-        } else {
-            this.cancelEdit();
-        }
+        if (isEdit) this.startEditCategory(category.id);
+        else this.cancelEdit();
         
-        // Cargar categorías después de que el modal esté en el DOM
         setTimeout(() => {
             const listContainer = modal.querySelector('#categoriesListContainer');
-            if (listContainer) {
-                this.renderCategoriesList(listContainer);
-            }
+            if (listContainer) this.renderCategoriesList(listContainer);
         }, 100);
         
         Utils.fadeIn(modal);
     }
     
-    // Método para configurar eventos del modal - CORREGIDO
     setupModalEvents(modal) {
-        // Cerrar modal
         const closeBtn = modal.querySelector('.close-modal');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => {
-                modal.remove();
-            });
-        }
+        if (closeBtn) closeBtn.addEventListener('click', () => modal.remove());
         
-        // Cerrar al hacer clic fuera
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
+            if (e.target === modal) modal.remove();
         });
         
-        // Configurar formulario
         const form = modal.querySelector('#categoryForm');
-        if (form) {
-            form.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleCategorySubmit(e);
-            });
-        }
+        if (form) form.addEventListener('submit', (e) => this.handleCategorySubmit(e));
         
-        // Configurar botón de cancelar
         const cancelBtn = modal.querySelector('#cancelCategoryEdit');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
-                this.cancelEdit();
-            });
-        }
+        if (cancelBtn) cancelBtn.addEventListener('click', () => this.cancelEdit());
         
-        // Prevenir que el clic dentro del modal lo cierre
         const modalContent = modal.querySelector('.bg-white');
-        if (modalContent) {
-            modalContent.addEventListener('click', (e) => {
-                e.stopPropagation();
-            });
-        }
+        if (modalContent) modalContent.addEventListener('click', (e) => e.stopPropagation());
     }
     
     async handleCategorySubmit(e) {
         e.preventDefault();
-        
         const modal = document.getElementById('categoriesModal');
         if (!modal) return;
         
         const nameInput = modal.querySelector('#categoryName');
         const categoryIdInput = modal.querySelector('#categoryId');
-        
         if (!nameInput) return;
         
-        const formData = {
-            name: nameInput.value.trim()
-        };
-        
+        const formData = { name: nameInput.value.trim() };
         const categoryId = categoryIdInput ? categoryIdInput.value : '';
         
         if (!formData.name) {
@@ -373,49 +305,29 @@ class CategoryManager {
         }
         
         try {
-            let result;
             const submitBtn = modal.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
             
-            // Mostrar estado de carga
             submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
             submitBtn.disabled = true;
             
-            if (categoryId) {
-                // Actualizar categoría existente
-                result = await this.updateCategory(categoryId, formData);
-            } else {
-                // Crear nueva categoría
-                result = await this.addCategory(formData);
-            }
+            let result;
+            if (categoryId) result = await this.updateCategory(categoryId, formData);
+            else result = await this.addCategory(formData);
 
             if (result) {
-                Utils.showSuccess(categoryId ? '✅ Categoría actualizada correctamente' : '✅ Categoría agregada correctamente');
-                
-                // Recargar lista
                 const listContainer = modal.querySelector('#categoriesListContainer');
-                if (listContainer) {
-                    this.renderCategoriesList(listContainer);
-                }
+                if (listContainer) this.renderCategoriesList(listContainer);
                 
-                // Recargar selector de categorías en formularios de productos
-                if (typeof window.loadCategoriesIntoSelect === 'function') {
-                    window.loadCategoriesIntoSelect();
-                }
+                if (typeof window.loadCategoriesIntoSelect === 'function') window.loadCategoriesIntoSelect();
                 
-                // Resetear formulario
                 this.cancelEdit();
-                
-                // Restaurar botón
                 submitBtn.innerHTML = originalText;
                 submitBtn.disabled = false;
             }
         } catch (error) {
             console.error('Error saving category:', error);
-            Utils.showError('Error al guardar la categoría: ' + (error.message || 'Error desconocido'));
-            
-            // Restaurar botón en caso de error
-            const submitBtn = modal.querySelector('button[type="submit]');
+            const submitBtn = modal.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.innerHTML = categoryId ? 'Actualizar Categoría' : 'Agregar Categoría';
                 submitBtn.disabled = false;
@@ -427,26 +339,17 @@ class CategoryManager {
         const modal = document.getElementById('categoriesModal');
         if (modal) {
             const form = modal.querySelector('#categoryForm');
-            if (form) {
-                form.reset();
-            }
+            if (form) form.reset();
             
             const categoryIdInput = modal.querySelector('#categoryId');
-            if (categoryIdInput) {
-                categoryIdInput.value = '';
-            }
+            if (categoryIdInput) categoryIdInput.value = '';
             
             const submitText = modal.querySelector('#categorySubmitText');
-            if (submitText) {
-                submitText.textContent = 'Agregar Categoría';
-            }
+            if (submitText) submitText.textContent = 'Agregar Categoría';
             
             const cancelBtn = modal.querySelector('#cancelCategoryEdit');
-            if (cancelBtn) {
-                cancelBtn.classList.add('hidden');
-            }
+            if (cancelBtn) cancelBtn.classList.add('hidden');
         }
-        
         this.currentlyEditing = null;
     }
 }
@@ -455,9 +358,7 @@ class CategoryManager {
 let categoryManagerInstance = null;
 
 export async function getCategoryManager() {
-    if (!categoryManagerInstance) {
-        categoryManagerInstance = await CategoryManager.init();
-    }
+    if (!categoryManagerInstance) categoryManagerInstance = await CategoryManager.init();
     return categoryManagerInstance;
 }
 
@@ -491,35 +392,20 @@ export async function deleteCategory(id) {
 }
 
 export function renderCategoriesList(container) {
-    if (categoryManagerInstance) {
-        categoryManagerInstance.renderCategoriesList(container);
-    }
+    if (categoryManagerInstance) categoryManagerInstance.renderCategoriesList(container);
 }
 
-// Función para abrir modal de categoría
 export function openCategoryModal(category = null) {
-    if (categoryManagerInstance) {
-        categoryManagerInstance.openCategoryModal(category);
-    } else {
-        // Si el manager no está inicializado, inicializarlo primero
-        getCategoryManager().then(manager => {
-            manager.openCategoryModal(category);
-        });
-    }
+    if (categoryManagerInstance) categoryManagerInstance.openCategoryModal(category);
+    else getCategoryManager().then(manager => manager.openCategoryModal(category));
 }
 
 export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
-    if (!categorySelect) {
-        console.warn('⚠️ Selector de categoría no encontrado');
-        return;
-    }
+    if (!categorySelect) return;
 
     try {
-        // Obtener categorías
         let categories = [];
-        
-        // Esperar a que el categoryManager esté disponible
         if (!window.categoryManager && typeof getCategoryManager === 'function') {
             window.categoryManager = await getCategoryManager();
         }
@@ -532,11 +418,9 @@ export async function loadCategoriesIntoSelect() {
             categories = await window.loadCategories();
         }
 
-        // Guardar la selección actual si existe
         const currentValue = categorySelect.value;
         const productId = document.getElementById('productId')?.value;
         
-        // Limpiar y poblar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
         
         if (categories && categories.length > 0) {
@@ -546,16 +430,11 @@ export async function loadCategoriesIntoSelect() {
                 option.textContent = cat.name;
                 categorySelect.appendChild(option);
             });
-            
-            console.log(`✅ ${categories.length} categorías cargadas en el selector`);
         } else {
-            console.warn('⚠️ No se encontraron categorías para cargar en el selector');
             categorySelect.innerHTML = '<option value="">No hay categorías disponibles</option>';
         }
         
-        // Restaurar la selección anterior para edición
         if (productId && currentValue) {
-            // Esperar a que el DOM se actualice
             setTimeout(() => {
                 if (categorySelect.querySelector(`option[value="${currentValue}"]`)) {
                     categorySelect.value = currentValue;
@@ -564,22 +443,15 @@ export async function loadCategoriesIntoSelect() {
         }
         
     } catch (error) {
-        console.error('❌ Error loading categories into select:', error);
-        // Mantener el selector aunque falle la carga
+        console.error('Error loading categories into select:', error);
         categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
     }
 }
-
-// Hacer disponible globalmente
-window.CategoryManager = CategoryManager;
-window.categoryManager = getCategoryManager;
-window.openCategoryModal = openCategoryModal;
 
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         window.categoryManager = await getCategoryManager();
-        console.log('✅ CategoryManager inicializado correctamente');
     } catch (error) {
         console.error('Error inicializando category manager:', error);
     }
