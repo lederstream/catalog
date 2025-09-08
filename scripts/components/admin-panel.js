@@ -114,10 +114,9 @@ async function loadTabContent(tabName) {
             break;
             
         case 'categories':
-            if (typeof window.loadCategories === 'function') {
-                await window.loadCategories();
+            if (typeof window.categoryManager) {
                 const categoriesList = document.getElementById('categoriesList');
-                if (categoriesList && typeof renderCategoriesList === 'function') renderCategoriesList(categoriesList);
+                if (categoriesList) window.categoryManager.renderCategoriesList(categoriesList);
             }
             break;
             
