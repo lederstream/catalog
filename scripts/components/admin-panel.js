@@ -345,6 +345,37 @@ export function setupProductForm() {
     
     // Cargar categorías en el selector
     loadCategoriesIntoSelect();
+    
+    // Asegurar que los campos sean editables
+    ensureFormFieldsAreEditable();
+}
+
+// Asegurar que los campos del formulario sean editables
+function ensureFormFieldsAreEditable() {
+    const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
+    
+    formElements.forEach(element => {
+        // Remover cualquier atributo que impida la edición
+        element.removeAttribute('readonly');
+        element.removeAttribute('disabled');
+        element.classList.remove('pointer-events-none');
+        element.style.pointerEvents = 'auto';
+        
+        // Asegurar que los eventos no se propaguen incorrectamente
+        element.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+        });
+        
+        element.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        element.addEventListener('focus', (e) => {
+            e.stopPropagation();
+        });
+    });
+    
+    console.log('✅ Campos del formulario asegurados para edición');
 }
 
 // Agregar fila de plan
@@ -420,6 +451,9 @@ function addPlanRow(planData = null) {
     if (firstInput) {
         setTimeout(() => firstInput.focus(), 100);
     }
+    
+    // Asegurar que los nuevos campos sean editables
+    ensureFormFieldsAreEditable();
 }
 
 // Validar formulario de producto
@@ -628,6 +662,9 @@ export function resetForm() {
         // Remover clases de error
         const errorInputs = productForm.querySelectorAll('.border-red-500');
         errorInputs.forEach(input => input.classList.remove('border-red-500'));
+        
+        // Asegurar que los campos sean editables
+        ensureFormFieldsAreEditable();
     }
 }
 
@@ -726,6 +763,7 @@ export function fixFormSelection() {
     
     console.log('✅ Corrección de selección de formulario aplicada');
 }
+
 // Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
@@ -827,9 +865,14 @@ export async function prepareEditForm(product) {
             setTimeout(() => firstInput.focus(), 100);
         }
     }
-        setTimeout(() => {
+    
+    // 7. Asegurar que los campos sean editables
+    ensureFormFieldsAreEditable();
+    
+    setTimeout(() => {
         fixFormSelection();
     }, 100);
+    
     console.log('✅ Formulario de edición preparado correctamente');
 }
 
