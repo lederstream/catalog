@@ -508,6 +508,53 @@ export function openCategoryModal(category = null) {
     }
 }
 
+export async function loadCategoriesIntoSelect() {
+    const categorySelect = document.getElementById('category');
+    if (!categorySelect) {
+        console.error('❌ Selector de categoría no encontrado');
+        return;
+    }
+
+    try {
+        // Obtener categorías
+        let categories = [];
+        if (typeof window.getCategories === 'function') {
+            categories = window.getCategories();
+        } else if (typeof window.loadCategories === 'function') {
+            categories = await window.loadCategories();
+        }
+
+        // Guardar la selección actual si existe
+        const currentValue = categorySelect.value;
+        
+        // Limpiar y poblar el selector
+        categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+        
+        if (categories && categories.length > 0) {
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
+            });
+            
+            console.log(`✅ ${categories.length} categorías cargadas en el selector`);
+        } else {
+            console.warn('⚠️ No se encontraron categorías para cargar en el selector');
+            categorySelect.innerHTML = '<option value="">No hay categorías disponibles</option>';
+        }
+        
+        // Restaurar la selección anterior si existe
+        if (currentValue) {
+            categorySelect.value = currentValue;
+        }
+    } catch (error) {
+        console.error('❌ Error loading categories into select:', error);
+        // Mantener al menos la opción por defecto
+        categorySelect.innerHTML = '<option value="">Error al cargar categorías</option>';
+    }
+}
+
 // Hacer disponible globalmente
 window.CategoryManager = CategoryManager;
 window.categoryManager = getCategoryManager;
