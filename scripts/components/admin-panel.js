@@ -691,64 +691,70 @@ function parsePlans(plans) {
     }
 }
 
+export function fixFormSelectors() {
+    console.log('🔧 Aplicando corrección para selectores de formulario...');
+    
+    // Asegurar que todos los campos de formulario sean completamente interactivos
+    const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
+    formElements.forEach(element => {
+        element.style.pointerEvents = 'auto';
+        element.classList.remove('pointer-events-none');
+        element.removeAttribute('readonly');
+        element.removeAttribute('disabled');
+        
+        // Evento para prevenir cualquier interferencia
+        element.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        element.addEventListener('mousedown', (e) => {
+            e.stopPropagation();
+        });
+        
+        element.addEventListener('focus', (e) => {
+            e.stopPropagation();
+        });
+    });
+    
+    // También asegurar que los labels sean clickables
+    const labels = document.querySelectorAll('#productForm label');
+    labels.forEach(label => {
+        label.style.pointerEvents = 'auto';
+        label.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+    });
+}
+
 // Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
 
     console.log('🔄 Preparando formulario para edición:', product);
     
-    // 1. Primero limpiar cualquier interferencia en los campos del formulario
-    const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
-    formElements.forEach(element => {
-        element.removeAttribute('readonly');
-        element.removeAttribute('disabled');
-        element.classList.remove('pointer-events-none');
-        element.style.pointerEvents = 'auto';
-    });
-    
-    // 2. Establecer valores inmediatos
+    // 1. Primero establecer los valores inmediatos que no dependen de async
     document.getElementById('productId').value = product.id;
     
-    // Establecer nombre, descripción y URL inmediatamente
+    // Establecer nombre y descripción inmediatamente
     const nameInput = document.getElementById('name');
     const descriptionInput = document.getElementById('description');
     const photoUrlInput = document.getElementById('photo_url');
     
-    if (nameInput) {
-        nameInput.value = product.name || '';
-        nameInput.removeAttribute('readonly');
-    }
+    if (nameInput) nameInput.value = product.name || '';
+    if (descriptionInput) descriptionInput.value = product.description || '';
+    if (photoUrlInput) photoUrlInput.value = product.photo_url || '';
     
-    if (descriptionInput) {
-        descriptionInput.value = product.description || '';
-        descriptionInput.removeAttribute('readonly');
-    }
-    
-    if (photoUrlInput) {
-        photoUrlInput.value = product.photo_url || '';
-        photoUrlInput.removeAttribute('readonly');
-    }
-    
-    // 3. Cargar categorías y ESPERAR a que se completen
+    // 2. Cargar categorías y ESPERAR a que se completen
     await loadCategoriesIntoSelect();
     
-    // 4. Establecer categoría DESPUÉS de cargar las opciones
+    // 3. Establecer categoría DESPUÉS de cargar las opciones
     if (product.category_id) {
         const categorySelect = document.getElementById('category');
         if (categorySelect) {
-            // Esperar a que el selector esté completamente poblado
-            await new Promise(resolve => {
-                const checkOptions = () => {
-                    if (categorySelect.options.length > 1) { // Más de la opción por defecto
-                        resolve();
-                    } else {
-                        setTimeout(checkOptions, 50);
-                    }
-                };
-                checkOptions();
-            });
+            // Esperar un tick del event loop para asegurar que el DOM esté actualizado
+            await new Promise(resolve => setTimeout(resolve, 100));
             
-            // Buscar y establecer la categoría
+            // Buscar la opción que coincide con el category_id
             const optionToSelect = Array.from(categorySelect.options).find(
                 option => option.value == product.category_id
             );
@@ -758,21 +764,21 @@ export async function prepareEditForm(product) {
                 console.log('✅ Categoría establecida correctamente:', product.category_id);
             } else {
                 console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
-                // Crear una opción temporal si no existe
-                const tempOption = document.createElement('option');
-                tempOption.value = product.category_id;
-                tempOption.textContent = `Categoría ${product.category_id} (no encontrada)`;
-                tempOption.selected = true;
-                categorySelect.appendChild(tempOption);
+                // Si no se encuentra, intentar establecer después de un breve delay
+                setTimeout(() => {
+                    const retryOption = Array.from(categorySelect.options).find(
+                        option => option.value == product.category_id
+                    );
+                    if (retryOption) {
+                        categorySelect.value = product.category_id;
+                        console.log('✅ Categoría establecida en reintento:', product.category_id);
+                    }
+                }, 300);
             }
-            
-            // Asegurar que el selector no esté deshabilitado
-            categorySelect.removeAttribute('disabled');
-            categorySelect.classList.remove('pointer-events-none');
         }
     }
     
-    // 5. Actualizar UI
+    // 4. Actualizar UI
     const formTitle = document.getElementById('formTitle');
     const submitText = document.getElementById('submitText');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -783,7 +789,7 @@ export async function prepareEditForm(product) {
     
     updateImagePreview(product.photo_url);
     
-    // 6. Configurar planes
+    // 5. Configurar planes
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
@@ -810,7 +816,7 @@ export async function prepareEditForm(product) {
         }
     }
     
-    // 7. Scroll al formulario y enfocar
+    // 6. Scroll al formulario y enfocar
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -821,6 +827,9 @@ export async function prepareEditForm(product) {
             setTimeout(() => firstInput.focus(), 100);
         }
     }
+    setTimeout(() => {
+        fixFormSelectors();
+    }, 100);
     
     console.log('✅ Formulario de edición preparado correctamente');
 }
@@ -829,11 +838,6 @@ export async function prepareEditForm(product) {
 export async function editProduct(id) {
     try {
         console.log('✏️ Editando producto ID:', id);
-        
-        // Limpiar interferencias primero
-        if (typeof window.clearFormInterference === 'function') {
-            window.clearFormInterference();
-        }
         
         // Obtener el productManager de forma segura
         const manager = window.productManager || await getProductManager();
@@ -860,18 +864,6 @@ export async function editProduct(id) {
     }
 }
 
-// Función para limpiar interferencias en formularios
-export function clearFormInterference() {
-    const formElements = document.querySelectorAll('input, select, textarea');
-    formElements.forEach(element => {
-        element.removeAttribute('readonly');
-        element.removeAttribute('disabled');
-        element.classList.remove('pointer-events-none');
-        element.style.pointerEvents = 'auto';
-    });
-    console.log('✅ Interferencias de formulario limpiadas');
-}
-
 // Hacer funciones disponibles globalmente
 window.prepareEditForm = prepareEditForm;
 window.resetProductForm = resetForm;
@@ -879,7 +871,6 @@ window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
-window.clearFormInterference = clearFormInterference;
 
 // Inicializar automáticamente cuando el DOM esté listo
 if (document.readyState === 'loading') {
