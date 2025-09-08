@@ -195,7 +195,7 @@ class ProductManager {
                          loading="lazy"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
                     <div class="absolute top-3 right-3">
-                        <span class="bg-'blue'-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                        <span class="bg-${product.category_color || 'blue'}-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
                             ${product.category_name}
                         </span>
                     </div>
