@@ -1,6 +1,5 @@
-// scripts/components/admin-panel.js
 import { renderCategoriesList, openCategoryModal } from '../categories.js';
-import { showConfirmationModal } from '../modals.js';
+import { showConfirmationModal, showDeleteConfirm } from '../modals.js';
 import { Utils } from '../utils.js';
 import { getProductManager } from '../products.js';
 
@@ -10,9 +9,10 @@ export function initAdminPanel() {
         console.log('🔄 Inicializando panel de administración...');
         
         setupEventListeners();
-        setupProductForm();
+        setupProductModal();
         loadAdminProducts();
-        setupAdminTabs();
+        setupProductFilters();
+        loadStatsSummary();
         
     } catch (error) {
         console.error('Error initializing admin panel:', error);
@@ -20,17 +20,15 @@ export function initAdminPanel() {
 }
 
 function setupEventListeners() {
+    // Botones principales
+    const addProductBtn = document.getElementById('addProductBtn');
     const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
-    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const viewStatsBtn = document.getElementById('viewStatsBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', () => {
-        openCategoryModal();
-    });
-    
-    if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => {
-        openCategoryModal();
-    });
+    if (addProductBtn) addProductBtn.addEventListener('click', () => openProductModal());
+    if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', openCategoryModal);
+    if (viewStatsBtn) viewStatsBtn.addEventListener('click', () => openStatsModal());
     
     if (logoutBtn) logoutBtn.addEventListener('click', () => {
         if (typeof window.handleLogout === 'function') {
@@ -44,6 +42,63 @@ function setupEventListeners() {
             });
         }
     });
+
+    // Event listeners para modales
+    setupModalEventListeners();
+}
+
+function setupModalEventListeners() {
+    // Cerrar modales
+    document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('close-modal')) {
+            closeModal(e.target.closest('.modal-container') || e.target.closest('[id$="Modal"]'));
+        }
+    });
+
+    // Cerrar con Escape
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const openModal = document.querySelector('.modal-container:not(.hidden), [id$="Modal"]:not(.hidden)');
+            if (openModal) closeModal(openModal);
+        }
+    });
+}
+
+function closeModal(modal) {
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = '';
+    }
+}
+
+function openModal(modalId) {
+    const modal = document.getElementById(modalId);
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+        
+        // Enfocar el primer campo si es un formulario
+        const firstInput = modal.querySelector('input, select, textarea');
+        if (firstInput) setTimeout(() => firstInput.focus(), 100);
+    }
+}
+
+export function openProductModal(product = null) {
+    if (product) {
+        prepareEditForm(product);
+        document.getElementById('productModalTitle').textContent = 'Editar Producto';
+        document.getElementById('submitProductText').textContent = 'Actualizar Producto';
+    } else {
+        resetForm();
+        document.getElementById('productModalTitle').textContent = 'Agregar Nuevo Producto';
+        document.getElementById('submitProductText').textContent = 'Agregar Producto';
+    }
+    openModal('productModal');
+}
+
+function openStatsModal() {
+    loadStats();
+    openModal('statsModal');
 }
 
 async function loadAdminProducts() {
@@ -54,12 +109,119 @@ async function loadAdminProducts() {
         
         if (adminProductsList) {
             const products = manager.getProducts();
-            if (products.length > 0) manager.renderAdminProductsList(products, adminProductsList);
+            updateProductsCount(products.length);
+            if (products.length > 0) renderAdminProductsList(products, adminProductsList);
             else adminProductsList.innerHTML = getEmptyProductsHTML();
         }
     } catch (error) {
         console.error('Error loading admin products:', error);
+        Utils.showError('❌ Error al cargar productos');
     }
+}
+
+function updateProductsCount(count) {
+    const countElement = document.getElementById('productsCount');
+    if (countElement) {
+        countElement.textContent = `${count} producto(s)`;
+    }
+}
+
+export function renderAdminProductsList(products, container) {
+    if (!products || products.length === 0) {
+        container.innerHTML = getEmptyProductsHTML();
+        return;
+    }
+    
+    container.innerHTML = products.map(product => `
+        <div class="product-card bg-white rounded-lg shadow border border-gray-200 overflow-hidden hover:shadow-md transition-shadow" data-product-id="${product.id}">
+            <div class="flex flex-col md:flex-row">
+                <div class="md:w-1/4 h-48 md:h-auto bg-gray-100 overflow-hidden">
+                    <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}" 
+                         alt="${product.name}" 
+                         class="w-full h-full object-cover"
+                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
+                </div>
+                
+                <div class="flex-1 p-4 md:p-6">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h3 class="text-xl font-semibold text-gray-800 mb-1">${Utils.truncateText(product.name, 60)}</h3>
+                            <span class="bg-blue-100 text-blue-800 text-xs font-medium px-2 py-1 rounded">
+                                ${getCategoryName(product)}
+                            </span>
+                        </div>
+                        <div class="text-sm text-gray-500">
+                            ID: ${product.id}
+                        </div>
+                    </div>
+                    
+                    <p class="text-gray-600 mb-4 line-clamp-2">
+                        ${Utils.truncateText(product.description || 'Sin descripción', 120)}
+                    </p>
+                    
+                    <div class="mb-4">
+                        <h4 class="text-sm font-medium text-gray-700 mb-2">Planes disponibles:</h4>
+                        <div class="flex flex-wrap gap-2">
+                            ${renderProductPlans(product.plans)}
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-gray-500">
+                            Creado: ${formatDate(product.created_at)}
+                        </span>
+                        <div class="flex space-x-2">
+                            <button class="edit-product px-3 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors flex items-center" 
+                                    data-id="${product.id}">
+                                <i class="fas fa-edit mr-1"></i> Editar
+                            </button>
+                            <button class="delete-product px-3 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors flex items-center" 
+                                    data-id="${product.id}" data-name="${product.name}">
+                                <i class="fas fa-trash mr-1"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // Agregar event listeners
+    addProductCardEventListeners(container);
+}
+
+function addProductCardEventListeners(container) {
+    container.querySelectorAll('.edit-product').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.dataset.id;
+            editProduct(productId);
+        });
+    });
+    
+    container.querySelectorAll('.delete-product').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            const productId = e.currentTarget.dataset.id;
+            const productName = e.currentTarget.dataset.name;
+            showDeleteConfirm(productId, productName);
+        });
+    });
+}
+
+function renderProductPlans(plans) {
+    if (!plans || plans.length === 0) {
+        return '<span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">Sin planes</span>';
+    }
+    
+    const parsedPlans = parsePlans(plans);
+    return parsedPlans.slice(0, 3).map(plan => `
+        <span class="inline-flex items-center px-2 py-1 bg-green-100 text-green-800 text-xs rounded">
+            ${plan.name}: 
+            ${plan.price_soles ? `S/${plan.price_soles}` : ''}
+            ${plan.price_soles && plan.price_dollars ? ' • ' : ''}
+            ${plan.price_dollars ? `$${plan.price_dollars}` : ''}
+        </span>
+    `).join('') + (parsedPlans.length > 3 ? 
+        `<span class="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">+${parsedPlans.length - 3} más</span>` : '');
 }
 
 function getEmptyProductsHTML() {
@@ -72,57 +234,194 @@ function getEmptyProductsHTML() {
     `;
 }
 
-function setupAdminTabs() {
-    const tabButtons = document.querySelectorAll('[data-tab]');
-    const tabPanes = document.querySelectorAll('[data-tab-pane]');
-    
-    tabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            const tabName = button.dataset.tab;
-            
-            tabButtons.forEach(btn => {
-                btn.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
-                btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-            });
-            
-            button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
-            button.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
-            
-            tabPanes.forEach(pane => {
-                pane.classList.add('hidden');
-                if (pane.dataset.tabPane === tabName) {
-                    pane.classList.remove('hidden');
-                    Utils.fadeIn(pane);
-                }
-            });
-            
-            loadTabContent(tabName);
-        });
-    });
-    
-    if (tabButtons.length > 0) tabButtons[0].click();
+function formatDate(dateString) {
+    if (!dateString) return 'Fecha desconocida';
+    try {
+        return new Date(dateString).toLocaleDateString('es-ES');
+    } catch {
+        return dateString;
+    }
 }
 
-async function loadTabContent(tabName) {
-    const manager = await getProductManager();
+export function setupProductFilters() {
+    const searchInput = document.getElementById('searchProducts');
+    const categoryFilter = document.getElementById('filterCategory');
+    const sortSelect = document.getElementById('sortProducts');
     
-    switch (tabName) {
-        case 'products':
-            await manager.loadProducts();
-            const adminProductsList = document.getElementById('adminProductsList');
-            if (adminProductsList) manager.renderAdminProductsList(manager.getProducts(), adminProductsList);
-            break;
+    if (searchInput) {
+        searchInput.addEventListener('input', Utils.debounce((e) => {
+            filterProducts();
+        }, 300));
+    }
+    
+    if (categoryFilter) {
+        categoryFilter.addEventListener('change', filterProducts);
+    }
+    
+    if (sortSelect) {
+        sortSelect.addEventListener('change', filterProducts);
+    }
+    
+    // Cargar categorías en el filtro
+    loadCategoriesIntoFilter();
+}
+
+async function loadCategoriesIntoFilter() {
+    const filterSelect = document.getElementById('filterCategory');
+    if (!filterSelect) return;
+    
+    try {
+        let categories = [];
+        if (window.categoryManager && typeof window.categoryManager.getCategories === 'function') {
+            categories = window.categoryManager.getCategories();
+        } else if (typeof window.getCategories === 'function') {
+            categories = window.getCategories();
+        }
+        
+        // Mantener la opción actual si existe
+        const currentValue = filterSelect.value;
+        filterSelect.innerHTML = '<option value="">Todas las categorías</option>';
+        
+        if (categories && categories.length > 0) {
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                filterSelect.appendChild(option);
+            });
             
-        case 'categories':
-            if (typeof window.categoryManager) {
-                const categoriesList = document.getElementById('categoriesList');
-                if (categoriesList) window.categoryManager.renderCategoriesList(categoriesList);
+            // Restaurar selección si existe
+            if (currentValue && filterSelect.querySelector(`option[value="${currentValue}"]`)) {
+                filterSelect.value = currentValue;
             }
+        }
+    } catch (error) {
+        console.error('Error loading categories into filter:', error);
+    }
+}
+
+async function filterProducts() {
+    const searchTerm = document.getElementById('searchProducts').value.toLowerCase();
+    const categoryId = document.getElementById('filterCategory').value;
+    const sortBy = document.getElementById('sortProducts').value;
+    
+    const manager = await getProductManager();
+    let products = manager.getProducts();
+    
+    // Filtrar
+    if (searchTerm) {
+        products = products.filter(product => 
+            product.name.toLowerCase().includes(searchTerm) || 
+            (product.description && product.description.toLowerCase().includes(searchTerm))
+        );
+    }
+    
+    if (categoryId) {
+        products = products.filter(product => product.category_id == categoryId);
+    }
+    
+    // Ordenar
+    switch (sortBy) {
+        case 'newest':
+            products.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
             break;
+        case 'oldest':
+            products.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+            break;
+        case 'name_asc':
+            products.sort((a, b) => a.name.localeCompare(b.name));
+            break;
+        case 'name_desc':
+            products.sort((a, b) => b.name.localeCompare(a.name));
+            break;
+    }
+    
+    // Actualizar contador
+    updateProductsCount(products.length);
+    
+    // Renderizar productos filtrados
+    const adminProductsList = document.getElementById('adminProductsList');
+    if (adminProductsList) {
+        if (products.length > 0) {
+            renderAdminProductsList(products, adminProductsList);
+        } else {
+            adminProductsList.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+                    <h3 class="text-lg font-medium text-gray-500">No se encontraron productos</h3>
+                    <p class="text-gray-400 mt-2">Intenta con otros criterios de búsqueda</p>
+                </div>
+            `;
+        }
+    }
+}
+
+export async function loadStatsSummary() {
+    const statsContainer = document.getElementById('statsSummary');
+    if (!statsContainer) return;
+    
+    try {
+        const manager = await getProductManager();
+        const products = manager.getProducts();
+        const categories = window.getCategories ? window.getCategories() : [];
+        
+        const totalProducts = products.length;
+        const totalCategories = categories.length;
+        const productsWithPlans = products.filter(p => p.plans && p.plans.length > 0).length;
+        const productsWithoutImage = products.filter(p => !p.photo_url).length;
+        
+        statsContainer.innerHTML = `
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-blue-100 rounded-lg mr-4">
+                        <i class="fas fa-box text-blue-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">${totalProducts}</p>
+                        <p class="text-gray-500">Productos totales</p>
+                    </div>
+                </div>
+            </div>
             
-        case 'stats':
-            loadStats();
-            break;
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-green-100 rounded-lg mr-4">
+                        <i class="fas fa-tags text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">${totalCategories}</p>
+                        <p class="text-gray-500">Categorías</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-purple-100 rounded-lg mr-4">
+                        <i class="fas fa-check-circle text-purple-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">${productsWithPlans}</p>
+                        <p class="text-gray-500">Con planes</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+                <div class="flex items-center">
+                    <div class="p-3 bg-yellow-100 rounded-lg mr-4">
+                        <i class="fas fa-image text-yellow-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-2xl font-bold text-gray-800">${productsWithoutImage}</p>
+                        <p class="text-gray-500">Sin imagen</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading stats summary:', error);
+        statsContainer.innerHTML = '<p class="text-gray-500">Error cargando estadísticas</p>';
     }
 }
 
@@ -138,51 +437,40 @@ async function loadStats() {
 }
 
 function getStatsHTML(products, categories) {
+    const productsByCategory = categories.map(category => {
+        const productCount = products.filter(p => p.category_id == category.id).length;
+        return { ...category, productCount };
+    }).filter(item => item.productCount > 0)
+      .sort((a, b) => b.productCount - a.productCount);
+
     return `
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div class="flex items-center">
-                    <div class="p-3 bg-blue-100 rounded-lg mr-4">
-                        <i class="fas fa-box text-blue-600 text-xl"></i>
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Resumen General</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">Total de productos</span>
+                        <span class="font-bold text-blue-600">${products.length}</span>
                     </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">${products.length}</p>
-                        <p class="text-gray-500">Productos totales</p>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">Total de categorías</span>
+                        <span class="font-bold text-green-600">${categories.length}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">Productos con planes</span>
+                        <span class="font-bold text-purple-600">${products.filter(p => p.plans && p.plans.length > 0).length}</span>
+                    </div>
+                    <div class="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                        <span class="text-gray-700">Productos sin imagen</span>
+                        <span class="font-bold text-yellow-600">${products.filter(p => !p.photo_url).length}</span>
                     </div>
                 </div>
             </div>
             
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div class="flex items-center">
-                    <div class="p-3 bg-green-100 rounded-lg mr-4">
-                        <i class="fas fa-tags text-green-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">${categories.length}</p>
-                        <p class="text-gray-500">Categorías</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-                <div class="flex items-center">
-                    <div class="p-3 bg-purple-100 rounded-lg mr-4">
-                        <i class="fas fa-eye text-purple-600 text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-2xl font-bold text-gray-800">${Math.floor(products.length * 12.5)}</p>
-                        <p class="text-gray-500">Visitas este mes</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <h3 class="text-lg font-semibold text-gray-800 mb-4">Productos por categoría</h3>
-            <div class="space-y-3">
-                ${categories.map(category => {
-                    const productCount = products.filter(p => p.category_id == category.id).length;
-                    return `
+                <h3 class="text-lg font-semibold text-gray-800 mb-4">Distribución por Categoría</h3>
+                <div class="space-y-3">
+                    ${productsByCategory.map(category => `
                         <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div class="flex items-center">
                                 <div class="w-8 h-8 ${getColorClass(category.color)} rounded-full flex items-center justify-center mr-3">
@@ -190,10 +478,42 @@ function getStatsHTML(products, categories) {
                                 </div>
                                 <span class="text-sm font-medium">${category.name}</span>
                             </div>
-                            <span class="text-sm text-gray-500">${productCount} productos</span>
+                            <span class="text-sm font-bold text-gray-800">${category.productCount} productos</span>
                         </div>
-                    `;
-                }).join('')}
+                    `).join('')}
+                    
+                    ${productsByCategory.length === 0 ? `
+                        <div class="text-center py-8 text-gray-500">
+                            <i class="fas fa-tags text-3xl mb-3"></i>
+                            <p>No hay productos en categorías</p>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">Productos Recientes</h3>
+            <div class="space-y-3">
+                ${products.slice(0, 5).map(product => `
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                        <div class="flex items-center">
+                            <img src="${product.photo_url || 'https://via.placeholder.com/40x40?text=📷'}" 
+                                 alt="${product.name}" 
+                                 class="w-10 h-10 rounded object-cover mr-3"
+                                 onerror="this.src='https://via.placeholder.com/40x40?text=❌'">
+                            <span class="text-sm font-medium">${Utils.truncateText(product.name, 30)}</span>
+                        </div>
+                        <span class="text-xs text-gray-500">${formatDate(product.created_at)}</span>
+                    </div>
+                `).join('')}
+                
+                ${products.length === 0 ? `
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-box-open text-3xl mb-3"></i>
+                        <p>No hay productos</p>
+                    </div>
+                ` : ''}
             </div>
         </div>
     `;
@@ -248,19 +568,18 @@ export async function loadCategoriesIntoSelect() {
     }
 }
 
-export function setupProductForm() {
+export function setupProductModal() {
     const productForm = document.getElementById('productForm');
-    if (!productForm || productForm.offsetParent === null) return;
+    if (!productForm) return;
     
     const addPlanBtn = document.getElementById('addPlanBtn');
-    const cancelBtn = document.getElementById('cancelBtn');
+    const cancelBtn = document.getElementById('cancelProductBtn');
     const photoUrlInput = document.getElementById('photo_url');
+    const searchImageBtn = document.getElementById('searchImageBtn');
     const categorySelect = document.getElementById('category');
     
-    if (!categorySelect) return;
-    
     if (addPlanBtn) addPlanBtn.addEventListener('click', addPlanRow);
-    if (cancelBtn) cancelBtn.addEventListener('click', resetForm);
+    if (cancelBtn) cancelBtn.addEventListener('click', () => closeModal(document.getElementById('productModal')));
     
     productForm.addEventListener('submit', handleProductSubmit);
     addPlanRow();
@@ -271,6 +590,14 @@ export function setupProductForm() {
             if (e.target.value && !Utils.validateUrl(e.target.value)) {
                 Utils.showError('❌ La URL de la imagen no es válida');
                 e.target.focus();
+            }
+        });
+    }
+    
+    if (searchImageBtn) {
+        searchImageBtn.addEventListener('click', () => {
+            if (typeof window.openImageSearchModal === 'function') {
+                window.openImageSearchModal();
             }
         });
     }
@@ -429,7 +756,10 @@ async function handleProductSubmit(e) {
         const manager = await getProductManager();
         const result = productId ? await manager.updateProduct(productId, productData) : await manager.addProduct(productData);
 
-        if (result) handleSuccess(submitBtn, originalText, productId);
+        if (result) {
+            handleSuccess(submitBtn, originalText, productId);
+            closeModal(document.getElementById('productModal'));
+        }
     } catch (error) {
         handleError(error);
     }
@@ -502,14 +832,6 @@ export function resetForm() {
     
     productForm.reset();
     document.getElementById('productId').value = '';
-    
-    const formTitle = document.getElementById('formTitle');
-    const submitText = document.getElementById('submitText');
-    const cancelBtn = document.getElementById('cancelBtn');
-    
-    if (formTitle) formTitle.textContent = 'Agregar Nuevo Producto';
-    if (submitText) submitText.textContent = 'Agregar Producto';
-    if (cancelBtn) cancelBtn.classList.add('hidden');
     
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
@@ -610,14 +932,6 @@ export async function prepareEditForm(product) {
         }
     }
     
-    const formTitle = document.getElementById('formTitle');
-    const submitText = document.getElementById('submitText');
-    const cancelBtn = document.getElementById('cancelBtn');
-    
-    if (formTitle) formTitle.textContent = 'Editar Producto';
-    if (submitText) submitText.textContent = 'Actualizar Producto';
-    if (cancelBtn) cancelBtn.classList.remove('hidden');
-    
     updateImagePreview(product.photo_url);
     
     const plansContainer = document.getElementById('plansContainer');
@@ -639,12 +953,7 @@ export async function prepareEditForm(product) {
         }
     }
     
-    const productForm = document.getElementById('productForm');
-    if (productForm) {
-        productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        const nameInput = document.getElementById('name');
-        if (nameInput) setTimeout(() => nameInput.focus(), 100);
-    }
+    if (nameInput) setTimeout(() => nameInput.focus(), 100);
     
     ensureFormFieldsAreEditable();
     setTimeout(fixFormSelection, 100);
@@ -657,8 +966,7 @@ export async function editProduct(id) {
         
         if (product) {
             await prepareEditForm(product);
-            const productsTab = document.querySelector('[data-tab="products"]');
-            if (productsTab) productsTab.click();
+            openProductModal(product);
             Utils.showSuccess(`Editando: ${product.name}`);
         } else {
             Utils.showError('❌ Producto no encontrado');
@@ -669,13 +977,30 @@ export async function editProduct(id) {
     }
 }
 
+function getCategoryName(product) {
+    if (product.categories?.name) return product.categories.name;
+    if (product.category_id && typeof window.getCategories === 'function') {
+        try {
+            const categories = window.getCategories();
+            if (categories && Array.isArray(categories)) {
+                const category = categories.find(cat => cat.id == product.category_id);
+                return category ? category.name : `Categoría ${product.category_id}`;
+            }
+        } catch (error) {
+            console.error('Error obteniendo categorías:', error);
+        }
+    }
+    return product.category || 'General';
+}
+
 // Hacer funciones disponibles globalmente
 window.prepareEditForm = prepareEditForm;
 window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
-window.setupProductForm = setupProductForm;
+window.openProductModal = openProductModal;
 window.editProduct = editProduct;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
+window.renderAdminProductsList = renderAdminProductsList;
 
 // Inicializar automáticamente
 if (document.readyState === 'loading') {
