@@ -1,4 +1,4 @@
-// scripts/categories.js - VERSIÓN CORREGIDA
+// scripts/categories.js - VERSIÓN MEJORADA
 import { 
     loadCategoriesFromSupabase, 
     addCategoryToSupabase, 
@@ -13,6 +13,7 @@ class CategoryManager {
         this.categories = [];
         this.isLoading = false;
         this.currentlyEditing = null;
+        this.loadPromise = null; // Para evitar cargas duplicadas
     }
     
     static async init() {
@@ -22,12 +23,18 @@ class CategoryManager {
     }
     
     async loadCategories() {
+        // Si ya está cargando, retornar la promesa existente
+        if (this.loadPromise) {
+            return this.loadPromise;
+        }
+        
         if (this.isLoading) return this.categories;
         
         this.isLoading = true;
         
         try {
-            const data = await loadCategoriesFromSupabase();
+            this.loadPromise = loadCategoriesFromSupabase();
+            const data = await this.loadPromise;
             this.categories = data || [];
             return this.categories;
             
@@ -37,6 +44,7 @@ class CategoryManager {
             return [];
         } finally {
             this.isLoading = false;
+            this.loadPromise = null; // Resetear la promesa
         }
     }
     
@@ -415,7 +423,7 @@ class CategoryManager {
             Utils.showError('Error al guardar la categoría: ' + (error.message || 'Error desconocido'));
             
             // Restaurar botón en caso de error
-            const submitBtn = modal.querySelector('button[type="submit]');
+            const submitBtn = modal.querySelector('button[type="submit"]');
             if (submitBtn) {
                 submitBtn.innerHTML = categoryId ? 'Actualizar Categoría' : 'Agregar Categoría';
                 submitBtn.disabled = false;
@@ -511,7 +519,7 @@ export function openCategoryModal(category = null) {
 export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
     if (!categorySelect) {
-        console.warn('⚠️ Selector de categoría no encontrado');
+        console.log('ℹ️ Selector de categoría no encontrado en esta página');
         return;
     }
 
@@ -549,7 +557,7 @@ export async function loadCategoriesIntoSelect() {
             
             console.log(`✅ ${categories.length} categorías cargadas en el selector`);
         } else {
-            console.warn('⚠️ No se encontraron categorías para cargar en el selector');
+            console.log('ℹ️ No se encontraron categorías para cargar en el selector');
             categorySelect.innerHTML = '<option value="">No hay categorías disponibles</option>';
         }
         
