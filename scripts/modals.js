@@ -91,7 +91,7 @@ class ModalSystem {
             title: 'Gestión de Categorías',
             size: 'lg',
             content: `
-                <div class="space-y-4">
+                <div class="space-y-4 center">
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="font-semibold text-gray-800 mb-3">Agregar nueva categoría</h3>
                         <form id="categoryForm" class="space-y-3">
