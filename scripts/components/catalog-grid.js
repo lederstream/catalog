@@ -1,9 +1,10 @@
 // scripts/components/catalog-grid.js
 import { Utils } from '../utils.js';
+import { createProductCard, addProductCardEventListeners, animateProductsEntry } from './product-card.js';
 
 class CatalogState {
     constructor() {
-        this.currentView = 'grid'; // grid or list
+        this.currentView = 'grid';
         this.sortBy = 'name';
         this.sortOrder = 'asc';
         this.filters = {
@@ -43,12 +44,16 @@ class CatalogState {
     }
     
     _persistState() {
-        localStorage.setItem('catalogState', JSON.stringify({
-            view: this.currentView,
-            sortBy: this.sortBy,
-            sortOrder: this.sortOrder,
-            filters: this.filters
-        }));
+        try {
+            localStorage.setItem('catalogState', JSON.stringify({
+                view: this.currentView,
+                sortBy: this.sortBy,
+                sortOrder: this.sortOrder,
+                filters: this.filters
+            }));
+        } catch (error) {
+            console.warn('Error persisting catalog state:', error);
+        }
     }
     
     _restoreState() {
@@ -78,22 +83,14 @@ class CatalogState {
 
 // Inicializar catálogo
 export function initCatalogGrid() {
-    
     const catalogState = CatalogState.getInstance();
     catalogState._restoreState();
     
-    // Configurar filtros y búsqueda
     setupCatalogFilters();
-    
-    // Configurar controles de vista
     setupViewControls();
-    
-    // Configurar ordenamiento
     setupSorting();
-    
-    // Configurar animaciones de scroll
     setupScrollAnimations();
-    }
+}
 
 // Configurar filtros del catálogo
 function setupCatalogFilters() {
@@ -116,26 +113,21 @@ function setupCatalogFilters() {
     
     // Búsqueda
     if (searchInput) {
-        searchInput.addEventListener('input', Utils.debounce(() => {
-            const searchText = searchInput.value.toLowerCase().trim();
+        searchInput.addEventListener('input', Utils.debounce((e) => {
+            const searchText = e.target.value.toLowerCase().trim();
             catalogState.setFilters({ search: searchText });
             filterAndRenderProducts();
             
-            // Mostrar/ocultar botón de limpiar
             if (clearSearchBtn) {
-                if (searchText) {
-                    clearSearchBtn.classList.remove('hidden');
-                } else {
-                    clearSearchBtn.classList.add('hidden');
-                }
+                clearSearchBtn.classList.toggle('hidden', !searchText);
             }
         }, 300));
     }
     
     // Filtro de categoría
     if (categoryFilter) {
-        categoryFilter.addEventListener('change', () => {
-            catalogState.setFilters({ category: categoryFilter.value });
+        categoryFilter.addEventListener('change', (e) => {
+            catalogState.setFilters({ category: e.target.value });
             filterAndRenderProducts();
         });
     }
@@ -156,11 +148,11 @@ function setupCatalogFilters() {
     // Panel de filtros avanzados
     if (filterButton && filterPanel) {
         filterButton.addEventListener('click', () => {
-            filterPanel.classList.toggle('hidden');
-            filterButton.classList.toggle('bg-blue-600');
-            filterButton.classList.toggle('bg-gray-600');
+            const isHidden = filterPanel.classList.toggle('hidden');
+            filterButton.classList.toggle('bg-blue-600', !isHidden);
+            filterButton.classList.toggle('bg-gray-600', isHidden);
             
-            if (!filterPanel.classList.contains('hidden')) {
+            if (!isHidden) {
                 Utils.fadeIn(filterPanel);
             }
         });
@@ -181,10 +173,7 @@ function setupCatalogFilters() {
                 const min = parseFloat(priceMin.value) || 0;
                 const max = parseFloat(priceMax.value) || 10000;
                 
-                catalogState.setFilters({ 
-                    priceRange: [min, max] 
-                });
-                
+                catalogState.setFilters({ priceRange: [min, max] });
                 filterAndRenderProducts();
                 filterPanel.classList.add('hidden');
                 filterButton.classList.remove('bg-blue-600');
@@ -209,35 +198,38 @@ function setupViewControls() {
     
     if (gridViewBtn && listViewBtn) {
         // Actualizar estado de botones
-        if (catalogState.currentView === 'grid') {
-            gridViewBtn.classList.add('bg-blue-600', 'text-white');
-            listViewBtn.classList.remove('bg-blue-600', 'text-white');
-        } else {
-            listViewBtn.classList.add('bg-blue-600', 'text-white');
-            gridViewBtn.classList.remove('bg-blue-600', 'text-white');
-        }
+        const isGridView = catalogState.currentView === 'grid';
+        gridViewBtn.classList.toggle('bg-blue-600', isGridView);
+        gridViewBtn.classList.toggle('text-white', isGridView);
+        listViewBtn.classList.toggle('bg-blue-600', !isGridView);
+        listViewBtn.classList.toggle('text-white', !isGridView);
         
         // Cambiar a vista grid
         gridViewBtn.addEventListener('click', () => {
             catalogState.setView('grid');
-            productsGrid.dataset.view = 'grid';
-            
-            gridViewBtn.classList.add('bg-blue-600', 'text-white');
-            listViewBtn.classList.remove('bg-blue-600', 'text-white');
-            
+            updateViewButtons('grid');
             filterAndRenderProducts();
         });
         
         // Cambiar a vista lista
         listViewBtn.addEventListener('click', () => {
             catalogState.setView('list');
-            productsGrid.dataset.view = 'list';
-            
-            listViewBtn.classList.add('bg-blue-600', 'text-white');
-            gridViewBtn.classList.remove('bg-blue-600', 'text-white');
-            
+            updateViewButtons('list');
             filterAndRenderProducts();
         });
+    }
+    
+    function updateViewButtons(view) {
+        const isGridView = view === 'grid';
+        gridViewBtn.classList.toggle('bg-blue-600', isGridView);
+        gridViewBtn.classList.toggle('text-white', isGridView);
+        listViewBtn.classList.toggle('bg-blue-600', !isGridView);
+        listViewBtn.classList.toggle('text-white', !isGridView);
+        
+        const productsGrid = document.getElementById('productsGrid');
+        if (productsGrid) {
+            productsGrid.dataset.view = view;
+        }
     }
 }
 
@@ -254,8 +246,8 @@ function setupSorting() {
         updateSortOrderIcon(sortOrderBtn, catalogState.sortOrder);
         
         // Cambiar campo de ordenamiento
-        sortSelect.addEventListener('change', () => {
-            catalogState.setSort(sortSelect.value, catalogState.sortOrder);
+        sortSelect.addEventListener('change', (e) => {
+            catalogState.setSort(e.target.value, catalogState.sortOrder);
             filterAndRenderProducts();
         });
         
@@ -269,60 +261,45 @@ function setupSorting() {
     }
 }
 
+function updateSortOrderIcon(button, order) {
+    const icon = button.querySelector('i');
+    if (icon) {
+        icon.className = order === 'asc' ? 'fas fa-arrow-up' : 'fas fa-arrow-down';
+    }
+}
+
 // Configurar animaciones de scroll
 function setupScrollAnimations() {
-    // Animación para elementos que entran en vista
-    const animatedElements = document.querySelectorAll('.fade-in-up, .fade-in-left, .fade-in-right');
+    if (!('IntersectionObserver' in window)) return;
     
-    if (animatedElements.length > 0 && 'IntersectionObserver' in window) {
-        const observer = new IntersectionObserver((entries) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    entry.target.classList.add('animate-in');
-                    observer.unobserve(entry.target);
-                }
-            });
-        }, { 
-            threshold: 0.1,
-            rootMargin: '0px 0px -50px 0px'
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('animate-in');
+                observer.unobserve(entry.target);
+            }
         });
-        
-        animatedElements.forEach(el => observer.observe(el));
-    }
+    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
     
-    // Animación para cards de productos
-    const productCards = document.querySelectorAll('.product-card');
-    productCards.forEach(card => {
-        card.style.transition = 'all 0.5s ease';
-        card.style.opacity = '1';
-        card.style.transform = 'translateY(0)';
+    document.querySelectorAll('.fade-in-up, .fade-in-left, .fade-in-right').forEach(el => {
+        observer.observe(el);
     });
 }
 
 // Filtrar y renderizar productos
 export function filterAndRenderProducts() {
     try {
-        // Obtener el estado de la aplicación
-        const appState = window.app ? window.app.state : null;
         const catalogState = CatalogState.getInstance();
+        const appState = window.app?.state;
         
         if (!appState) {
             console.error('AppState no está disponible');
             return;
         }
         
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const productsGrid = document.getElementById('productsGrid');
+        const { search, category, priceRange } = catalogState.filters;
+        let filteredProducts = [...appState.products];
 
-        if (!searchInput || !categoryFilter || !productsGrid) return;
-
-        const searchText = catalogState.filters.search;
-        const category = catalogState.filters.category;
-
-        // Filtrar productos
-        let filteredProducts = appState.products;
-        
         // Filtrar por categoría
         if (category !== 'all') {
             filteredProducts = filteredProducts.filter(product => 
@@ -331,40 +308,28 @@ export function filterAndRenderProducts() {
         }
         
         // Filtrar por búsqueda
-        if (searchText) {
+        if (search) {
             filteredProducts = filteredProducts.filter(product => 
-                product.name.toLowerCase().includes(searchText) || 
-                (product.description && product.description.toLowerCase().includes(searchText)) ||
-                (product.categories && product.categories.name.toLowerCase().includes(searchText))
+                product.name.toLowerCase().includes(search) || 
+                (product.description && product.description.toLowerCase().includes(search)) ||
+                (product.categories?.name.toLowerCase().includes(search))
             );
         }
         
         // Filtrar por precio
-        if (catalogState.filters.priceRange) {
-            const [min, max] = catalogState.filters.priceRange;
+        if (priceRange) {
+            const [min, max] = priceRange;
             filteredProducts = filteredProducts.filter(product => {
-                if (!product.plans || product.plans.length === 0) return false;
-                
-                const minPrice = Math.min(
-                    ...product.plans.map(plan => 
-                        Math.min(
-                            plan.price_soles || Infinity,
-                            plan.price_dollars || Infinity
-                        )
-                    ).filter(price => price > 0)
-                );
-                
-                return minPrice >= min && minPrice <= max;
+                const minPrice = getProductMinPrice(product);
+                return minPrice >= min && minPrice <= max && minPrice !== Infinity;
             });
         }
         
         // Ordenar productos
         filteredProducts = sortProducts(filteredProducts, catalogState.sortBy, catalogState.sortOrder);
 
-        // Renderizar productos filtrados
+        // Renderizar productos
         renderProductsGrid(filteredProducts, 'productsGrid');
-        
-        // Actualizar contador de resultados
         updateResultsCount(filteredProducts.length);
         
     } catch (error) {
@@ -374,61 +339,39 @@ export function filterAndRenderProducts() {
 
 // Ordenar productos
 function sortProducts(products, field, order = 'asc') {
-    if (!products || !Array.isArray(products)) return [];
+    if (!Array.isArray(products)) return [];
     
     return [...products].sort((a, b) => {
-        let aValue, bValue;
+        let aValue = getSortValue(a, field);
+        let bValue = getSortValue(b, field);
         
-        switch (field) {
-            case 'name':
-                aValue = a.name ? a.name.toLowerCase() : '';
-                bValue = b.name ? b.name.toLowerCase() : '';
-                break;
-                
-            case 'price':
-                aValue = getProductMinPrice(a);
-                bValue = getProductMinPrice(b);
-                break;
-                
-            case 'category':
-                aValue = a.categories ? a.categories.name.toLowerCase() : '';
-                bValue = b.categories ? b.categories.name.toLowerCase() : '';
-                break;
-                
-            case 'date':
-                aValue = new Date(a.created_at || 0);
-                bValue = new Date(b.created_at || 0);
-                break;
-                
-            default:
-                aValue = a[field] || '';
-                bValue = b[field] || '';
-        }
+        if (aValue === bValue) return 0;
         
-        if (typeof aValue === 'string' && typeof bValue === 'string') {
-            return order === 'asc' 
-                ? aValue.localeCompare(bValue)
-                : bValue.localeCompare(aValue);
-        }
-        
-        if (aValue < bValue) return order === 'asc' ? -1 : 1;
-        if (aValue > bValue) return order === 'asc' ? 1 : -1;
-        return 0;
+        const comparison = aValue < bValue ? -1 : 1;
+        return order === 'asc' ? comparison : -comparison;
     });
+}
+
+function getSortValue(product, field) {
+    switch (field) {
+        case 'name': return product.name?.toLowerCase() || '';
+        case 'price': return getProductMinPrice(product);
+        case 'category': return product.categories?.name?.toLowerCase() || '';
+        case 'date': return new Date(product.created_at || 0).getTime();
+        default: return product[field] || '';
+    }
 }
 
 // Obtener precio mínimo de un producto
 function getProductMinPrice(product) {
-    if (!product.plans || product.plans.length === 0) return Infinity;
+    if (!product.plans?.length) return Infinity;
     
-    return Math.min(
-        ...product.plans.map(plan => 
-            Math.min(
-                plan.price_soles || Infinity,
-                plan.price_dollars || Infinity
-            )
-        ).filter(price => price > 0)
-    );
+    return Math.min(...product.plans.map(plan => 
+        Math.min(
+            plan.price_soles || Infinity,
+            plan.price_dollars || Infinity
+        )
+    ).filter(price => price > 0));
 }
 
 // Actualizar contador de resultados
@@ -436,269 +379,76 @@ function updateResultsCount(count) {
     const resultsCount = document.getElementById('resultsCount');
     if (resultsCount) {
         resultsCount.textContent = `${count} producto${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}`;
-        
-        // Animación
         resultsCount.classList.add('scale-105');
-        setTimeout(() => {
-            resultsCount.classList.remove('scale-105');
-        }, 300);
+        setTimeout(() => resultsCount.classList.remove('scale-105'), 300);
     }
 }
 
 // Renderizar grid de productos
 export function renderProductsGrid(products, containerId) {
     const container = document.getElementById(containerId);
-    const catalogState = CatalogState.getInstance();
-    
-    if (!container) {
-        console.error(`Contenedor con ID ${containerId} no encontrado`);
-        return;
-    }
-    
-    if (!products || products.length === 0) {
-        container.innerHTML = `
-            <div class="col-span-full text-center py-16 fade-in-up">
-                <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
-                <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
-                <p class="text-gray-500 mb-4">Intenta con otros términos de búsqueda o categorías</p>
-                <button class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" 
-                        onclick="resetFilters()">
-                    <i class="fas fa-refresh mr-2"></i>
-                    Limpiar filtros
-                </button>
-            </div>
-        `;
+    if (!container) return;
+
+    if (!products?.length) {
+        container.innerHTML = getNoProductsHTML();
         return;
     }
     
     try {
-        // Determinar la vista actual
+        const catalogState = CatalogState.getInstance();
         const isListView = catalogState.currentView === 'list';
-        const gridClass = isListView 
-            ? 'grid-cols-1' 
-            : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
         
-        container.className = `grid ${gridClass} gap-6`;
-        
-        // Renderizar productos
+        container.className = `grid ${isListView ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'} gap-6`;
         container.innerHTML = products.map((product, index) => 
             createProductCard(product, isListView, index)
         ).join('');
         
-        // Configurar event listeners
         addProductCardEventListeners();
-        
-        // Animación de entrada
         animateProductsEntry();
         
     } catch (error) {
         console.error('Error al renderizar productos:', error);
-        container.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
-                <p class="text-gray-600">Error al cargar los productos</p>
-                <p class="text-sm text-gray-500 mt-1">Por favor, recarga la página</p>
-            </div>
-        `;
+        container.innerHTML = getErrorHTML();
     }
 }
 
-// Crear tarjeta de producto
-function createProductCard(product, isListView = false, index = 0) {
-    const imageUrl = product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen';
-    const categoryName = getCategoryName(product);
-    const minPrice = getProductMinPrice(product);
-    const formattedPrice = Utils.formatCurrency(minPrice);
-
-    
-    if (isListView) {
-        // Vista de lista
-        return `
-            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 flex flex-col md:flex-row opacity-0 translate-y-4" 
-                 style="animation-delay: ${index * 50}ms"
-                 data-product-id="${product.id}">
-                <div class="md:w-48 h-48 bg-gray-100 overflow-hidden flex-shrink-0">
-                    <img src="${imageUrl}" alt="${product.name}" 
-                         class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                         loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
-                </div>
-                
-                <div class="flex-1 p-6 flex flex-col">
-                    <div class="flex justify-between items-start mb-3">
-                        <h3 class="text-xl font-semibold text-gray-800">${product.name}</h3>
-                        <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
-                            ${categoryName}
-                        </span>
-                    </div>
-                    
-                    <p class="text-gray-600 mb-4 flex-1">${product.description || 'Sin descripción'}</p>
-                    
-                    <div class="mb-4">
-                        <h4 class="font-medium text-gray-700 mb-2">Planes disponibles:</h4>
-                        <div class="space-y-2">
-                            ${renderPlansList(product.plans)}
-                        </div>
-                    </div>
-                    
-                    <div class="flex justify-between items-center">
-                        <div class="text-lg font-bold text-blue-600">
-                            Desde ${Utils.formatCurrency(minPrice)}
-                        </div>
-                        <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors duration-200 flex items-center">
-                            <i class="fas fa-eye mr-2"></i>
-                            Ver detalles
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    } else {
-        // Vista de grid
-        return `
-            <div class="product-card bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-all duration-300 h-full flex flex-col opacity-0 translate-y-4" 
-                 style="animation-delay: ${index * 50}ms"
-                 data-product-id="${product.id}">
-                <div class="h-48 bg-gray-100 overflow-hidden relative">
-                    <img src="${imageUrl}" alt="${product.name}" 
-                         class="w-full h-full object-cover transition-transform duration-300 hover:scale-105"
-                         loading="lazy"
-                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
-                    <div class="absolute top-3 right-3">
-                        <span class="bg-blue-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
-                            ${categoryName}
-                        </span>
-                    </div>
-                </div>
-                
-                <div class="p-4 flex-1 flex flex-col">
-                    <h3 class="text-lg font-semibold text-gray-800 mb-2 line-clamp-2">${product.name}</h3>
-                    <p class="text-gray-600 text-sm mb-4 flex-1 line-clamp-3">${product.description || 'Sin descripción'}</p>
-                    
-                    <div class="mb-4">
-                        <div class="text-sm text-gray-500 mb-1">Desde:</div>
-                        <div class="text-xl font-bold text-blue-600">
-                            ${Utils.formatCurrency(minPrice)}
-                        </div>
-                    </div>
-                    
-                    <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition-colors duration-200 flex items-center justify-center group/btn">
-                        <i class="fas fa-eye mr-2 group-hover/btn:animate-bounce"></i>
-                        Ver detalles
-                    </button>
-                </div>
-            </div>
-        `;
-    }
-}
-
-// Renderizar lista de planes
-function renderPlansList(plans) {
-    if (!plans || plans.length === 0) {
-        return '<span class="text-gray-500 text-sm">No hay planes disponibles</span>';
-    }
-    
-    return plans.map(plan => `
-        <div class="flex justify-between items-center py-1 border-b border-gray-100 last:border-b-0">
-            <span class="text-sm font-medium">${plan.name}</span>
-            <div class="text-right">
-                ${plan.price_soles ? `
-                    <div class="text-green-600 font-bold">
-                        S/ ${typeof plan.price_soles === 'number' ? 
-                            plan.price_soles.toFixed(2) : 
-                            parseFloat(plan.price_soles || 0).toFixed(2)}
-                    </div>
-                ` : ''}
-                ${plan.price_dollars ? `
-                    <div class="text-blue-600 text-sm">
-                        $ ${typeof plan.price_dollars === 'number' ? 
-                            plan.price_dollars.toFixed(2) : 
-                            parseFloat(plan.price_dollars || 0).toFixed(2)}
-                    </div>
-                ` : ''}
-            </div>
+function getNoProductsHTML() {
+    return `
+        <div class="col-span-full text-center py-16 fade-in-up">
+            <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
+            <p class="text-gray-500 mb-4">Intenta con otros términos de búsqueda o categorías</p>
+            <button class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" 
+                    onclick="resetFilters()">
+                <i class="fas fa-refresh mr-2"></i>
+                Limpiar filtros
+            </button>
         </div>
-    `).join('');
+    `;
 }
 
-// Formatear moneda
-function formatCurrency(amount) {
-    if (amount === Infinity || isNaN(amount)) return 'S/ 0.00';
-    return new Intl.NumberFormat('es-PE', { 
-        style: 'currency', 
-        currency: 'PEN',
-        minimumFractionDigits: 2
-    }).format(amount);
+function getErrorHTML() {
+    return `
+        <div class="col-span-full text-center py-12">
+            <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
+            <p class="text-gray-600">Error al cargar los productos</p>
+            <p class="text-sm text-gray-500 mt-1">Por favor, recarga la página</p>
+        </div>
+    `;
 }
 
 // Obtener nombre de categoría
 function getCategoryName(product) {
-    if (product.categories && product.categories.name) {
-        return product.categories.name;
-    }
+    if (product.categories?.name) return product.categories.name;
     if (product.category_id && typeof window.getCategories === 'function') {
         try {
-            const categories = window.getCategories();
-            if (categories && Array.isArray(categories)) {
-                const category = categories.find(cat => cat.id == product.category_id);
-                return category ? category.name : `Categoría ${product.category_id}`;
-            }
+            const category = window.getCategories().find(cat => cat.id == product.category_id);
+            return category?.name || `Categoría ${product.category_id}`;
         } catch (error) {
             console.error('Error obteniendo categorías:', error);
         }
     }
-    if (product.category) {
-        return product.category;
-    }
-    return 'General';
-}
-
-// Añadir event listeners a las tarjetas
-function addProductCardEventListeners() {
-    // Botones de ver detalles
-    document.querySelectorAll('.view-details-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const productId = e.currentTarget.closest('.product-card').getAttribute('data-product-id');
-            if (productId && typeof window.showProductDetails === 'function') {
-                // Efecto de clic
-                btn.classList.add('scale-95');
-                setTimeout(() => btn.classList.remove('scale-95'), 150);
-                
-                window.showProductDetails(productId);
-            }
-        });
-    });
-    
-    // Hacer toda la tarjeta clickeable en móviles
-    if (window.innerWidth < 768) {
-        document.querySelectorAll('.product-card').forEach(card => {
-            card.addEventListener('click', (e) => {
-                // No activar si se hizo clic en un botón o enlace
-                if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
-                    return;
-                }
-                
-                const productId = card.getAttribute('data-product-id');
-                if (productId && typeof window.showProductDetails === 'function') {
-                    window.showProductDetails(productId);
-                }
-            });
-        });
-    }
-}
-
-// Animación de entrada de productos
-function animateProductsEntry() {
-    const productCards = document.querySelectorAll('.product-card');
-    
-    productCards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.opacity = '1';
-            card.style.transform = 'translateY(0)';
-            card.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
-        }, index * 50);
-    });
+    return product.category || 'General';
 }
 
 // Resetear filtros
@@ -710,7 +460,7 @@ window.resetFilters = function() {
     const priceMax = document.getElementById('priceMax');
     const clearSearchBtn = document.getElementById('clearSearchBtn');
     
-    // Resetear valores
+    // Resetear valores UI
     if (searchInput) searchInput.value = '';
     if (categoryFilter) categoryFilter.value = 'all';
     if (priceMin) priceMin.value = '0';
@@ -725,7 +475,6 @@ window.resetFilters = function() {
         features: []
     });
     
-    // Re-renderizar
     filterAndRenderProducts();
 };
 
