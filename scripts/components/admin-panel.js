@@ -1,4 +1,4 @@
-// scripts/components/admin-panel.js - VERSIÓN FINAL
+// scripts/components/admin-panel.js
 import { renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
@@ -24,7 +24,7 @@ function setupEventListeners() {
     const addCategoryBtn = document.getElementById('addCategoryBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', () => {
+    if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', () => {
         openCategoryModal();
     });
     
