@@ -447,7 +447,6 @@ export async function loadCategoriesIntoSelect() {
         categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
     }
 }
-
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
     try {
