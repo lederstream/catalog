@@ -1,6 +1,5 @@
-// scripts/event-listeners.js
+// scripts/event-listeners.js - VERSIÓN CORREGIDA
 import { Utils } from './utils.js';
-import { openImageSearchModal, openCategoriesModal } from './modals.js';
 
 // Configurar todos los event listeners globales
 export function setupAllEventListeners() {
@@ -19,21 +18,16 @@ export function setupAllEventListeners() {
     }
 }
 
-// Listeners globales de clic
+// Listeners globales de clic - VERSIÓN CORREGIDA
 function setupGlobalClickListeners() {
     document.addEventListener('click', function(e) {
-        // SOLUCIÓN MEJORADA: Verificar si el click está dentro de un formulario
-        const isInForm = e.target.closest('form');
+        // EXCLUSIÓN CRÍTICA: No procesar clicks en elementos de formulario
         const isFormElement = e.target.matches('input, select, textarea, label, button[type="submit"], button[type="button"]');
-        const isInModal = e.target.closest('.modal');
+        const isInForm = e.target.closest('form');
         
-        // Si el click es en un elemento de formulario o dentro de un formulario, no interceptar
-        if (isFormElement || (isInForm && !e.target.closest('[data-product-id]'))) {
-            return;
-        }
-        
-        // Si el click es dentro de un modal, solo procesar clicks específicos de modal
-        if (isInModal && !e.target.closest('[data-product-id]')) {
+        // Si es un elemento de formulario o está dentro de uno, NO procesar el evento aquí
+        if (isFormElement || isInForm) {
+            // Permitir que los eventos de formulario se manejen normalmente
             return;
         }
         
@@ -51,7 +45,6 @@ function setupGlobalClickListeners() {
         
         if (e.target.closest('.edit-product')) {
             e.preventDefault();
-            e.stopPropagation();
             const btn = e.target.closest('.edit-product');
             const productId = btn.dataset.id;
             if (productId && typeof window.editProduct === 'function') {
@@ -63,7 +56,6 @@ function setupGlobalClickListeners() {
         
         if (e.target.closest('#searchImageBtn')) {
             e.preventDefault();
-            e.stopPropagation();
             if (typeof window.openImageSearchModal === 'function') {
                 window.openImageSearchModal();
             }
@@ -71,32 +63,18 @@ function setupGlobalClickListeners() {
         
         if (e.target.closest('#manageCategoriesBtn')) {
             e.preventDefault();
-            e.stopPropagation();
             if (typeof window.openCategoriesModal === 'function') {
                 window.openCategoriesModal();
             }
         }
-    }, true); // Usar capture phase para mejor control
+    });
 }
 
-// Listeners para formularios
+// Listeners para formularios - VERSIÓN MEJORADA
 function setupFormEventListeners() {
     // Validación en tiempo real para formularios
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
-        // Asegurar que los inputs del formulario no sean interferidos
-        form.addEventListener('click', (e) => {
-            e.stopPropagation();
-        }, true);
-        
-        form.addEventListener('focus', (e) => {
-            // Remover cualquier interferencia cuando el usuario enfoca un campo
-            if (e.target.matches('input, select, textarea')) {
-                e.target.removeAttribute('readonly');
-                e.target.removeAttribute('disabled');
-            }
-        }, true);
-        
         form.addEventListener('input', Utils.debounce((e) => {
             validateField(e.target);
         }, 300));
@@ -109,14 +87,12 @@ function setupFormEventListeners() {
         });
     });
     
-    // Event listener específico para campos de formulario
+    // Asegurar que los campos de formulario sean completamente interactivos
     document.addEventListener('focus', (e) => {
         if (e.target.matches('input, select, textarea')) {
-            // Asegurar que el campo esté habilitado cuando recibe focus
+            // Remover cualquier atributo que pueda interferir
             e.target.removeAttribute('readonly');
             e.target.removeAttribute('disabled');
-            
-            // Remover clases que puedan estar bloqueando la interacción
             e.target.classList.remove('pointer-events-none');
             e.target.style.pointerEvents = 'auto';
         }
@@ -175,7 +151,7 @@ function setupUIEventListeners() {
     buttons.forEach(button => {
         // Guardar el texto original
         if (!button.dataset.originalText) {
-            button.dataset.originalText = button.textContent.trim();
+            button.dataset.originalText = button.innerHTML;
         }
         
         button.addEventListener('click', function(e) {
@@ -238,7 +214,7 @@ function validateForm(form) {
     return isValid;
 }
 
-// Función para limpiar interferencias en formularios (útil para debugging)
+// Función para limpiar interferencias en formularios
 export function clearFormInterference() {
     const formElements = document.querySelectorAll('input, select, textarea');
     formElements.forEach(element => {
