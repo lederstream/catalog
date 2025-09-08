@@ -830,6 +830,11 @@ export async function editProduct(id) {
     try {
         console.log('✏️ Editando producto ID:', id);
         
+        // Limpiar interferencias primero
+        if (typeof window.clearFormInterference === 'function') {
+            window.clearFormInterference();
+        }
+        
         // Obtener el productManager de forma segura
         const manager = window.productManager || await getProductManager();
         const product = manager.getProductById(id);
@@ -855,6 +860,18 @@ export async function editProduct(id) {
     }
 }
 
+// Función para limpiar interferencias en formularios
+export function clearFormInterference() {
+    const formElements = document.querySelectorAll('input, select, textarea');
+    formElements.forEach(element => {
+        element.removeAttribute('readonly');
+        element.removeAttribute('disabled');
+        element.classList.remove('pointer-events-none');
+        element.style.pointerEvents = 'auto';
+    });
+    console.log('✅ Interferencias de formulario limpiadas');
+}
+
 // Hacer funciones disponibles globalmente
 window.prepareEditForm = prepareEditForm;
 window.resetProductForm = resetForm;
@@ -862,6 +879,7 @@ window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
+window.clearFormInterference = clearFormInterference;
 
 // Inicializar automáticamente cuando el DOM esté listo
 if (document.readyState === 'loading') {
