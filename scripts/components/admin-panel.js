@@ -1,3 +1,4 @@
+// scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
@@ -648,7 +649,39 @@ function updateImagePreview(url) {
     }
 }
 
-// Preparar formulario para edición
+// Función helper para parsear planes (REEMPLAZA la función problemática)
+function parsePlans(plans) {
+    if (!plans) return [];
+    
+    try {
+        // Si ya es un array, devolverlo directamente
+        if (Array.isArray(plans)) {
+            return plans.filter(plan => plan && typeof plan === 'object');
+        }
+        
+        // Si es string, intentar parsear JSON
+        if (typeof plans === 'string') {
+            try {
+                return JSON.parse(plans);
+            } catch (e) {
+                // Si falla el parsing, intentar un formato alternativo
+                console.warn('Error parsing plans JSON, trying alternative format:', e);
+                return [];
+            }
+        }
+        
+        // Si es un objeto individual, convertirlo a array
+        if (typeof plans === 'object' && plans !== null) {
+            return [plans];
+        }
+        
+        return [];
+    } catch (error) {
+        console.warn('Error parsing plans:', error);
+        return [];
+    }
+}
+
 // Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
@@ -712,17 +745,21 @@ export async function prepareEditForm(product) {
     
     updateImagePreview(product.photo_url);
     
-    // 5. Configurar planes
+    // 5. Configurar planes - USAR la función helper parsePlans en lugar de this.parsePlans
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
         
-        if (product.plans && product.plans.length > 0) {
-            // Verificar y limpiar los planes
-            const validPlans = this.parsePlans(product.plans);
-            validPlans.forEach(plan => {
-                addPlanRow(plan);
-            });
+        if (product.plans) {
+            // Usar la función helper parsePlans en lugar de this.parsePlans
+            const validPlans = parsePlans(product.plans);
+            if (validPlans.length > 0) {
+                validPlans.forEach(plan => {
+                    addPlanRow(plan);
+                });
+            } else {
+                addPlanRow();
+            }
         } else {
             addPlanRow();
         }
@@ -741,39 +778,6 @@ export async function prepareEditForm(product) {
     }
     
     console.log('✅ Formulario de edición preparado correctamente');
-}
-
-// AGREGAR esta función de parseo de planes en la clase o como función helper
-function parsePlans(plans) {
-    if (!plans) return [];
-    
-    try {
-        // Si ya es un array, devolverlo directamente
-        if (Array.isArray(plans)) {
-            return plans.filter(plan => plan && typeof plan === 'object');
-        }
-        
-        // Si es string, intentar parsear JSON
-        if (typeof plans === 'string') {
-            try {
-                return JSON.parse(plans);
-            } catch (e) {
-                // Si falla el parsing, intentar un formato alternativo
-                console.warn('Error parsing plans JSON, trying alternative format:', e);
-                return [];
-            }
-        }
-        
-        // Si es un objeto individual, convertirlo a array
-        if (typeof plans === 'object' && plans !== null) {
-            return [plans];
-        }
-        
-        return [];
-    } catch (error) {
-        console.warn('Error parsing plans:', error);
-        return [];
-    }
 }
 
 // Función para editar producto
