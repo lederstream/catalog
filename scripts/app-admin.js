@@ -21,7 +21,12 @@ async function initAdminApp() {
         // Hacer funciones disponibles globalmente
         window.getProducts = () => window.productManager.getProducts();
         window.getProductById = (id) => window.productManager.getProductById(id);
-        window.editProduct = (id) => window.productManager.prepareEditForm(window.productManager.getProductById(id));
+        window.editProduct = (id) => {
+            const product = window.productManager.getProductById(id);
+            if (product && typeof window.prepareEditForm === 'function') {
+                window.prepareEditForm(product);
+            }
+        };      
         window.deleteProduct = (id) => window.productManager.deleteProduct(id);
         window.loadProducts = () => window.productManager.loadProducts();
         window.addProduct = (productData) => window.productManager.addProduct(productData);
