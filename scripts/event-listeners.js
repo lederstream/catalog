@@ -225,6 +225,13 @@ export function clearFormInterference() {
     });
     console.log('✅ Interferencias de formulario limpiadas');
 }
+// Debug: Verificar event listeners
+document.querySelectorAll('input, select, textarea').forEach(el => {
+  el.addEventListener('click', function(e) {
+    console.log('Click en campo:', e.target.id || e.target.name);
+    console.log('Event path:', e.composedPath());
+  }, true);
+});
 
 // Hacer funciones disponibles globalmente
 window.setupAllEventListeners = setupAllEventListeners;
