@@ -3,7 +3,7 @@ import { initAdminPanel } from './components/admin-panel.js';
 import { getProductManager } from './products.js';
 import { getCategoryManager } from './categories.js';
 import { checkAuth, handleLogout } from './auth.js';
-
+import { setupAllEventListeners } from './event-listeners.js';
 
 // Inicializar la aplicación de administración
 async function initAdminApp() {
@@ -36,6 +36,9 @@ async function initAdminApp() {
         window.getCategories = () => window.categoryManager.getCategories();
         window.loadCategories = () => window.categoryManager.loadCategories();
         window.handleLogout = handleLogout;
+
+        // Configurar event listeners globales
+        setupAllEventListeners();
 
         // Inicializar panel de administración
         initAdminPanel();
