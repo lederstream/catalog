@@ -21,52 +21,48 @@ export function setupAllEventListeners() {
 
 // Listeners globales de clic
 function setupGlobalClickListeners() {
-    document.addEventListener('click', Utils.debounce((e) => {
-        // Solo registrar clicks en modo desarrollo
-        if (localStorage.getItem('debug') === 'true') {
-            console.log('🖱️ Global click detected on:', e.target.className);
+    document.addEventListener('click', function(e) {
+        // Solo procesar clicks en elementos específicos, no en todos
+        const target = e.target;
+        
+        // Si el click es en un campo de formulario, no hacer nada
+        if (target.matches('input, select, textarea')) {
+            return;
         }
         
-        // Manejar clicks en botones de detalles de producto
-        if (e.target.closest('.view-details-btn')) {
-            const btn = e.target.closest('.view-details-btn');
+        // Solo procesar clicks en botones específicos
+        if (target.closest('.view-details-btn')) {
+            const btn = target.closest('.view-details-btn');
             const productId = btn.dataset.productId;
             if (productId && typeof window.showProductDetails === 'function') {
-                // Efecto de clic
                 btn.classList.add('scale-95');
                 setTimeout(() => btn.classList.remove('scale-95'), 150);
-                
                 window.showProductDetails(productId);
             }
         }
         
-        // Manejar clicks en botones de editar producto
-        if (e.target.closest('.edit-product')) {
-            const btn = e.target.closest('.edit-product');
+        if (target.closest('.edit-product')) {
+            const btn = target.closest('.edit-product');
             const productId = btn.dataset.id;
             if (productId && typeof window.editProduct === 'function') {
-                // Efecto de clic
                 btn.classList.add('scale-95');
                 setTimeout(() => btn.classList.remove('scale-95'), 150);
-                
                 window.editProduct(productId);
             }
         }
         
-        // Manejar clicks en botones de búsqueda de imagen
-        if (e.target.closest('#searchImageBtn')) {
+        if (target.closest('#searchImageBtn')) {
             if (typeof window.openImageSearchModal === 'function') {
                 window.openImageSearchModal();
             }
         }
         
-        // Manejar clicks en botones de gestión de categorías
-        if (e.target.closest('#manageCategoriesBtn')) {
+        if (target.closest('#manageCategoriesBtn')) {
             if (typeof window.openCategoriesModal === 'function') {
                 window.openCategoriesModal();
             }
         }
-    }, 50));
+    });
 }
 
 // Listeners para formularios
