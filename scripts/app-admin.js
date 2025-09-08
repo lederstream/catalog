@@ -20,7 +20,7 @@ async function initAdminApp() {
         initAdminPanel();
 
         await window.productManager.loadProducts();
-        await window.categoryManager.loadProducts();
+        await window.categoryManager.loadCategories();
 
         const adminProductsList = document.getElementById('adminProductsList');
         if (adminProductsList) window.productManager.renderAdminProductsList(window.productManager.getProducts(), adminProductsList);
