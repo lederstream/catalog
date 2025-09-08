@@ -697,29 +697,58 @@ export async function prepareEditForm(product) {
 
     console.log('🔄 Preparando formulario para edición:', product);
     
-    // 1. Primero establecer los valores inmediatos que no dependen de async
+    // 1. Primero limpiar cualquier interferencia en los campos del formulario
+    const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
+    formElements.forEach(element => {
+        element.removeAttribute('readonly');
+        element.removeAttribute('disabled');
+        element.classList.remove('pointer-events-none');
+        element.style.pointerEvents = 'auto';
+    });
+    
+    // 2. Establecer valores inmediatos
     document.getElementById('productId').value = product.id;
     
-    // Establecer nombre y descripción inmediatamente
+    // Establecer nombre, descripción y URL inmediatamente
     const nameInput = document.getElementById('name');
     const descriptionInput = document.getElementById('description');
     const photoUrlInput = document.getElementById('photo_url');
     
-    if (nameInput) nameInput.value = product.name || '';
-    if (descriptionInput) descriptionInput.value = product.description || '';
-    if (photoUrlInput) photoUrlInput.value = product.photo_url || '';
+    if (nameInput) {
+        nameInput.value = product.name || '';
+        nameInput.removeAttribute('readonly');
+    }
     
-    // 2. Cargar categorías y ESPERAR a que se completen
+    if (descriptionInput) {
+        descriptionInput.value = product.description || '';
+        descriptionInput.removeAttribute('readonly');
+    }
+    
+    if (photoUrlInput) {
+        photoUrlInput.value = product.photo_url || '';
+        photoUrlInput.removeAttribute('readonly');
+    }
+    
+    // 3. Cargar categorías y ESPERAR a que se completen
     await loadCategoriesIntoSelect();
     
-    // 3. Establecer categoría DESPUÉS de cargar las opciones
+    // 4. Establecer categoría DESPUÉS de cargar las opciones
     if (product.category_id) {
         const categorySelect = document.getElementById('category');
         if (categorySelect) {
-            // Esperar un tick del event loop para asegurar que el DOM esté actualizado
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Esperar a que el selector esté completamente poblado
+            await new Promise(resolve => {
+                const checkOptions = () => {
+                    if (categorySelect.options.length > 1) { // Más de la opción por defecto
+                        resolve();
+                    } else {
+                        setTimeout(checkOptions, 50);
+                    }
+                };
+                checkOptions();
+            });
             
-            // Buscar la opción que coincide con el category_id
+            // Buscar y establecer la categoría
             const optionToSelect = Array.from(categorySelect.options).find(
                 option => option.value == product.category_id
             );
@@ -729,21 +758,21 @@ export async function prepareEditForm(product) {
                 console.log('✅ Categoría establecida correctamente:', product.category_id);
             } else {
                 console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
-                // Si no se encuentra, intentar establecer después de un breve delay
-                setTimeout(() => {
-                    const retryOption = Array.from(categorySelect.options).find(
-                        option => option.value == product.category_id
-                    );
-                    if (retryOption) {
-                        categorySelect.value = product.category_id;
-                        console.log('✅ Categoría establecida en reintento:', product.category_id);
-                    }
-                }, 300);
+                // Crear una opción temporal si no existe
+                const tempOption = document.createElement('option');
+                tempOption.value = product.category_id;
+                tempOption.textContent = `Categoría ${product.category_id} (no encontrada)`;
+                tempOption.selected = true;
+                categorySelect.appendChild(tempOption);
             }
+            
+            // Asegurar que el selector no esté deshabilitado
+            categorySelect.removeAttribute('disabled');
+            categorySelect.classList.remove('pointer-events-none');
         }
     }
     
-    // 4. Actualizar UI
+    // 5. Actualizar UI
     const formTitle = document.getElementById('formTitle');
     const submitText = document.getElementById('submitText');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -754,7 +783,7 @@ export async function prepareEditForm(product) {
     
     updateImagePreview(product.photo_url);
     
-    // 5. Configurar planes
+    // 6. Configurar planes
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
@@ -781,7 +810,7 @@ export async function prepareEditForm(product) {
         }
     }
     
-    // 6. Scroll al formulario y enfocar
+    // 7. Scroll al formulario y enfocar
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
