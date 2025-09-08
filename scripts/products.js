@@ -195,7 +195,7 @@ class ProductManager {
                          loading="lazy"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
                     <div class="absolute top-3 right-3">
-                        <span class="-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                        <span class="bg-'blue'-600 text-white text-xs px-2 py-1 rounded-full shadow-sm">
                             ${product.category_name}
                         </span>
                     </div>
@@ -210,14 +210,10 @@ class ProductManager {
                         ${this.renderProductPlansPreview(product.plans)}
                     </div>
 
-                    <div class="flex items-center justify-between mt-4">
-                        <div class="text-blue-600 font-bold text-lg">
-                            ${Utils.formatCurrency(minPrice)}
-                        </div>
                         <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded-lg transition-all duration-200 transform hover:scale-105"
                                 data-product-id="${product.id}">
                             <i class="fas fa-eye mr-1"></i>
-                            Ver
+                            Ver Planes
                         </button>
                     </div>
                 </div>
