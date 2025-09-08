@@ -99,6 +99,8 @@
                     <div class="md:col-span-2">
                         <label class="block text-gray-700 mb-2">Planes y Precios *</label>
                         <div id="plansContainer" class="space-y-3 mb-4">
+                            <!-- Los planes se agregarán dinámicamente aquí -->
+                             
                             <div class="plan-item">
                                 <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-2">
                                     <input type="text" placeholder="Nombre del plan" class="px-3 py-2 border rounded-lg plan-name">
@@ -127,24 +129,11 @@
             <!-- Lista de productos en admin -->
             <div>
                 <h4 class="text-lg font-semibold mb-4">Productos Existentes</h4>
-                <div class="overflow-x-auto">
-                    <table class="min-w-full bg-white">
-                        <thead>
-                            <tr class="bg-gray-100">
-                                <th class="py-3 px-4 text-left">Imagen</th>
-                                <th class="py-3 px-4 text-left">Nombre</th>
-                                <th class="py-3 px-4 text-left">Categoría</th>
-                                <th class="py-3 px-4 text-left">Planes</th>
-                                <th class="py-3 px-4 text-left">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="adminProductsList">
-                            <!-- Los productos se cargarán aquí dinámicamente -->
-                            <tr>
-                                <td colspan="5" class="py-4 text-center text-gray-500">Cargando productos...</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <div id="adminProductsList" class="space-y-4">
+                    <!-- Los productos se cargarán aquí dinámicamente -->
+                    <div class="text-center py-8 text-gray-500">
+                        <i class="fas fa-spinner fa-spin"></i> Cargando productos...
+                    </div>
                 </div>
             </div>
         </div>
