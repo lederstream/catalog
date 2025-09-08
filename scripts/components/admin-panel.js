@@ -245,12 +245,14 @@ export async function loadCategoriesIntoSelect() {
     try {
         // Obtener categorías
         let categories = [];
-        if (typeof window.getCategories === 'function') {
+        
+        // Usar el categoryManager si está disponible
+        if (window.categoryManager && typeof window.categoryManager.getCategories === 'function') {
+            categories = window.categoryManager.getCategories();
+        } else if (typeof window.getCategories === 'function') {
             categories = window.getCategories();
         } else if (typeof window.loadCategories === 'function') {
             categories = await window.loadCategories();
-        } else if (window.categoryManager && typeof window.categoryManager.getCategories === 'function') {
-            categories = window.categoryManager.getCategories();
         }
 
         // Guardar la selección actual si existe
@@ -362,15 +364,18 @@ function ensureFormFieldsAreEditable() {
         element.style.pointerEvents = 'auto';
         
         // Asegurar que los eventos no se propaguen incorrectamente
-        element.addEventListener('mousedown', (e) => {
+        const newElement = element.cloneNode(true);
+        element.parentNode.replaceChild(newElement, element);
+        
+        newElement.addEventListener('mousedown', (e) => {
             e.stopPropagation();
         });
         
-        element.addEventListener('click', (e) => {
+        newElement.addEventListener('click', (e) => {
             e.stopPropagation();
         });
         
-        element.addEventListener('focus', (e) => {
+        newElement.addEventListener('focus', (e) => {
             e.stopPropagation();
         });
     });
@@ -653,10 +658,10 @@ export function resetForm() {
         // Recargar categorías en el selector
         loadCategoriesIntoSelect();
         
-        // Enfocar el primer campo
-        const firstInput = productForm.querySelector('input');
-        if (firstInput) {
-            setTimeout(() => firstInput.focus(), 100);
+        // Enfocar el primer campo (nombre) en lugar de photo_url
+        const nameInput = document.getElementById('name');
+        if (nameInput) {
+            setTimeout(() => nameInput.focus(), 100);
         }
         
         // Remover clases de error
@@ -679,7 +684,7 @@ function updateImagePreview(url) {
                 <img src="${url}" 
                      alt="Vista previa" 
                      class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                     onerror="this.parentElement.innerHTML='<div class=\\"w-full h-full flex items-center justify-center\\"><p class=\\"text-red-500 p-4 text-center\\">❌ Error al cargar imagen</p></div>
+                     onerror="this.parentElement.innerHTML='<div class=\\"w-full h-full flex items-center justify-center\\"><p class=\\"text-red-500 p-4 text-center\\">❌ Error al cargar imagen</p></div>'">
                 <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
             </div>
         `;
@@ -854,15 +859,15 @@ export async function prepareEditForm(product) {
         }
     }
     
-    // 6. Scroll al formulario y enfocar
+    // 6. Scroll al formulario y enfocar en el campo de nombre (no en photo_url)
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
         
-        // Enfocar el primer campo
-        const firstInput = productForm.querySelector('input');
-        if (firstInput) {
-            setTimeout(() => firstInput.focus(), 100);
+        // Enfocar el campo de nombre en lugar de photo_url
+        const nameInput = document.getElementById('name');
+        if (nameInput) {
+            setTimeout(() => nameInput.focus(), 100);
         }
     }
     
