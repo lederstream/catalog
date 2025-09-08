@@ -415,7 +415,7 @@ class CategoryManager {
             Utils.showError('Error al guardar la categoría: ' + (error.message || 'Error desconocido'));
             
             // Restaurar botón en caso de error
-            const submitBtn = modal.querySelector('button[type="submit"]');
+            const submitBtn = modal.querySelector('button[type="submit]');
             if (submitBtn) {
                 submitBtn.innerHTML = categoryId ? 'Actualizar Categoría' : 'Agregar Categoría';
                 submitBtn.disabled = false;
@@ -569,6 +569,7 @@ export async function loadCategoriesIntoSelect() {
         categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
     }
 }
+
 // Hacer disponible globalmente
 window.CategoryManager = CategoryManager;
 window.categoryManager = getCategoryManager;
