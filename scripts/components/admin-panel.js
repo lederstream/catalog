@@ -238,7 +238,7 @@ function getColorClass(color) {
 export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
     if (!categorySelect) {
-        console.warn('⚠️ Selector de categoría no encontrado');
+        console.log('Selector de categoría no encontrado');
         return;
     }
 
@@ -680,12 +680,12 @@ function updateImagePreview(url) {
 
     if (url && url.trim() !== '') {
         imagePreview.innerHTML = `
-            <div class="w-full h-full bg-gray-100 rounded-lg overflow-hidden relative group">
+            <div class="w-full h-full bg-gray-100 rounded-lg overflow-hidden relative">
                 <img src="${url}" 
                      alt="Vista previa" 
                      class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                     onerror="this.parentElement.innerHTML='<div class=\\"w-full h-full flex items-center justify-center\\"><p class=\\"text-red-500 p-4 text-center\\">❌ Error al cargar imagen</p></div>'">
-                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
+                     onerror="this.onerror=null; this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2YzZjNmMyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkeT0iLjM1ZW0iIHRleHQtYW5jaG9yPSJtaWRkbGUiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtZmFtaWx5PSJzYW5zLXNlcmlmIiBmaWxsPSIjOTk5Ij7imqAgRXJyb3IgY2FyZ2FuZG8gaW1hZ2VuPC90ZXh0Pjwvc3ZnPg=='">
+                <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300 pointer-events-none"></div>
             </div>
         `;
     } else {
