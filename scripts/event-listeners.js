@@ -22,17 +22,14 @@ export function setupAllEventListeners() {
 // Listeners globales de clic
 function setupGlobalClickListeners() {
     document.addEventListener('click', function(e) {
-        // Solo procesar clicks en elementos específicos, no en todos
-        const target = e.target;
-        
-        // Si el click es en un campo de formulario, no hacer nada
-        if (target.matches('input, select, textarea')) {
-            return;
+        // SOLUCIÓN: Excluir elementos de formulario para que puedan recibir clicks normales
+        if (e.target.matches('input, select, textarea, label')) {
+            return; // No procesar clicks en elementos de formulario
         }
         
         // Solo procesar clicks en botones específicos
-        if (target.closest('.view-details-btn')) {
-            const btn = target.closest('.view-details-btn');
+        if (e.target.closest('.view-details-btn')) {
+            const btn = e.target.closest('.view-details-btn');
             const productId = btn.dataset.productId;
             if (productId && typeof window.showProductDetails === 'function') {
                 btn.classList.add('scale-95');
@@ -41,8 +38,8 @@ function setupGlobalClickListeners() {
             }
         }
         
-        if (target.closest('.edit-product')) {
-            const btn = target.closest('.edit-product');
+        if (e.target.closest('.edit-product')) {
+            const btn = e.target.closest('.edit-product');
             const productId = btn.dataset.id;
             if (productId && typeof window.editProduct === 'function') {
                 btn.classList.add('scale-95');
@@ -51,13 +48,13 @@ function setupGlobalClickListeners() {
             }
         }
         
-        if (target.closest('#searchImageBtn')) {
+        if (e.target.closest('#searchImageBtn')) {
             if (typeof window.openImageSearchModal === 'function') {
                 window.openImageSearchModal();
             }
         }
         
-        if (target.closest('#manageCategoriesBtn')) {
+        if (e.target.closest('#manageCategoriesBtn')) {
             if (typeof window.openCategoriesModal === 'function') {
                 window.openCategoriesModal();
             }
