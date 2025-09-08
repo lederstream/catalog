@@ -642,7 +642,7 @@ function updateImagePreview(url) {
                 <img src="${url}" 
                      alt="Vista previa" 
                      class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                     onerror="this.parentElement.innerHTML='<div class=\\"w-full h-full flex items-center justify-center\\"><p class=\\"text-red-500 p-4 text-center\\">❌ Error al cargar imagen</p></div>'">
+                     onerror="this.parentElement.innerHTML='<div class=\\"w-full h-full flex items-center justify-center\\"><p class=\\"text-red-500 p-4 text-center\\">❌ Error al cargar imagen</p></div>>
                 <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all duration-300"></div>
             </div>
         `;
