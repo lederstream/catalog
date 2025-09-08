@@ -691,41 +691,41 @@ function parsePlans(plans) {
     }
 }
 
-export function fixFormSelectors() {
-    console.log('🔧 Aplicando corrección para selectores de formulario...');
+export function fixFormSelection() {
+    console.log('🔧 Aplicando corrección para selección de formularios...');
     
-    // Asegurar que todos los campos de formulario sean completamente interactivos
+    // Remover cualquier event listener problemático de los campos de formulario
     const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
+    
     formElements.forEach(element => {
-        element.style.pointerEvents = 'auto';
-        element.classList.remove('pointer-events-none');
-        element.removeAttribute('readonly');
-        element.removeAttribute('disabled');
+        // Clonar el elemento para eliminar event listeners problemáticos
+        const clone = element.cloneNode(true);
+        element.parentNode.replaceChild(clone, element);
         
-        // Evento para prevenir cualquier interferencia
-        element.addEventListener('click', (e) => {
+        // Asegurar que los eventos no se propaguen
+        clone.addEventListener('mousedown', (e) => {
             e.stopPropagation();
         });
         
-        element.addEventListener('mousedown', (e) => {
+        clone.addEventListener('click', (e) => {
             e.stopPropagation();
         });
         
-        element.addEventListener('focus', (e) => {
+        clone.addEventListener('focus', (e) => {
             e.stopPropagation();
         });
     });
     
-    // También asegurar que los labels sean clickables
+    // Asegurar que los labels también funcionen correctamente
     const labels = document.querySelectorAll('#productForm label');
     labels.forEach(label => {
-        label.style.pointerEvents = 'auto';
         label.addEventListener('click', (e) => {
             e.stopPropagation();
         });
     });
+    
+    console.log('✅ Corrección de selección de formulario aplicada');
 }
-
 // Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
