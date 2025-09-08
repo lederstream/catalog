@@ -24,8 +24,21 @@ function setupEventListeners() {
     const addCategoryBtn = document.getElementById('addCategoryBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', () => openCategoryModal());
-    if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => openCategoryModal());
+    if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', () => {
+        if (window.categoryManager) {
+            window.categoryManager.openCategoryModal();
+        } else {
+            getCategoryManager().then(manager => manager.openCategoryModal());
+        }
+    });
+    
+    if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => {
+        if (window.categoryManager) {
+            window.categoryManager.openCategoryModal();
+        } else {
+            getCategoryManager().then(manager => manager.openCategoryModal());
+        }
+    });
     
     if (logoutBtn) logoutBtn.addEventListener('click', () => {
         if (typeof window.handleLogout === 'function') {
