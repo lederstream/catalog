@@ -8,9 +8,6 @@ import { checkAuth, handleLogout } from './auth.js';
 // Inicializar la aplicación de administración
 async function initAdminApp() {
     try {
-        if (typeof window.clearFormInterference === 'function') {
-            window.clearFormInterference();
-        }
         // Verificar autenticación
         if (!checkAuth()) {
             window.location.href = 'login.html';
