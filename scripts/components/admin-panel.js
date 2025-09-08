@@ -1,4 +1,3 @@
-// scripts/components/admin-panel.js
 import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
@@ -235,7 +234,7 @@ function getColorClass(color) {
 }
 
 // Cargar categorías en el selector del formulario
-export async function loadCategoriesIntoSelect() {
+export async function loadCategoriesIntoSelect(productCategoryId = null) {
     const categorySelect = document.getElementById('category');
     if (!categorySelect) return;
 
@@ -248,13 +247,13 @@ export async function loadCategoriesIntoSelect() {
             categories = await window.loadCategories();
         }
 
-        // Guardar la selección actual si existe
+        // Guardar la selección actual
         const currentValue = categorySelect.value;
-        const productId = document.getElementById('productId')?.value;
         
-        // Limpiar y poblar el selector
+        // Limpiar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
         
+        // Poblar el selector
         categories.forEach(cat => {
             const option = document.createElement('option');
             option.value = cat.id;
@@ -262,10 +261,13 @@ export async function loadCategoriesIntoSelect() {
             categorySelect.appendChild(option);
         });
         
-        // Restaurar la selección anterior para edición
-        if (productId && currentValue) {
+        // ✅ PRIORIZAR la categoría del producto sobre la selección anterior
+        if (productCategoryId) {
+            categorySelect.value = productCategoryId;
+        } else if (currentValue) {
             categorySelect.value = currentValue;
         }
+        
     } catch (error) {
         console.error('Error loading categories into select:', error);
     }
@@ -281,9 +283,16 @@ export function setupProductForm() {
         return;
     }
     
+    // Verificar que los elementos existen
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const photoUrlInput = document.getElementById('photo_url');
+    const categorySelect = document.getElementById('category');
+    
+    if (!categorySelect) {
+        console.error('❌ No se encontró el selector de categorías');
+        return;
+    }
     
     // Agregar nuevo plan
     if (addPlanBtn) {
@@ -340,13 +349,13 @@ function addPlanRow(planData = null) {
                 <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
                 <input type="number" step="0.01" min="0" placeholder="0.00" 
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors"
-                       value="${planData?.price_soles || ''}">
+                       value="${planData?.price_soles !== undefined && planData?.price_soles !== null ? planData.price_soles : ''}">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Precio $</label>
                 <input type="number" step="0.01" min="0" placeholder="0.00" 
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                       value="${planData?.price_dollars || ''}">
+                       value="${planData?.price_dollars !== undefined && planData?.price_dollars !== null ? planData.price_dollars : ''}">
             </div>
         </div>
         <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200 transform hover:scale-110" 
@@ -403,8 +412,17 @@ function validateProductForm(formData) {
         errors.push('El nombre del producto es requerido');
     }
     
-    if (!Utils.validateRequired(formData.category_id)) {
+    if (!formData.category_id || formData.category_id === "") {
         errors.push('La categoría es requerida');
+    } else {
+        // Verificar que la categoría existe en el selector
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            const selectedOption = categorySelect.options[categorySelect.selectedIndex];
+            if (selectedOption && selectedOption.value === "" && categorySelect.value !== "") {
+                errors.push('La categoría seleccionada no es válida');
+            }
+        }
     }
     
     if (!Utils.validateRequired(formData.description)) {
@@ -429,8 +447,8 @@ function validateProductForm(formData) {
                 errors.push(`El nombre del plan ${index + 1} es requerido`);
             }
             
-            const hasSoles = Utils.validateNumber(priceSoles) && parseFloat(priceSoles) >= 0;
-            const hasDollars = Utils.validateNumber(priceDollars) && parseFloat(priceDollars) >= 0;
+            const hasSoles = priceSoles && !isNaN(parseFloat(priceSoles)) && parseFloat(priceSoles) >= 0;
+            const hasDollars = priceDollars && !isNaN(parseFloat(priceDollars)) && parseFloat(priceDollars) >= 0;
             
             if (!hasSoles && !hasDollars) {
                 errors.push(`El plan ${index + 1} debe tener al menos un precio válido (soles o dólares)`);
@@ -454,15 +472,19 @@ async function handleProductSubmit(e) {
     // Recopilar planes
     const plans = [];
     document.querySelectorAll('.plan-item').forEach(item => {
-        const name = item.querySelector('.plan-name').value;
-        const price_soles = item.querySelector('.plan-price-soles').value;
-        const price_dollars = item.querySelector('.plan-price-dollars').value;
+        const name = item.querySelector('.plan-name').value.trim();
+        const priceSoles = item.querySelector('.plan-price-soles').value;
+        const priceDollars = item.querySelector('.plan-price-dollars').value;
 
-        if (name && (price_soles || price_dollars)) {
+        // Validar que al menos un precio tenga valor
+        const hasValidSoles = priceSoles && !isNaN(parseFloat(priceSoles)) && parseFloat(priceSoles) > 0;
+        const hasValidDollars = priceDollars && !isNaN(parseFloat(priceDollars)) && parseFloat(priceDollars) > 0;
+
+        if (name && (hasValidSoles || hasValidDollars)) {
             plans.push({
-                name: name.trim(),
-                price_soles: price_soles ? parseFloat(price_soles) : 0,
-                price_dollars: price_dollars ? parseFloat(price_dollars) : 0
+                name: name,
+                price_soles: hasValidSoles ? parseFloat(priceSoles) : null,
+                price_dollars: hasValidDollars ? parseFloat(priceDollars) : null
             });
         }
     });
@@ -624,41 +646,35 @@ export async function prepareEditForm(product) {
 
     console.log('🔄 Preparando formulario para edición:', product);
     
-    // Establecer valores inmediatos
+    // 1. Primero establecer valores básicos
     document.getElementById('productId').value = product.id;
     document.getElementById('name').value = product.name || '';
     document.getElementById('description').value = product.description || '';
     document.getElementById('photo_url').value = product.photo_url || '';
     
-    // Cargar categorías y ESPERAR a que se completen
-    await loadCategoriesIntoSelect();
+    // 2. Cargar categorías PASANDO la categoría del producto
+    await loadCategoriesIntoSelect(product.category_id);
     
-
-    // Esperar a que el DOM se actualice completamente
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Establecer categoría DESPUÉS de cargar las opciones
-    if (product.category_id) {
-        const categorySelect = document.getElementById('category');
-        if (categorySelect) {
-            // Buscar la opción que coincide con el category_id
-            const optionExists = Array.from(categorySelect.options).some(
-                option => option.value === product.category_id.toString()
-            );
-            
-            if (optionExists) {
-                categorySelect.value = product.category_id;
-                console.log('✅ Categoría establecida correctamente:', product.category_id);
-            } else {
-                console.warn('⚠️ La categoría no existe en el selector:', product.category_id);
-                // Crear una opción temporal si no existe
+    // 3. Esperar a que el DOM se actualice
+    await new Promise(resolve => setTimeout(resolve, 50));
+    
+    // 4. Verificar y forzar la selección de categoría si es necesario
+    const categorySelect = document.getElementById('category');
+    if (categorySelect && product.category_id && categorySelect.value !== product.category_id.toString()) {
+        console.log('⚠️ Forzando selección de categoría:', product.category_id);
+        categorySelect.value = product.category_id;
+        
+        // Doble verificación después de un delay
+        setTimeout(() => {
+            if (categorySelect.value !== product.category_id.toString()) {
+                console.warn('❌ La categoría no se estableció correctamente, creando opción temporal');
                 const tempOption = document.createElement('option');
                 tempOption.value = product.category_id;
-                tempOption.textContent = `Categoría ${product.category_id} (no encontrada)`;
+                tempOption.textContent = `Categoría ${product.category_id}`;
                 tempOption.selected = true;
                 categorySelect.appendChild(tempOption);
             }
-        }
+        }, 100);
     }
     
     // Actualizar UI
