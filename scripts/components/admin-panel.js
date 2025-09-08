@@ -239,7 +239,7 @@ export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
     if (!categorySelect) {
         console.warn('⚠️ Selector de categoría no encontrado');
-        return [];
+        return;
     }
 
     try {
@@ -249,9 +249,8 @@ export async function loadCategoriesIntoSelect() {
             categories = window.getCategories();
         } else if (typeof window.loadCategories === 'function') {
             categories = await window.loadCategories();
-        } else {
-            console.error('No se encontraron funciones para cargar categorías');
-            return [];
+        } else if (window.categoryManager && typeof window.categoryManager.getCategories === 'function') {
+            categories = window.categoryManager.getCategories();
         }
 
         // Guardar la selección actual si existe
@@ -261,29 +260,34 @@ export async function loadCategoriesIntoSelect() {
         // Limpiar y poblar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
         
-        categories.forEach(cat => {
-            const option = document.createElement('option');
-            option.value = cat.id;
-            option.textContent = cat.name;
-            categorySelect.appendChild(option);
-        });
+        if (categories && categories.length > 0) {
+            categories.forEach(cat => {
+                const option = document.createElement('option');
+                option.value = cat.id;
+                option.textContent = cat.name;
+                categorySelect.appendChild(option);
+            });
+            
+            console.log(`✅ ${categories.length} categorías cargadas en el selector`);
+        } else {
+            console.warn('⚠️ No se encontraron categorías para cargar en el selector');
+            categorySelect.innerHTML = '<option value="">No hay categorías disponibles</option>';
+        }
         
         // Restaurar la selección anterior para edición
         if (productId && currentValue) {
             // Esperar a que el DOM se actualice
             setTimeout(() => {
-                categorySelect.value = currentValue;
-            }, 50);
+                if (categorySelect.querySelector(`option[value="${currentValue}"]`)) {
+                    categorySelect.value = currentValue;
+                }
+            }, 100);
         }
         
-        console.log('✅ Categorías cargadas en selector:', categories.length);
-        return categories;
-        
     } catch (error) {
-        console.error('Error loading categories into select:', error);
+        console.error('❌ Error loading categories into select:', error);
         // Mantener el selector aunque falle la carga
         categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
-        return [];
     }
 }
 
@@ -654,7 +658,7 @@ function updateImagePreview(url) {
     }
 }
 
-// Función helper para parsear planes
+// Función helper para parsear planes (REEMPLAZA la función problemática)
 function parsePlans(plans) {
     if (!plans) return [];
     
@@ -667,10 +671,10 @@ function parsePlans(plans) {
         // Si es string, intentar parsear JSON
         if (typeof plans === 'string') {
             try {
-                return JSON.parse(plans);
+                const parsed = JSON.parse(plans);
+                return Array.isArray(parsed) ? parsed : [parsed];
             } catch (e) {
-                // Si falla el parsing, intentar un formato alternativo
-                console.warn('Error parsing plans JSON, trying alternative format:', e);
+                console.warn('Error parsing plans JSON:', e);
                 return [];
             }
         }
@@ -687,46 +691,55 @@ function parsePlans(plans) {
     }
 }
 
-// Preparar formulario para edición - VERSIÓN MEJORADA
+// Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
 
     console.log('🔄 Preparando formulario para edición:', product);
     
-    // 1. Primero cargar las categorías y esperar a que estén disponibles
-    const categories = await loadCategoriesIntoSelect();
-    
-    // 2. Establecer los valores del formulario
+    // 1. Primero establecer los valores inmediatos que no dependen de async
     document.getElementById('productId').value = product.id;
     
-    // Establecer nombre y descripción
+    // Establecer nombre y descripción inmediatamente
     const nameInput = document.getElementById('name');
     const descriptionInput = document.getElementById('description');
     const photoUrlInput = document.getElementById('photo_url');
-    const categorySelect = document.getElementById('category');
     
     if (nameInput) nameInput.value = product.name || '';
     if (descriptionInput) descriptionInput.value = product.description || '';
     if (photoUrlInput) photoUrlInput.value = product.photo_url || '';
     
-    // 3. Establecer categoría - verificar que existe en las opciones disponibles
-    if (product.category_id && categorySelect) {
-        // Esperar un breve momento para asegurar que las opciones estén renderizadas
-        await new Promise(resolve => setTimeout(resolve, 50));
-        
-        // Buscar la categoría en las opciones disponibles
-        const categoryExists = Array.from(categorySelect.options).some(
-            option => option.value == product.category_id
-        );
-        
-        if (categoryExists) {
-            categorySelect.value = product.category_id;
-            console.log('✅ Categoría establecida correctamente:', product.category_id);
-        } else {
-            console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
-            // Si no existe, dejar el selector vacío y mostrar advertencia
-            categorySelect.value = "";
-            Utils.showWarning(`La categoría original (ID: ${product.category_id}) ya no existe. Seleccione una nueva categoría.`);
+    // 2. Cargar categorías y ESPERAR a que se completen
+    await loadCategoriesIntoSelect();
+    
+    // 3. Establecer categoría DESPUÉS de cargar las opciones
+    if (product.category_id) {
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            // Esperar un tick del event loop para asegurar que el DOM esté actualizado
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            // Buscar la opción que coincide con el category_id
+            const optionToSelect = Array.from(categorySelect.options).find(
+                option => option.value == product.category_id
+            );
+            
+            if (optionToSelect) {
+                categorySelect.value = product.category_id;
+                console.log('✅ Categoría establecida correctamente:', product.category_id);
+            } else {
+                console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
+                // Si no se encuentra, intentar establecer después de un breve delay
+                setTimeout(() => {
+                    const retryOption = Array.from(categorySelect.options).find(
+                        option => option.value == product.category_id
+                    );
+                    if (retryOption) {
+                        categorySelect.value = product.category_id;
+                        console.log('✅ Categoría establecida en reintento:', product.category_id);
+                    }
+                }, 300);
+            }
         }
     }
     
@@ -747,7 +760,15 @@ export async function prepareEditForm(product) {
         plansContainer.innerHTML = '';
         
         if (product.plans) {
-            const validPlans = parsePlans(product.plans);
+            // Usar la función parsePlans del ProductManager si está disponible
+            let validPlans = [];
+            if (window.productManager && typeof window.productManager.parsePlans === 'function') {
+                validPlans = window.productManager.parsePlans(product.plans);
+            } else {
+                // Fallback: usar función local
+                validPlans = parsePlans(product.plans);
+            }
+            
             if (validPlans.length > 0) {
                 validPlans.forEach(plan => {
                     addPlanRow(plan);
@@ -805,46 +826,12 @@ export async function editProduct(id) {
     }
 }
 
-// Función para eliminar producto
-export async function deleteProduct(id, name) {
-    try {
-        showConfirmationModal({
-            title: 'Eliminar Producto',
-            message: `¿Estás seguro de que deseas eliminar el producto "${name}"? Esta acción no se puede deshacer.`,
-            confirmText: 'Eliminar',
-            cancelText: 'Cancelar',
-            type: 'danger',
-            onConfirm: async () => {
-                try {
-                    const manager = await getProductManager();
-                    const success = await manager.deleteProduct(id);
-                    
-                    if (success) {
-                        Utils.showSuccess('✅ Producto eliminado correctamente');
-                        // Recargar la lista de productos
-                        loadAdminProducts();
-                    } else {
-                        Utils.showError('❌ Error al eliminar el producto');
-                    }
-                } catch (error) {
-                    console.error('Error al eliminar producto:', error);
-                    Utils.showError('❌ Error al eliminar el producto');
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error showing delete confirmation:', error);
-        Utils.showError('❌ Error al preparar la eliminación');
-    }
-}
-
 // Hacer funciones disponibles globalmente
 window.prepareEditForm = prepareEditForm;
 window.resetProductForm = resetForm;
 window.initAdminPanel = initAdminPanel;
 window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
-window.deleteProduct = deleteProduct;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
 
 // Inicializar automáticamente cuando el DOM esté listo
