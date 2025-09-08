@@ -832,6 +832,149 @@ export async function prepareEditForm(product) {
     }, 100);
     console.log('✅ Formulario de edición preparado correctamente');
 }
+export function clearFormInterference() {
+    const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
+    formElements.forEach(element => {
+        element.removeAttribute('readonly');
+        element.removeAttribute('disabled');
+        element.classList.remove('pointer-events-none');
+        element.style.pointerEvents = 'auto';
+    });
+    console.log('✅ Interferencias de formulario limpiadas');
+}
+
+// Nueva versión mejorada de prepareEditForm
+export async function prepareEditForm(product) {
+    if (!product) return;
+
+    console.log('🔄 Preparando formulario para edición:', product);
+    
+    // Limpiar interferencias primero
+    clearFormInterference();
+    
+    // 1. Establecer valores inmediatos
+    document.getElementById('productId').value = product.id;
+    
+    // Establecer nombre, descripción y URL inmediatamente
+    const nameInput = document.getElementById('name');
+    const descriptionInput = document.getElementById('description');
+    const photoUrlInput = document.getElementById('photo_url');
+    
+    if (nameInput) {
+        nameInput.value = product.name || '';
+        nameInput.removeAttribute('readonly');
+    }
+    
+    if (descriptionInput) {
+        descriptionInput.value = product.description || '';
+        descriptionInput.removeAttribute('readonly');
+    }
+    
+    if (photoUrlInput) {
+        photoUrlInput.value = product.photo_url || '';
+        photoUrlInput.removeAttribute('readonly');
+    }
+    
+    // 2. Cargar categorías y ESPERAR a que se completen
+    await loadCategoriesIntoSelect();
+    
+    // 3. Establecer categoría DESPUÉS de cargar las opciones
+    if (product.category_id) {
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            // Esperar a que el selector esté completamente poblado
+            await new Promise(resolve => {
+                const checkOptions = () => {
+                    if (categorySelect.options.length > 1) { // Más de la opción por defecto
+                        resolve();
+                    } else {
+                        setTimeout(checkOptions, 50);
+                    }
+                };
+                checkOptions();
+            });
+            
+            // Buscar y establecer la categoría
+            const optionToSelect = Array.from(categorySelect.options).find(
+                option => option.value == product.category_id
+            );
+            
+            if (optionToSelect) {
+                categorySelect.value = product.category_id;
+                console.log('✅ Categoría establecida correctamente:', product.category_id);
+            } else {
+                console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
+                // Crear una opción temporal si no existe
+                const tempOption = document.createElement('option');
+                tempOption.value = product.category_id;
+                tempOption.textContent = `Categoría ${product.category_id} (no encontrada)`;
+                tempOption.selected = true;
+                categorySelect.appendChild(tempOption);
+            }
+            
+            // Asegurar que el selector no esté deshabilitado
+            categorySelect.removeAttribute('disabled');
+            categorySelect.classList.remove('pointer-events-none');
+        }
+    }
+    
+    // 4. Actualizar UI
+    const formTitle = document.getElementById('formTitle');
+    const submitText = document.getElementById('submitText');
+    const cancelBtn = document.getElementById('cancelBtn');
+    
+    if (formTitle) formTitle.textContent = 'Editar Producto';
+    if (submitText) submitText.textContent = 'Actualizar Producto';
+    if (cancelBtn) cancelBtn.classList.remove('hidden');
+    
+    updateImagePreview(product.photo_url);
+    
+    // 5. Configurar planes
+    const plansContainer = document.getElementById('plansContainer');
+    if (plansContainer) {
+        plansContainer.innerHTML = '';
+        
+        if (product.plans) {
+            // Usar la función parsePlans del ProductManager si está disponible
+            let validPlans = [];
+            if (window.productManager && typeof window.productManager.parsePlans === 'function') {
+                validPlans = window.productManager.parsePlans(product.plans);
+            } else {
+                // Fallback: usar función local
+                validPlans = parsePlans(product.plans);
+            }
+            
+            if (validPlans.length > 0) {
+                validPlans.forEach(plan => {
+                    addPlanRow(plan);
+                });
+            } else {
+                addPlanRow();
+            }
+        } else {
+            addPlanRow();
+        }
+    }
+    
+    // 6. Scroll al formulario y enfocar
+    const productForm = document.getElementById('productForm');
+    if (productForm) {
+        productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Enfocar el primer campo
+        const firstInput = productForm.querySelector('input');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
+    }
+    
+    // 7. Aplicar corrección final después de un breve delay
+    setTimeout(() => {
+        fixFormSelection();
+    }, 200);
+    
+    console.log('✅ Formulario de edición preparado correctamente');
+}
 
 // Función para editar producto
 export async function editProduct(id) {
