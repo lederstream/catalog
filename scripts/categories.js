@@ -511,14 +511,22 @@ export function openCategoryModal(category = null) {
 export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
     if (!categorySelect) {
-        console.error('❌ Selector de categoría no encontrado');
+        console.warn('⚠️ Selector de categoría no encontrado');
         return;
     }
 
     try {
         // Obtener categorías
         let categories = [];
-        if (typeof window.getCategories === 'function') {
+        
+        // Esperar a que el categoryManager esté disponible
+        if (!window.categoryManager && typeof getCategoryManager === 'function') {
+            window.categoryManager = await getCategoryManager();
+        }
+        
+        if (window.categoryManager && typeof window.categoryManager.getCategories === 'function') {
+            categories = window.categoryManager.getCategories();
+        } else if (typeof window.getCategories === 'function') {
             categories = window.getCategories();
         } else if (typeof window.loadCategories === 'function') {
             categories = await window.loadCategories();
@@ -526,6 +534,7 @@ export async function loadCategoriesIntoSelect() {
 
         // Guardar la selección actual si existe
         const currentValue = categorySelect.value;
+        const productId = document.getElementById('productId')?.value;
         
         // Limpiar y poblar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
@@ -544,17 +553,22 @@ export async function loadCategoriesIntoSelect() {
             categorySelect.innerHTML = '<option value="">No hay categorías disponibles</option>';
         }
         
-        // Restaurar la selección anterior si existe
-        if (currentValue) {
-            categorySelect.value = currentValue;
+        // Restaurar la selección anterior para edición
+        if (productId && currentValue) {
+            // Esperar a que el DOM se actualice
+            setTimeout(() => {
+                if (categorySelect.querySelector(`option[value="${currentValue}"]`)) {
+                    categorySelect.value = currentValue;
+                }
+            }, 100);
         }
+        
     } catch (error) {
         console.error('❌ Error loading categories into select:', error);
-        // Mantener al menos la opción por defecto
-        categorySelect.innerHTML = '<option value="">Error al cargar categorías</option>';
+        // Mantener el selector aunque falle la carga
+        categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
     }
 }
-
 // Hacer disponible globalmente
 window.CategoryManager = CategoryManager;
 window.categoryManager = getCategoryManager;
