@@ -1,4 +1,4 @@
-// scripts/modals.js
+// scripts/modals.js - VERSIÓN CORREGIDA
 import { Utils } from './utils.js';
 
 // Sistema de modales
@@ -83,6 +83,67 @@ class ModalSystem {
         });
     }
     
+    // Modal de confirmación de eliminación
+    showDeleteConfirm(productId, productName) {
+        const modalId = 'deleteConfirmModal';
+        
+        this.createModal({
+            id: modalId,
+            title: `Eliminar "${productName}"`,
+            content: `
+                <div class="space-y-4">
+                    <div class="text-center">
+                        <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                            <i class="fas fa-exclamation-triangle text-red-600 text-xl"></i>
+                        </div>
+                        <h3 class="text-lg font-medium text-gray-800">Eliminar Producto</h3>
+                        <p class="text-gray-600 mt-2">¿Estás seguro de que deseas eliminar el producto "${productName}"? Esta acción no se puede deshacer.</p>
+                    </div>
+                    <div class="flex space-x-3 justify-end pt-4">
+                        <button class="cancel-delete px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                            Cancelar
+                        </button>
+                        <button class="confirm-delete px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                            Eliminar
+                        </button>
+                    </div>
+                </div>
+            `,
+            onShow: (modal) => {
+                const confirmBtn = modal.querySelector('.confirm-delete');
+                const cancelBtn = modal.querySelector('.cancel-delete');
+                
+                const cleanUp = () => {
+                    confirmBtn.onclick = null;
+                    cancelBtn.onclick = null;
+                };
+                
+                confirmBtn.onclick = async () => {
+                    try {
+                        if (typeof window.deleteProduct === 'function') {
+                            await window.deleteProduct(productId);
+                            Utils.showSuccess('✅ Producto eliminado correctamente');
+                            // Recargar la lista de productos
+                            if (typeof window.loadAdminProducts === 'function') {
+                                await window.loadAdminProducts();
+                            }
+                        }
+                        this.closeModal(modalId);
+                        cleanUp();
+                    } catch (error) {
+                        console.error('Error deleting product:', error);
+                        Utils.showError('❌ Error al eliminar el producto');
+                    }
+                };
+                
+                cancelBtn.onclick = () => {
+                    this.closeModal(modalId);
+                    cleanUp();
+                };
+            }
+        });
+    }
+    
     // Modal de categorías
     openCategoriesModal() {
         const modalId = 'categoriesModal';
@@ -91,7 +152,7 @@ class ModalSystem {
             title: 'Gestión de Categorías',
             size: 'lg',
             content: `
-                <div class="centered">
+                <div class="space-y-4">
                     <div class="bg-gray-50 p-4 rounded-lg">
                         <h3 class="font-semibold text-gray-800 mb-3">Agregar nueva categoría</h3>
                         <form id="categoryForm" class="space-y-3">
@@ -157,9 +218,9 @@ class ModalSystem {
             content: `
                 <div class="space-y-4">
                     <div class="flex space-x-2">
-                        <input type="text" placeholder="Buscar imágenes..." 
+                        <input type="text" id="imageSearchQuery" placeholder="Buscar imágenes..." 
                                class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                        <button class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <button id="performSearch" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
                             <i class="fas fa-search"></i>
                         </button>
                     </div>
@@ -188,9 +249,9 @@ class ModalSystem {
                     <div class="bg-gray-50 p-3 rounded-lg">
                         <p class="text-sm text-gray-600">O ingresa una URL personalizada:</p>
                         <div class="flex space-x-2 mt-2">
-                            <input type="url" placeholder="https://ejemplo.com/imagen.jpg" 
+                            <input type="url" id="customImageUrl" placeholder="https://ejemplo.com/imagen.jpg" 
                                    class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                            <button class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                            <button id="useCustomUrl" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
                                 Usar URL
                             </button>
                         </div>
@@ -211,14 +272,46 @@ class ModalSystem {
                 });
                 
                 // Configurar URL personalizada
-                const urlInput = modal.querySelector('input[type="url"]');
-                const urlButton = modal.querySelector('.bg-green-600');
+                const urlInput = modal.querySelector('#customImageUrl');
+                const urlButton = modal.querySelector('#useCustomUrl');
                 urlButton.addEventListener('click', () => {
                     if (urlInput.value && typeof window.updateImagePreview === 'function') {
                         window.updateImagePreview(urlInput.value);
                         this.closeModal(modalId);
                     }
                 });
+                
+                // Configurar búsqueda
+                const searchInput = modal.querySelector('#imageSearchQuery');
+                const searchButton = modal.querySelector('#performSearch');
+                searchButton.addEventListener('click', () => {
+                    // Implementar lógica de búsqueda aquí
+                    Utils.showInfo('🔍 Función de búsqueda de imágenes en desarrollo');
+                });
+            }
+        });
+    }
+    
+    // Modal de estadísticas
+    openStatsModal() {
+        const modalId = 'statsModal';
+        this.createModal({
+            id: modalId,
+            title: 'Estadísticas del Catálogo',
+            size: 'xl',
+            content: `
+                <div id="statsContent">
+                    <div class="text-center py-8">
+                        <i class="fas fa-spinner fa-spin text-2xl text-gray-400"></i>
+                        <p class="text-gray-500 mt-2">Cargando estadísticas...</p>
+                    </div>
+                </div>
+            `,
+            onShow: (modal) => {
+                // Cargar estadísticas
+                if (typeof window.loadStats === 'function') {
+                    window.loadStats();
+                }
             }
         });
     }
@@ -272,6 +365,13 @@ class ModalSystem {
         // Configurar evento de cierre
         const closeBtn = modal.querySelector('.close-modal');
         closeBtn.addEventListener('click', () => this.closeModal(id));
+        
+        // Cerrar al hacer clic fuera
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeModal(id);
+            }
+        });
         
         // Animación de entrada
         Utils.fadeIn(modal);
@@ -331,6 +431,11 @@ export function showConfirmationModal(options) {
     return modalSystem.showConfirmationModal(options);
 }
 
+export function showDeleteConfirm(productId, productName) {
+    const modalSystem = ModalSystem.getInstance();
+    return modalSystem.showDeleteConfirm(productId, productName);
+}
+
 export function openCategoriesModal() {
     const modalSystem = ModalSystem.getInstance();
     return modalSystem.openCategoriesModal();
@@ -341,10 +446,17 @@ export function openImageSearchModal() {
     return modalSystem.openImageSearchModal();
 }
 
+export function openStatsModal() {
+    const modalSystem = ModalSystem.getInstance();
+    return modalSystem.openStatsModal();
+}
+
 // Hacer funciones disponibles globalmente
 window.showConfirmationModal = showConfirmationModal;
+window.showDeleteConfirm = showDeleteConfirm;
 window.openCategoriesModal = openCategoriesModal;
 window.openImageSearchModal = openImageSearchModal;
+window.openStatsModal = openStatsModal;
 window.initModals = initModals;
 
 // Inicializar automáticamente cuando el DOM esté listo
