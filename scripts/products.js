@@ -47,15 +47,29 @@ class ProductManager {
         if (!plans) return [];
         
         try {
+            // Si ya es un array, devolverlo directamente
+            if (Array.isArray(plans)) {
+                return plans.filter(plan => plan && typeof plan === 'object');
+            }
+            
+            // Si es string, intentar parsear JSON
             if (typeof plans === 'string') {
-                return JSON.parse(plans);
-            } else if (Array.isArray(plans)) {
-                return plans;
-            } else if (typeof plans === 'object') {
+                // Limpiar el string si es necesario
+                const cleanedPlans = plans.trim();
+                if (cleanedPlans.startsWith('[') || cleanedPlans.startsWith('{')) {
+                    const parsed = JSON.parse(cleanedPlans);
+                    return Array.isArray(parsed) ? parsed : [parsed];
+                }
+            }
+            
+            // Si es un objeto individual, convertirlo a array
+            if (typeof plans === 'object' && plans !== null) {
                 return [plans];
             }
+            
             return [];
-        } catch {
+        } catch (error) {
+            console.warn('Error parsing plans:', error, plans);
             return [];
         }
     }
@@ -366,75 +380,6 @@ class ProductManager {
                 <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
             </div>
         `;
-    }
-
-    // Helper para añadir filas de plan
-    addPlanRow(planData = null) {
-        const plansContainer = document.getElementById('plansContainer');
-        if (!plansContainer) return;
-
-        const planItem = document.createElement('div');
-        planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200';
-        planItem.innerHTML = `
-            <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del plan</label>
-                    <input type="text" placeholder="Ej: Básico, Premium" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                        value="${planData?.name || ''}" 
-                        required>
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
-                    <input type="number" step="0.01" min="0" placeholder="0.00" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-soles focus:ring-2 focus:ring-green-500 focus:border-transparent" 
-                        value="${planData?.price_soles || ''}">
-                </div>
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">Precio $</label>
-                    <input type="number" step="0.01" min="0" placeholder="0.00" 
-                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-price-dollars focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
-                        value="${planData?.price_dollars || ''}">
-                </div>
-            </div>
-            <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200" 
-                    title="Eliminar plan">
-                <i class="fas fa-times-circle"></i>
-            </button>
-        `;
-        
-        // Agregar event listener para eliminar plan
-        const removeBtn = planItem.querySelector('.remove-plan');
-        removeBtn.addEventListener('click', () => {
-            if (document.querySelectorAll('.plan-item').length > 1) {
-                planItem.remove();
-            }
-        });
-        
-        plansContainer.appendChild(planItem);
-    }
-
-    // Helper para actualizar vista previa de imagen
-    updateImagePreview(url) {
-        const imagePreview = document.getElementById('imagePreview');
-        if (!imagePreview) return;
-
-        if (url && url.trim() !== '') {
-            imagePreview.innerHTML = `
-                <div class="w-full h-full bg-gray-100 rounded-lg overflow-hidden">
-                    <img src="${url}" 
-                        alt="Vista previa" 
-                        class="w-full h-full object-cover"
-                        onerror="this.src='https://via.placeholder.com/400x200?text=Error+al+cargar+imagen'>
-                </div>
-            `;
-        } else {
-            imagePreview.innerHTML = `
-                <div class="w-full h-full flex items-center justify-center text-gray-500">
-                    <p>La imagen aparecerá aquí</p>
-                </div>
-            `;
-        }
     }
 
     attachAdminEventListeners(container, products) {
