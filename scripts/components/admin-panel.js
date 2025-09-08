@@ -641,43 +641,59 @@ function updateImagePreview(url) {
 }
 
 // Preparar formulario para edición
+// Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
 
     console.log('🔄 Preparando formulario para edición:', product);
     
-    // 1. Primero establecer valores básicos
+    // 1. Primero establecer los valores inmediatos que no dependen de async
     document.getElementById('productId').value = product.id;
-    document.getElementById('name').value = product.name || '';
-    document.getElementById('description').value = product.description || '';
-    document.getElementById('photo_url').value = product.photo_url || '';
     
-    // 2. Cargar categorías PASANDO la categoría del producto
-    await loadCategoriesIntoSelect(product.category_id);
+    // Establecer nombre y descripción inmediatamente
+    const nameInput = document.getElementById('name');
+    const descriptionInput = document.getElementById('description');
+    const photoUrlInput = document.getElementById('photo_url');
     
-    // 3. Esperar a que el DOM se actualice
-    await new Promise(resolve => setTimeout(resolve, 50));
+    if (nameInput) nameInput.value = product.name || '';
+    if (descriptionInput) descriptionInput.value = product.description || '';
+    if (photoUrlInput) photoUrlInput.value = product.photo_url || '';
     
-    // 4. Verificar y forzar la selección de categoría si es necesario
-    const categorySelect = document.getElementById('category');
-    if (categorySelect && product.category_id && categorySelect.value !== product.category_id.toString()) {
-        console.log('⚠️ Forzando selección de categoría:', product.category_id);
-        categorySelect.value = product.category_id;
-        
-        // Doble verificación después de un delay
-        setTimeout(() => {
-            if (categorySelect.value !== product.category_id.toString()) {
-                console.warn('❌ La categoría no se estableció correctamente, creando opción temporal');
-                const tempOption = document.createElement('option');
-                tempOption.value = product.category_id;
-                tempOption.textContent = `Categoría ${product.category_id}`;
-                tempOption.selected = true;
-                categorySelect.appendChild(tempOption);
+    // 2. Cargar categorías y ESPERAR a que se completen
+    await loadCategoriesIntoSelect();
+    
+    // 3. Establecer categoría DESPUÉS de cargar las opciones
+    if (product.category_id) {
+        const categorySelect = document.getElementById('category');
+        if (categorySelect) {
+            // Esperar un tick del event loop para asegurar que el DOM esté actualizado
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
+            // Buscar la opción que coincide con el category_id
+            const optionToSelect = Array.from(categorySelect.options).find(
+                option => option.value == product.category_id
+            );
+            
+            if (optionToSelect) {
+                categorySelect.value = product.category_id;
+                console.log('✅ Categoría establecida correctamente:', product.category_id);
+            } else {
+                console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
+                // Si no se encuentra, intentar nuevamente después de un breve delay
+                setTimeout(() => {
+                    const retryOption = Array.from(categorySelect.options).find(
+                        option => option.value == product.category_id
+                    );
+                    if (retryOption) {
+                        categorySelect.value = product.category_id;
+                        console.log('✅ Categoría establecida en reintento:', product.category_id);
+                    }
+                }, 200);
             }
-        }, 100);
+        }
     }
     
-    // Actualizar UI
+    // 4. Actualizar UI
     const formTitle = document.getElementById('formTitle');
     const submitText = document.getElementById('submitText');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -688,13 +704,15 @@ export async function prepareEditForm(product) {
     
     updateImagePreview(product.photo_url);
     
-    // Configurar planes
+    // 5. Configurar planes
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
         
         if (product.plans && product.plans.length > 0) {
-            product.plans.forEach(plan => {
+            // Verificar y limpiar los planes
+            const validPlans = this.parsePlans(product.plans);
+            validPlans.forEach(plan => {
                 addPlanRow(plan);
             });
         } else {
@@ -702,16 +720,51 @@ export async function prepareEditForm(product) {
         }
     }
     
-    // Scroll al formulario
+    // 6. Scroll al formulario y enfocar
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        
+        // Enfocar el primer campo
+        const firstInput = productForm.querySelector('input');
+        if (firstInput) {
+            setTimeout(() => firstInput.focus(), 100);
+        }
     }
     
-    // Enfocar el primer campo
-    const firstInput = productForm.querySelector('input');
-    if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
+    console.log('✅ Formulario de edición preparado correctamente');
+}
+
+// AGREGAR esta función de parseo de planes en la clase o como función helper
+function parsePlans(plans) {
+    if (!plans) return [];
+    
+    try {
+        // Si ya es un array, devolverlo directamente
+        if (Array.isArray(plans)) {
+            return plans.filter(plan => plan && typeof plan === 'object');
+        }
+        
+        // Si es string, intentar parsear JSON
+        if (typeof plans === 'string') {
+            try {
+                return JSON.parse(plans);
+            } catch (e) {
+                // Si falla el parsing, intentar un formato alternativo
+                console.warn('Error parsing plans JSON, trying alternative format:', e);
+                return [];
+            }
+        }
+        
+        // Si es un objeto individual, convertirlo a array
+        if (typeof plans === 'object' && plans !== null) {
+            return [plans];
+        }
+        
+        return [];
+    } catch (error) {
+        console.warn('Error parsing plans:', error);
+        return [];
     }
 }
 
