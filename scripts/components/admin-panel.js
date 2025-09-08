@@ -234,9 +234,12 @@ function getColorClass(color) {
 }
 
 // Cargar categorías en el selector del formulario
-export async function loadCategoriesIntoSelect(productCategoryId = null) {
+export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
-    if (!categorySelect) return;
+    if (!categorySelect) {
+        console.warn('⚠️ Selector de categoría no encontrado');
+        return;
+    }
 
     try {
         // Obtener categorías
@@ -247,13 +250,13 @@ export async function loadCategoriesIntoSelect(productCategoryId = null) {
             categories = await window.loadCategories();
         }
 
-        // Guardar la selección actual
+        // Guardar la selección actual si existe
         const currentValue = categorySelect.value;
+        const productId = document.getElementById('productId')?.value;
         
-        // Limpiar el selector
+        // Limpiar y poblar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
         
-        // Poblar el selector
         categories.forEach(cat => {
             const option = document.createElement('option');
             option.value = cat.id;
@@ -261,15 +264,20 @@ export async function loadCategoriesIntoSelect(productCategoryId = null) {
             categorySelect.appendChild(option);
         });
         
-        // ✅ PRIORIZAR la categoría del producto sobre la selección anterior
-        if (productCategoryId) {
-            categorySelect.value = productCategoryId;
-        } else if (currentValue) {
-            categorySelect.value = currentValue;
+        // Restaurar la selección anterior para edición
+        if (productId && currentValue) {
+            // Esperar a que el DOM se actualice
+            setTimeout(() => {
+                categorySelect.value = currentValue;
+            }, 50);
         }
+        
+        console.log('✅ Categorías cargadas en selector:', categories.length);
         
     } catch (error) {
         console.error('Error loading categories into select:', error);
+        // Mantener el selector aunque falle la carga
+        categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
     }
 }
 
@@ -771,24 +779,30 @@ function parsePlans(plans) {
 // Función para editar producto
 export async function editProduct(id) {
     try {
-        const manager = await getProductManager();
+        console.log('✏️ Editando producto ID:', id);
+        
+        // Obtener el productManager de forma segura
+        const manager = window.productManager || await getProductManager();
         const product = manager.getProductById(id);
         
         if (product) {
-            prepareEditForm(product);
+            console.log('📦 Producto encontrado:', product.name);
+            await prepareEditForm(product);
             
             // Cambiar al tab de productos si es necesario
             const productsTab = document.querySelector('[data-tab="products"]');
             if (productsTab) {
                 productsTab.click();
             }
+            
+            Utils.showSuccess(`Editando: ${product.name}`);
         } else {
-            console.error('Producto no encontrado:', id);
+            console.error('❌ Producto no encontrado:', id);
             Utils.showError('❌ Producto no encontrado');
         }
     } catch (error) {
         console.error('Error al editar producto:', error);
-        Utils.showError('❌ Error: No se pudo cargar el producto');
+        Utils.showError('❌ Error: No se pudo cargar el producto para edición');
     }
 }
 
