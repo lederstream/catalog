@@ -1,5 +1,5 @@
-// scripts/components/admin-panel.js
-import { addCategory, renderCategoriesList, openCategoryModal } from '../categories.js';
+// scripts/components/admin-panel.js - VERSIÓN FINAL
+import { renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal } from '../modals.js';
 import { Utils } from '../utils.js';
 import { getProductManager } from '../products.js';
@@ -9,83 +9,64 @@ export function initAdminPanel() {
     try {
         console.log('🔄 Inicializando panel de administración...');
         
-        // Botón para gestionar categorías
-        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
-        if (manageCategoriesBtn) {
-            manageCategoriesBtn.addEventListener('click', () => {
-                openCategoryModal();
-            });
-        }
-
-        // Botón para agregar nueva categoría
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        if (addCategoryBtn) {
-            addCategoryBtn.addEventListener('click', () => {
-                openCategoryModal();
-            });
-        }
-
-        // Botón de cerrar sesión
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                if (typeof window.handleLogout === 'function') {
-                    showConfirmationModal({
-                        title: 'Cerrar sesión',
-                        message: '¿Estás seguro de que deseas cerrar sesión?',
-                        confirmText: 'Cerrar sesión',
-                        cancelText: 'Cancelar',
-                        type: 'warning',
-                        onConfirm: () => window.handleLogout()
-                    });
-                }
-            });
-        }
-
-        // Configurar formulario de producto
+        setupEventListeners();
         setupProductForm();
-        
-        // Cargar productos en el panel de administración
         loadAdminProducts();
-
-        // Configurar tabs de administración
         setupAdminTabs();
         
     } catch (error) {
         console.error('Error initializing admin panel:', error);
-        Utils.showError('❌ Error al inicializar el panel de administración');
     }
 }
 
-// Cargar productos en el panel de administración
+function setupEventListeners() {
+    const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+    const addCategoryBtn = document.getElementById('addCategoryBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', () => openCategoryModal());
+    if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => openCategoryModal());
+    
+    if (logoutBtn) logoutBtn.addEventListener('click', () => {
+        if (typeof window.handleLogout === 'function') {
+            showConfirmationModal({
+                title: 'Cerrar sesión',
+                message: '¿Estás seguro de que deseas cerrar sesión?',
+                confirmText: 'Cerrar sesión',
+                cancelText: 'Cancelar',
+                type: 'warning',
+                onConfirm: () => window.handleLogout()
+            });
+        }
+    });
+}
+
 async function loadAdminProducts() {
     try {
         const manager = await getProductManager();
         await manager.loadProducts();
-        
         const adminProductsList = document.getElementById('adminProductsList');
+        
         if (adminProductsList) {
             const products = manager.getProducts();
-            
-            if (products.length > 0) {
-                manager.renderAdminProductsList(products, adminProductsList);
-            } else {
-                adminProductsList.innerHTML = `
-                    <div class="text-center py-12 fade-in-up">
-                        <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
-                        <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
-                        <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
-                    </div>
-                `;
-            }
+            if (products.length > 0) manager.renderAdminProductsList(products, adminProductsList);
+            else adminProductsList.innerHTML = getEmptyProductsHTML();
         }
     } catch (error) {
         console.error('Error loading admin products:', error);
-        Utils.showError('❌ Error al cargar productos en el panel de administración');
     }
 }
 
-// Configurar tabs de administración
+function getEmptyProductsHTML() {
+    return `
+        <div class="text-center py-12 fade-in-up">
+            <i class="fas fa-box-open text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-lg font-medium text-gray-500">No hay productos</h3>
+            <p class="text-gray-400 mt-2">Agrega tu primer producto para comenzar</p>
+        </div>
+    `;
+}
+
 function setupAdminTabs() {
     const tabButtons = document.querySelectorAll('[data-tab]');
     const tabPanes = document.querySelectorAll('[data-tab-pane]');
@@ -94,7 +75,6 @@ function setupAdminTabs() {
         button.addEventListener('click', () => {
             const tabName = button.dataset.tab;
             
-            // Actualizar botones activos
             tabButtons.forEach(btn => {
                 btn.classList.remove('border-blue-500', 'text-blue-600', 'bg-blue-50');
                 btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
@@ -103,7 +83,6 @@ function setupAdminTabs() {
             button.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300');
             button.classList.add('border-blue-500', 'text-blue-600', 'bg-blue-50');
             
-            // Mostrar pane activo
             tabPanes.forEach(pane => {
                 pane.classList.add('hidden');
                 if (pane.dataset.tabPane === tabName) {
@@ -112,18 +91,13 @@ function setupAdminTabs() {
                 }
             });
             
-            // Cargar contenido específico del tab
             loadTabContent(tabName);
         });
     });
     
-    // Activar el primer tab por defecto
-    if (tabButtons.length > 0) {
-        tabButtons[0].click();
-    }
+    if (tabButtons.length > 0) tabButtons[0].click();
 }
 
-// Cargar contenido específico del tab
 async function loadTabContent(tabName) {
     const manager = await getProductManager();
     
@@ -131,19 +105,14 @@ async function loadTabContent(tabName) {
         case 'products':
             await manager.loadProducts();
             const adminProductsList = document.getElementById('adminProductsList');
-            if (adminProductsList) {
-                const products = manager.getProducts();
-                manager.renderAdminProductsList(products, adminProductsList);
-            }
+            if (adminProductsList) manager.renderAdminProductsList(manager.getProducts(), adminProductsList);
             break;
             
         case 'categories':
             if (typeof window.loadCategories === 'function') {
                 await window.loadCategories();
                 const categoriesList = document.getElementById('categoriesList');
-                if (categoriesList && typeof renderCategoriesList === 'function') {
-                    renderCategoriesList(categoriesList);
-                }
+                if (categoriesList && typeof renderCategoriesList === 'function') renderCategoriesList(categoriesList);
             }
             break;
             
@@ -153,7 +122,6 @@ async function loadTabContent(tabName) {
     }
 }
 
-// Cargar estadísticas
 async function loadStats() {
     const statsContainer = document.getElementById('statsContent');
     if (!statsContainer) return;
@@ -162,7 +130,11 @@ async function loadStats() {
     const products = manager.getProducts();
     const categories = window.getCategories ? window.getCategories() : [];
     
-    statsContainer.innerHTML = `
+    statsContainer.innerHTML = getStatsHTML(products, categories);
+}
+
+function getStatsHTML(products, categories) {
+    return `
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
             <div class="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
                 <div class="flex items-center">
@@ -224,29 +196,16 @@ async function loadStats() {
 }
 
 function getColorClass(color) {
-    const colorMap = {
-        blue: 'bg-blue-500',
-        green: 'bg-green-500',
-        red: 'bg-red-500',
-        yellow: 'bg-yellow-500',
-        purple: 'bg-purple-500'
-    };
+    const colorMap = { blue: 'bg-blue-500', green: 'bg-green-500', red: 'bg-red-500', yellow: 'bg-yellow-500', purple: 'bg-purple-500' };
     return colorMap[color] || 'bg-blue-500';
 }
 
-// Cargar categorías en el selector del formulario
 export async function loadCategoriesIntoSelect() {
     const categorySelect = document.getElementById('category');
-    if (!categorySelect) {
-        console.log('Selector de categoría no encontrado');
-        return;
-    }
+    if (!categorySelect) return;
 
     try {
-        // Obtener categorías
         let categories = [];
-        
-        // Usar el categoryManager si está disponible
         if (window.categoryManager && typeof window.categoryManager.getCategories === 'function') {
             categories = window.categoryManager.getCategories();
         } else if (typeof window.getCategories === 'function') {
@@ -255,11 +214,9 @@ export async function loadCategoriesIntoSelect() {
             categories = await window.loadCategories();
         }
 
-        // Guardar la selección actual si existe
         const currentValue = categorySelect.value;
         const productId = document.getElementById('productId')?.value;
         
-        // Limpiar y poblar el selector
         categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
         
         if (categories && categories.length > 0) {
@@ -269,16 +226,11 @@ export async function loadCategoriesIntoSelect() {
                 option.textContent = cat.name;
                 categorySelect.appendChild(option);
             });
-            
-            console.log(`✅ ${categories.length} categorías cargadas en el selector`);
         } else {
-            console.warn('⚠️ No se encontraron categorías para cargar en el selector');
             categorySelect.innerHTML = '<option value="">No hay categorías disponibles</option>';
         }
         
-        // Restaurar la selección anterior para edición
         if (productId && currentValue) {
-            // Esperar a que el DOM se actualice
             setTimeout(() => {
                 if (categorySelect.querySelector(`option[value="${currentValue}"]`)) {
                     categorySelect.value = currentValue;
@@ -287,56 +239,30 @@ export async function loadCategoriesIntoSelect() {
         }
         
     } catch (error) {
-        console.error('❌ Error loading categories into select:', error);
-        // Mantener el selector aunque falle la carga
+        console.error('Error loading categories into select:', error);
         categorySelect.innerHTML = '<option value="">Error cargando categorías</option>';
     }
 }
 
-// Configurar el formulario de producto
 export function setupProductForm() {
     const productForm = document.getElementById('productForm');
+    if (!productForm || productForm.offsetParent === null) return;
     
-    // Verificar si el formulario existe y está en el DOM visible
-    if (!productForm || productForm.offsetParent === null) {
-        console.log('ℹ️ Formulario de producto no visible en esta página');
-        return;
-    }
-    
-    // Verificar que los elementos existen
     const addPlanBtn = document.getElementById('addPlanBtn');
     const cancelBtn = document.getElementById('cancelBtn');
     const photoUrlInput = document.getElementById('photo_url');
     const categorySelect = document.getElementById('category');
     
-    if (!categorySelect) {
-        console.error('❌ No se encontró el selector de categorías');
-        return;
-    }
+    if (!categorySelect) return;
     
-    // Agregar nuevo plan
-    if (addPlanBtn) {
-        addPlanBtn.addEventListener('click', addPlanRow);
-    }
-
-    // Cancelar edición
-    if (cancelBtn) {
-        cancelBtn.addEventListener('click', resetForm);
-    }
-
-    // Enviar formulario
+    if (addPlanBtn) addPlanBtn.addEventListener('click', addPlanRow);
+    if (cancelBtn) cancelBtn.addEventListener('click', resetForm);
+    
     productForm.addEventListener('submit', handleProductSubmit);
-
-    // Inicializar con un plan
     addPlanRow();
 
-    // Configurar vista previa de imagen
     if (photoUrlInput) {
-        photoUrlInput.addEventListener('input', Utils.debounce((e) => {
-            updateImagePreview(e.target.value);
-        }, 300));
-        
-        // Validar URL en tiempo real
+        photoUrlInput.addEventListener('input', Utils.debounce((e) => updateImagePreview(e.target.value), 300));
         photoUrlInput.addEventListener('blur', (e) => {
             if (e.target.value && !Utils.validateUrl(e.target.value)) {
                 Utils.showError('❌ La URL de la imagen no es válida');
@@ -345,59 +271,60 @@ export function setupProductForm() {
         });
     }
     
-    // Cargar categorías en el selector
     loadCategoriesIntoSelect();
-    
-    // Asegurar que los campos sean editables
     ensureFormFieldsAreEditable();
 }
 
-// Asegurar que los campos del formulario sean editables
 function ensureFormFieldsAreEditable() {
     const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
     
     formElements.forEach(element => {
-        // Remover cualquier atributo que impida la edición
         element.removeAttribute('readonly');
         element.removeAttribute('disabled');
         element.classList.remove('pointer-events-none');
         element.style.pointerEvents = 'auto';
         
-        // Asegurar que los eventos no se propaguen incorrectamente
         const newElement = element.cloneNode(true);
         element.parentNode.replaceChild(newElement, element);
         
-        newElement.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-        });
-        
-        newElement.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-        
-        newElement.addEventListener('focus', (e) => {
-            e.stopPropagation();
-        });
+        newElement.addEventListener('mousedown', (e) => e.stopPropagation());
+        newElement.addEventListener('click', (e) => e.stopPropagation());
+        newElement.addEventListener('focus', (e) => e.stopPropagation());
     });
-    
-    console.log('✅ Campos del formulario asegurados para edición');
 }
 
-// Agregar fila de plan
 function addPlanRow(planData = null) {
     const plansContainer = document.getElementById('plansContainer');
     if (!plansContainer) return;
 
     const planItem = document.createElement('div');
     planItem.className = 'plan-item flex items-center gap-3 mb-3 p-4 bg-gray-50 rounded-lg border border-gray-200 transition-all duration-300 hover:border-blue-300';
-    planItem.innerHTML = `
+    planItem.innerHTML = getPlanRowHTML(planData);
+
+    const removeBtn = planItem.querySelector('.remove-plan');
+    removeBtn.addEventListener('click', () => removePlanRow(planItem));
+
+    plansContainer.appendChild(planItem);
+    
+    setTimeout(() => {
+        planItem.style.transform = 'translateY(0)';
+        planItem.style.opacity = '1';
+    }, 10);
+    
+    const firstInput = planItem.querySelector('input');
+    if (firstInput) setTimeout(() => firstInput.focus(), 100);
+    
+    ensureFormFieldsAreEditable();
+}
+
+function getPlanRowHTML(planData) {
+    return `
         <div class="flex-grow grid grid-cols-1 md:grid-cols-3 gap-3">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Nombre del plan</label>
                 <input type="text" placeholder="Ej: Básico, Premium" 
                        class="w-full px-3 py-2 border border-gray-300 rounded-lg plan-name focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors" 
-                       value="${planData?.name || ''}" 
-                       required>
+                       value="${planData?.name || ''}" required>
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Precio S/.</label>
@@ -412,111 +339,62 @@ function addPlanRow(planData = null) {
                        value="${planData?.price_dollars !== undefined && planData?.price_dollars !== null ? planData.price_dollars : ''}">
             </div>
         </div>
-        <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200 transform hover:scale-110" 
-                title="Eliminar plan">
+        <button type="button" class="remove-plan mt-6 text-red-500 hover:text-red-700 p-2 transition-colors duration-200 transform hover:scale-110" title="Eliminar plan">
             <i class="fas fa-times-circle"></i>
         </button>
     `;
-
-    // Agregar event listener para eliminar plan
-    const removeBtn = planItem.querySelector('.remove-plan');
-    removeBtn.addEventListener('click', () => {
-        const planItems = document.querySelectorAll('.plan-item');
-        if (planItems.length > 1) {
-            // Animación de eliminación
-            planItem.style.opacity = '0';
-            planItem.style.height = `${planItem.offsetHeight}px`;
-            
-            setTimeout(() => {
-                planItem.style.height = '0';
-                planItem.style.marginBottom = '0';
-                planItem.style.paddingTop = '0';
-                planItem.style.paddingBottom = '0';
-                planItem.style.overflow = 'hidden';
-                
-                setTimeout(() => {
-                    planItem.remove();
-                }, 300);
-            }, 50);
-        } else {
-            Utils.showWarning('⚠️ Debe haber al menos un plan');
-        }
-    });
-
-    plansContainer.appendChild(planItem);
-    
-    // Animación de entrada
-    setTimeout(() => {
-        planItem.style.transform = 'translateY(0)';
-        planItem.style.opacity = '1';
-    }, 10);
-    
-    // Enfocar el primer campo del nuevo plan
-    const firstInput = planItem.querySelector('input');
-    if (firstInput) {
-        setTimeout(() => firstInput.focus(), 100);
-    }
-    
-    // Asegurar que los nuevos campos sean editables
-    ensureFormFieldsAreEditable();
 }
 
-// Validar formulario de producto
+function removePlanRow(planItem) {
+    const planItems = document.querySelectorAll('.plan-item');
+    if (planItems.length > 1) {
+        planItem.style.opacity = '0';
+        planItem.style.height = `${planItem.offsetHeight}px`;
+        
+        setTimeout(() => {
+            planItem.style.height = '0';
+            planItem.style.marginBottom = '0';
+            planItem.style.paddingTop = '0';
+            planItem.style.paddingBottom = '0';
+            planItem.style.overflow = 'hidden';
+            
+            setTimeout(() => planItem.remove(), 300);
+        }, 50);
+    } else {
+        Utils.showWarning('⚠️ Debe haber al menos un plan');
+    }
+}
+
 function validateProductForm(formData) {
     const errors = [];
     
-    if (!Utils.validateRequired(formData.name)) {
-        errors.push('El nombre del producto es requerido');
-    }
+    if (!Utils.validateRequired(formData.name)) errors.push('El nombre del producto es requerido');
+    if (!formData.category_id || formData.category_id === "") errors.push('La categoría es requerida');
+    if (!Utils.validateRequired(formData.description)) errors.push('La descripción es requerida');
+    if (!Utils.validateUrl(formData.photo_url)) errors.push('La URL de la imagen no es válida');
     
-    if (!formData.category_id || formData.category_id === "") {
-        errors.push('La categoría es requerida');
-    } else {
-        // Verificar que la categoría existe en el selector
-        const categorySelect = document.getElementById('category');
-        if (categorySelect) {
-            const selectedOption = categorySelect.options[categorySelect.selectedIndex];
-            if (selectedOption && selectedOption.value === "" && categorySelect.value !== "") {
-                errors.push('La categoría seleccionada no es válida');
-            }
-        }
-    }
-    
-    if (!Utils.validateRequired(formData.description)) {
-        errors.push('La descripción es requerida');
-    }
-    
-    if (!Utils.validateUrl(formData.photo_url)) {
-        errors.push('La URL de la imagen no es válida');
-    }
-    
-    // Validar planes
     const planItems = document.querySelectorAll('.plan-item');
-    if (planItems.length === 0) {
-        errors.push('Debe agregar al menos un plan');
-    } else {
-        planItems.forEach((item, index) => {
-            const name = item.querySelector('.plan-name').value;
-            const priceSoles = item.querySelector('.plan-price-soles').value;
-            const priceDollars = item.querySelector('.plan-price-dollars').value;
-            
-            if (!Utils.validateRequired(name)) {
-                errors.push(`El nombre del plan ${index + 1} es requerido`);
-            }
-            
-            const hasSoles = priceSoles && !isNaN(parseFloat(priceSoles)) && parseFloat(priceSoles) >= 0;
-            const hasDollars = priceDollars && !isNaN(parseFloat(priceDollars)) && parseFloat(priceDollars) >= 0;
-            
-            if (!hasSoles && !hasDollars) {
-                errors.push(`El plan ${index + 1} debe tener al menos un precio válido (soles o dólares)`);
-            }
-        });
-    }
+    if (planItems.length === 0) errors.push('Debe agregar al menos un plan');
+    else validatePlans(planItems, errors);
     
     return errors;
 }
 
-// Manejar envío del formulario de producto
+function validatePlans(planItems, errors) {
+    planItems.forEach((item, index) => {
+        const name = item.querySelector('.plan-name').value;
+        const priceSoles = item.querySelector('.plan-price-soles').value;
+        const priceDollars = item.querySelector('.plan-price-dollars').value;
+        
+        if (!Utils.validateRequired(name)) errors.push(`El nombre del plan ${index + 1} es requerido`);
+        
+        const hasSoles = priceSoles && !isNaN(parseFloat(priceSoles)) && parseFloat(priceSoles) >= 0;
+        const hasDollars = priceDollars && !isNaN(parseFloat(priceDollars)) && parseFloat(priceDollars) >= 0;
+        
+        if (!hasSoles && !hasDollars) errors.push(`El plan ${index + 1} debe tener al menos un precio válido`);
+    });
+}
+
 async function handleProductSubmit(e) {
     e.preventDefault();
 
@@ -526,14 +404,40 @@ async function handleProductSubmit(e) {
     const description = document.getElementById('description').value;
     const photo_url = document.getElementById('photo_url').value;
 
-    // Recopilar planes
+    const plans = getPlansFromForm();
+    const productData = { name, description, category_id: category, photo_url, plans };
+
+    const validationErrors = validateProductForm(productData);
+    if (validationErrors.length > 0) {
+        validationErrors.forEach(error => Utils.showError(`❌ ${error}`));
+        highlightErrorFields(validationErrors);
+        return;
+    }
+
+    try {
+        const submitBtn = document.querySelector('#productForm button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        submitBtn.disabled = true;
+        submitBtn.classList.add('opacity-75');
+        
+        const manager = await getProductManager();
+        const result = productId ? await manager.updateProduct(productId, productData) : await manager.addProduct(productData);
+
+        if (result) handleSuccess(submitBtn, originalText, productId);
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function getPlansFromForm() {
     const plans = [];
     document.querySelectorAll('.plan-item').forEach(item => {
         const name = item.querySelector('.plan-name').value.trim();
         const priceSoles = item.querySelector('.plan-price-soles').value;
         const priceDollars = item.querySelector('.plan-price-dollars').value;
 
-        // Validar que al menos un precio tenga valor
         const hasValidSoles = priceSoles && !isNaN(parseFloat(priceSoles)) && parseFloat(priceSoles) > 0;
         const hasValidDollars = priceDollars && !isNaN(parseFloat(priceDollars)) && parseFloat(priceDollars) > 0;
 
@@ -545,135 +449,82 @@ async function handleProductSubmit(e) {
             });
         }
     });
+    return plans;
+}
 
-    const productData = {
-        name,
-        description,
-        category_id: category,
-        photo_url,
-        plans
-    };
+function highlightErrorFields(errors) {
+    errors.forEach(error => {
+        if (error.includes('nombre')) document.getElementById('name').classList.add('border-red-500');
+        if (error.includes('categoría')) document.getElementById('category').classList.add('border-red-500');
+        if (error.includes('descripción')) document.getElementById('description').classList.add('border-red-500');
+        if (error.includes('imagen')) document.getElementById('photo_url').classList.add('border-red-500');
+    });
+}
 
-    // Validar formulario
-    const validationErrors = validateProductForm(productData);
-    if (validationErrors.length > 0) {
-        validationErrors.forEach(error => Utils.showError(`❌ ${error}`));
+function handleSuccess(submitBtn, originalText, productId) {
+    submitBtn.innerHTML = '<i class="fas fa-check"></i> ¡Éxito!';
+    submitBtn.classList.remove('bg-blue-600', 'opacity-75');
+    submitBtn.classList.add('bg-green-600');
+    
+    setTimeout(() => {
+        Utils.showSuccess(productId ? '✅ Producto actualizado correctamente' : '✅ Producto agregado correctamente');
+        resetForm();
+        loadAdminProducts();
         
-        // Resaltar campos con error
-        validationErrors.forEach(error => {
-            if (error.includes('nombre')) {
-                document.getElementById('name').classList.add('border-red-500');
-            }
-            if (error.includes('categoría')) {
-                document.getElementById('category').classList.add('border-red-500');
-            }
-            if (error.includes('descripción')) {
-                document.getElementById('description').classList.add('border-red-500');
-            }
-            if (error.includes('imagen')) {
-                document.getElementById('photo_url').classList.add('border-red-500');
-            }
-        });
-        
-        return;
-    }
-
-    try {
-        let result;
-        const submitBtn = document.querySelector('#productForm button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        
-        // Mostrar estado de carga
-        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-        submitBtn.disabled = true;
-        submitBtn.classList.add('opacity-75');
-        
-        const manager = await getProductManager();
-        
-        if (productId) {
-            result = await manager.updateProduct(productId, productData);
-        } else {
-            result = await manager.addProduct(productData);
-        }
-
-        if (result) {
-            // Animación de éxito
-            submitBtn.innerHTML = '<i class="fas fa-check"></i> ¡Éxito!';
-            submitBtn.classList.remove('bg-blue-600', 'opacity-75');
-            submitBtn.classList.add('bg-green-600');
-            
-            setTimeout(() => {
-                Utils.showSuccess(productId ? '✅ Producto actualizado correctamente' : '✅ Producto agregado correctamente');
-                resetForm();
-
-                // Recargar productos en el panel de administración
-                loadAdminProducts();
-                
-                // Restaurar botón después de 2 segundos
-                setTimeout(() => {
-                    submitBtn.innerHTML = originalText;
-                    submitBtn.disabled = false;
-                    submitBtn.classList.remove('bg-green-600');
-                    submitBtn.classList.add('bg-blue-600');
-                }, 2000);
-            }, 500);
-        }
-    } catch (error) {
-        console.error('Error al procesar el producto:', error);
-        Utils.showError(`❌ Error al procesar el producto: ${error.message}`);
-        
-        // Restaurar botón
-        const submitBtn = document.querySelector('#productForm button[type="submit"]');
-        if (submitBtn) {
-            submitBtn.innerHTML = productId ? 'Actualizar Producto' : 'Agregar Producto';
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
             submitBtn.disabled = false;
-            submitBtn.classList.remove('opacity-75');
-        }
+            submitBtn.classList.remove('bg-green-600');
+            submitBtn.classList.add('bg-blue-600');
+        }, 2000);
+    }, 500);
+}
+
+function handleError(error) {
+    console.error('Error al procesar el producto:', error);
+    Utils.showError(`❌ Error al procesar el producto: ${error.message}`);
+    
+    const submitBtn = document.querySelector('#productForm button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.innerHTML = document.getElementById('productId').value ? 'Actualizar Producto' : 'Agregar Producto';
+        submitBtn.disabled = false;
+        submitBtn.classList.remove('opacity-75');
     }
 }
 
-// Resetear formulario
 export function resetForm() {
     const productForm = document.getElementById('productForm');
-    if (productForm) {
-        productForm.reset();
-        document.getElementById('productId').value = '';
-        
-        const formTitle = document.getElementById('formTitle');
-        const submitText = document.getElementById('submitText');
-        const cancelBtn = document.getElementById('cancelBtn');
-        
-        if (formTitle) formTitle.textContent = 'Agregar Nuevo Producto';
-        if (submitText) submitText.textContent = 'Agregar Producto';
-        if (cancelBtn) cancelBtn.classList.add('hidden');
-        
-        const plansContainer = document.getElementById('plansContainer');
-        if (plansContainer) {
-            plansContainer.innerHTML = '';
-            addPlanRow();
-        }
-        
-        updateImagePreview('');
-        
-        // Recargar categorías en el selector
-        loadCategoriesIntoSelect();
-        
-        // Enfocar el primer campo (nombre) en lugar de photo_url
-        const nameInput = document.getElementById('name');
-        if (nameInput) {
-            setTimeout(() => nameInput.focus(), 100);
-        }
-        
-        // Remover clases de error
-        const errorInputs = productForm.querySelectorAll('.border-red-500');
-        errorInputs.forEach(input => input.classList.remove('border-red-500'));
-        
-        // Asegurar que los campos sean editables
-        ensureFormFieldsAreEditable();
+    if (!productForm) return;
+    
+    productForm.reset();
+    document.getElementById('productId').value = '';
+    
+    const formTitle = document.getElementById('formTitle');
+    const submitText = document.getElementById('submitText');
+    const cancelBtn = document.getElementById('cancelBtn');
+    
+    if (formTitle) formTitle.textContent = 'Agregar Nuevo Producto';
+    if (submitText) submitText.textContent = 'Agregar Producto';
+    if (cancelBtn) cancelBtn.classList.add('hidden');
+    
+    const plansContainer = document.getElementById('plansContainer');
+    if (plansContainer) {
+        plansContainer.innerHTML = '';
+        addPlanRow();
     }
+    
+    updateImagePreview('');
+    loadCategoriesIntoSelect();
+    
+    const nameInput = document.getElementById('name');
+    if (nameInput) setTimeout(() => nameInput.focus(), 100);
+    
+    const errorInputs = productForm.querySelectorAll('.border-red-500');
+    errorInputs.forEach(input => input.classList.remove('border-red-500'));
+    
+    ensureFormFieldsAreEditable();
 }
 
-// Actualizar vista previa de imagen
 function updateImagePreview(url) {
     const imagePreview = document.getElementById('imagePreview');
     if (!imagePreview) return;
@@ -700,85 +551,42 @@ function updateImagePreview(url) {
     }
 }
 
-// Función helper para parsear planes (REEMPLAZA la función problemática)
 function parsePlans(plans) {
     if (!plans) return [];
     
     try {
-        // Si ya es un array, devolverlo directamente
-        if (Array.isArray(plans)) {
-            return plans.filter(plan => plan && typeof plan === 'object');
-        }
-        
-        // Si es string, intentar parsear JSON
+        if (Array.isArray(plans)) return plans.filter(plan => plan && typeof plan === 'object');
         if (typeof plans === 'string') {
-            try {
-                const parsed = JSON.parse(plans);
-                return Array.isArray(parsed) ? parsed : [parsed];
-            } catch (e) {
-                console.warn('Error parsing plans JSON:', e);
-                return [];
-            }
+            try { return JSON.parse(plans); } catch (e) { return []; }
         }
-        
-        // Si es un objeto individual, convertirlo a array
-        if (typeof plans === 'object' && plans !== null) {
-            return [plans];
-        }
-        
+        if (typeof plans === 'object' && plans !== null) return [plans];
         return [];
     } catch (error) {
-        console.warn('Error parsing plans:', error);
         return [];
     }
 }
 
 export function fixFormSelection() {
-    console.log('🔧 Aplicando corrección para selección de formularios...');
-    
-    // Remover cualquier event listener problemático de los campos de formulario
     const formElements = document.querySelectorAll('#productForm input, #productForm select, #productForm textarea');
     
     formElements.forEach(element => {
-        // Clonar el elemento para eliminar event listeners problemáticos
         const clone = element.cloneNode(true);
         element.parentNode.replaceChild(clone, element);
         
-        // Asegurar que los eventos no se propaguen
-        clone.addEventListener('mousedown', (e) => {
-            e.stopPropagation();
-        });
-        
-        clone.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-        
-        clone.addEventListener('focus', (e) => {
-            e.stopPropagation();
-        });
+        clone.addEventListener('mousedown', (e) => e.stopPropagation());
+        clone.addEventListener('click', (e) => e.stopPropagation());
+        clone.addEventListener('focus', (e) => e.stopPropagation());
     });
     
-    // Asegurar que los labels también funcionen correctamente
     const labels = document.querySelectorAll('#productForm label');
-    labels.forEach(label => {
-        label.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    });
-    
-    console.log('✅ Corrección de selección de formulario aplicada');
+    labels.forEach(label => label.addEventListener('click', (e) => e.stopPropagation()));
 }
 
-// Preparar formulario para edición - VERSIÓN CORREGIDA
 export async function prepareEditForm(product) {
     if (!product) return;
 
-    console.log('🔄 Preparando formulario para edición:', product);
-    
-    // 1. Primero establecer los valores inmediatos que no dependen de async
     document.getElementById('productId').value = product.id;
     
-    // Establecer nombre y descripción inmediatamente
     const nameInput = document.getElementById('name');
     const descriptionInput = document.getElementById('description');
     const photoUrlInput = document.getElementById('photo_url');
@@ -787,41 +595,17 @@ export async function prepareEditForm(product) {
     if (descriptionInput) descriptionInput.value = product.description || '';
     if (photoUrlInput) photoUrlInput.value = product.photo_url || '';
     
-    // 2. Cargar categorías y ESPERAR a que se completen
     await loadCategoriesIntoSelect();
     
-    // 3. Establecer categoría DESPUÉS de cargar las opciones
     if (product.category_id) {
         const categorySelect = document.getElementById('category');
         if (categorySelect) {
-            // Esperar un tick del event loop para asegurar que el DOM esté actualizado
             await new Promise(resolve => setTimeout(resolve, 100));
-            
-            // Buscar la opción que coincide con el category_id
-            const optionToSelect = Array.from(categorySelect.options).find(
-                option => option.value == product.category_id
-            );
-            
-            if (optionToSelect) {
-                categorySelect.value = product.category_id;
-                console.log('✅ Categoría establecida correctamente:', product.category_id);
-            } else {
-                console.warn('⚠️ No se encontró la categoría con ID:', product.category_id);
-                // Si no se encuentra, intentar establecer después de un breve delay
-                setTimeout(() => {
-                    const retryOption = Array.from(categorySelect.options).find(
-                        option => option.value == product.category_id
-                    );
-                    if (retryOption) {
-                        categorySelect.value = product.category_id;
-                        console.log('✅ Categoría establecida en reintento:', product.category_id);
-                    }
-                }, 300);
-            }
+            const optionToSelect = Array.from(categorySelect.options).find(option => option.value == product.category_id);
+            if (optionToSelect) categorySelect.value = product.category_id;
         }
     }
     
-    // 4. Actualizar UI
     const formTitle = document.getElementById('formTitle');
     const submitText = document.getElementById('submitText');
     const cancelBtn = document.getElementById('cancelBtn');
@@ -832,77 +616,47 @@ export async function prepareEditForm(product) {
     
     updateImagePreview(product.photo_url);
     
-    // 5. Configurar planes
     const plansContainer = document.getElementById('plansContainer');
     if (plansContainer) {
         plansContainer.innerHTML = '';
         
         if (product.plans) {
-            // Usar la función parsePlans del ProductManager si está disponible
             let validPlans = [];
             if (window.productManager && typeof window.productManager.parsePlans === 'function') {
                 validPlans = window.productManager.parsePlans(product.plans);
             } else {
-                // Fallback: usar función local
                 validPlans = parsePlans(product.plans);
             }
             
-            if (validPlans.length > 0) {
-                validPlans.forEach(plan => {
-                    addPlanRow(plan);
-                });
-            } else {
-                addPlanRow();
-            }
+            if (validPlans.length > 0) validPlans.forEach(plan => addPlanRow(plan));
+            else addPlanRow();
         } else {
             addPlanRow();
         }
     }
     
-    // 6. Scroll al formulario y enfocar en el campo de nombre (no en photo_url)
     const productForm = document.getElementById('productForm');
     if (productForm) {
         productForm.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        
-        // Enfocar el campo de nombre en lugar de photo_url
         const nameInput = document.getElementById('name');
-        if (nameInput) {
-            setTimeout(() => nameInput.focus(), 100);
-        }
+        if (nameInput) setTimeout(() => nameInput.focus(), 100);
     }
     
-    // 7. Asegurar que los campos sean editables
     ensureFormFieldsAreEditable();
-    
-    setTimeout(() => {
-        fixFormSelection();
-    }, 100);
-    
-    console.log('✅ Formulario de edición preparado correctamente');
+    setTimeout(fixFormSelection, 100);
 }
 
-// Función para editar producto
 export async function editProduct(id) {
     try {
-        console.log('✏️ Editando producto ID:', id);
-        
-        // Obtener el productManager de forma segura
         const manager = window.productManager || await getProductManager();
         const product = manager.getProductById(id);
         
         if (product) {
-            console.log('📦 Producto encontrado:', product.name);
             await prepareEditForm(product);
-            
-            // Cambiar al tab de productos si es necesario
             const productsTab = document.querySelector('[data-tab="products"]');
-            if (productsTab) {
-                productsTab.click();
-            }
-            
+            if (productsTab) productsTab.click();
             Utils.showSuccess(`Editando: ${product.name}`);
         } else {
-            console.error('❌ Producto no encontrado:', id);
             Utils.showError('❌ Producto no encontrado');
         }
     } catch (error) {
@@ -919,7 +673,7 @@ window.setupProductForm = setupProductForm;
 window.editProduct = editProduct;
 window.loadCategoriesIntoSelect = loadCategoriesIntoSelect;
 
-// Inicializar automáticamente cuando el DOM esté listo
+// Inicializar automáticamente
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof window.isAuthenticated === 'function' && window.isAuthenticated()) {
