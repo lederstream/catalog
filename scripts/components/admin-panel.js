@@ -633,24 +633,31 @@ export async function prepareEditForm(product) {
     // Cargar categorías y ESPERAR a que se completen
     await loadCategoriesIntoSelect();
     
+
+    // Esperar a que el DOM se actualice completamente
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Establecer categoría DESPUÉS de cargar las opciones
     if (product.category_id) {
         const categorySelect = document.getElementById('category');
         if (categorySelect) {
-            // Usar setTimeout para asegurar que el DOM esté actualizado
-            setTimeout(() => {
+            // Buscar la opción que coincide con el category_id
+            const optionExists = Array.from(categorySelect.options).some(
+                option => option.value === product.category_id.toString()
+            );
+            
+            if (optionExists) {
                 categorySelect.value = product.category_id;
-                console.log('✅ Categoría establecida:', product.category_id);
-                
-                // Verificar si se estableció correctamente
-                if (categorySelect.value !== product.category_id.toString()) {
-                    console.warn('⚠️ No se pudo establecer la categoría, reintentando...');
-                    // Reintentar después de un breve delay
-                    setTimeout(() => {
-                        categorySelect.value = product.category_id;
-                    }, 100);
-                }
-            }, 100);
+                console.log('✅ Categoría establecida correctamente:', product.category_id);
+            } else {
+                console.warn('⚠️ La categoría no existe en el selector:', product.category_id);
+                // Crear una opción temporal si no existe
+                const tempOption = document.createElement('option');
+                tempOption.value = product.category_id;
+                tempOption.textContent = `Categoría ${product.category_id} (no encontrada)`;
+                tempOption.selected = true;
+                categorySelect.appendChild(tempOption);
+            }
         }
     }
     
