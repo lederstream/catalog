@@ -531,13 +531,6 @@ export function renderAdminProductsList(products, container) {
     }
 }
 
-export function prepareEditForm(product) {
-    if (productManagerInstance) {
-        // Necesitas implementar este método en la clase ProductManager
-        productManagerInstance.prepareEditForm(product);
-    }
-}
-
 // Hacer disponible globalmente
 window.ProductManager = ProductManager;
 window.productManager = getProductManager;
