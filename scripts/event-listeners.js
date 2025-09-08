@@ -40,7 +40,6 @@ function setupGlobalClickListeners() {
         // Solo procesar clicks en botones específicos con data attributes
         if (e.target.closest('.view-details-btn')) {
             e.preventDefault();
-            e.stopPropagation();
             const btn = e.target.closest('.view-details-btn');
             const productId = btn.dataset.productId;
             if (productId && typeof window.showProductDetails === 'function') {
