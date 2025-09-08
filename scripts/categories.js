@@ -1,4 +1,4 @@
-// scripts/categories.js - VERSIÓN FINAL
+// scripts/categories.js
 import { 
     loadCategoriesFromSupabase, 
     addCategoryToSupabase, 
