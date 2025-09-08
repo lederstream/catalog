@@ -827,7 +827,9 @@ export async function prepareEditForm(product) {
             setTimeout(() => firstInput.focus(), 100);
         }
     }
-    
+        setTimeout(() => {
+        fixFormSelection();
+    }, 100);
     console.log('✅ Formulario de edición preparado correctamente');
 }
 
