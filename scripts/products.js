@@ -380,6 +380,7 @@ class ProductManager {
     attachAdminEventListeners(container, products) {
         container.querySelectorAll('.edit-product').forEach(button => {
             button.addEventListener('click', (e) => {
+                e.stopPropagation();
                 const productId = e.currentTarget.dataset.id;
                 if (typeof window.editProduct === 'function') {
                     window.editProduct(productId);
