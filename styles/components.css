@@ -1,3 +1,4 @@
+/* styles/components.css */
 /* Header Styles */
 .header {
     backdrop-filter: blur(10px);
@@ -296,4 +297,50 @@
 
 .footer a:hover {
     color: #3b82f6;
+}
+
+
+
+.modal-scroll-container {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+}
+
+/* Asegura que los elementos dentro del modal sean editables */
+.modal-content input,
+.modal-content select,
+.modal-content textarea {
+    pointer-events: auto !important;
+}
+
+/* Mejora la visualización de los planes dentro del modal con scroll */
+.plans-container {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+/* Estilos para el contenedor de planes dentro del modal */
+#plansContainer {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 5px;
+}
+
+/* Personalización del scrollbar para modales */
+.modal-scroll-container::-webkit-scrollbar {
+    width: 6px;
+}
+
+.modal-scroll-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.modal-scroll-container::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.modal-scroll-container::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
 }
