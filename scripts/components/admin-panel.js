@@ -1,3 +1,4 @@
+// zcripts/comoponents/admin-panel.js
 import { renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal, showDeleteConfirm } from '../modals.js';
 import { Utils } from '../utils.js';
