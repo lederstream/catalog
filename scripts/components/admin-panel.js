@@ -2,7 +2,7 @@
 import { renderCategoriesList, openCategoryModal } from '../categories.js';
 import { showConfirmationModal, showDeleteConfirm } from '../modals.js';
 import { Utils } from '../utils.js';
-import { getProductManager, loadProducts } from '../products.js';
+import { getProductManager } from '../products.js';
 
 // Inicializar panel de administración
 export function initAdminPanel() {
@@ -94,7 +94,6 @@ export function openProductModal(product = null) {
         document.getElementById('productModalTitle').textContent = 'Agregar Nuevo Producto';
         document.getElementById('submitProductText').textContent = 'Agregar Producto';
     }
-    loadProducts();
     openModal('productModal');
 }
 
