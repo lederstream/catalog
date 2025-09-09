@@ -1,4 +1,4 @@
-// scripts/modals.js - VERSIÓN CORREGIDA
+// scripts/modals.js
 import { Utils } from './utils.js';
 
 // Sistema de modales
