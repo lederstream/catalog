@@ -3,6 +3,7 @@ import { initAdminPanel } from './components/admin-panel.js';
 import { getProductManager } from './products.js';
 import { getCategoryManager } from './categories.js';
 import { checkAuth, handleLogout } from './auth.js';
+import { initModals } from './modals.js';
 
 // Variable para controlar la inicialización
 let isAdminAppInitialized = false;
