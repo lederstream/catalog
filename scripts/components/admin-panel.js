@@ -14,6 +14,9 @@ export function initAdminPanel() {
         loadAdminProducts();
         setupProductFilters();
         loadStatsSummary();
+        setupImageSearch();
+        setupDragAndDropForPlans();
+        addModalAnimations();
         
     } catch (error) {
         console.error('Error initializing admin panel:', error);
@@ -27,7 +30,7 @@ function setupEventListeners() {
     const viewStatsBtn = document.getElementById('viewStatsBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    if (addProductBtn) addProductBtn.addEventListener('click', () => openProductModal());
+    if (addProductBtn) addProductBtn.addEventListener('click', () => openCategoryModal());
     if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', openCategoryModal);
     if (viewStatsBtn) viewStatsBtn.addEventListener('click', () => openStatsModal());
     
