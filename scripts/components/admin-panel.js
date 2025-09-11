@@ -30,7 +30,7 @@ function setupEventListeners() {
     const viewStatsBtn = document.getElementById('viewStatsBtn');
     const logoutBtn = document.getElementById('logoutBtn');
 
-    if (addProductBtn) addProductBtn.addEventListener('click', () => openCategoryModal());
+    if (addProductBtn) addProductBtn.addEventListener('click', () => openProductModal());
     if (manageCategoriesBtn) manageCategoriesBtn.addEventListener('click', openCategoryModal);
     if (viewStatsBtn) viewStatsBtn.addEventListener('click', () => openStatsModal());
     
