@@ -5,8 +5,8 @@ import { CategoryManager } from '../managers/category-manager.js';
 import { ProductManager } from '../managers/product-manager.js';
 import { ModalSystem } from '../components/modals.js'
 import { AuthManager } from './auth.js';
-import { initAdminPanel } from './components/admin-panel.js';
-import { initCatalogGrid } from './components/catalog-grid.js';
+import initAdminPanel from './components/admin-panel.js';
+import initCatalogGrid from './components/catalog-grid.js';
 import { setupAllEventListeners } from '../event-listeners.js';
 
 class DigitalCatalogApp {
