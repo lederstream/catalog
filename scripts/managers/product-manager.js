@@ -1,5 +1,5 @@
 // scripts/managers/product-manager.js
-import Utils from '../core/utils.js';
+import { Utils } from '../core/utils.js';
 import { supabaseClient } from '../core/supabase.js';
 
 class ProductManager {
@@ -34,6 +34,8 @@ class ProductManager {
     }
     
     processProducts(products) {
+        if (!products) return [];
+        
         return products.map(product => ({
             ...product,
             plans: this.parsePlans(product.plans),
@@ -113,6 +115,27 @@ class ProductManager {
             throw error;
         }
     }
+    
+    filterProducts(category = 'all', search = '') {
+        let filtered = [...this.products];
+        
+        // Filtrar por categoría
+        if (category !== 'all') {
+            filtered = filtered.filter(product => product.category_id == category);
+        }
+        
+        // Filtrar por búsqueda
+        if (search) {
+            const searchTerm = search.toLowerCase();
+            filtered = filtered.filter(product => 
+                product.name.toLowerCase().includes(searchTerm) ||
+                (product.description && product.description.toLowerCase().includes(searchTerm)) ||
+                (product.category_name && product.category_name.toLowerCase().includes(searchTerm))
+            );
+        }
+        
+        return filtered;
+    }
 }
 
 // Singleton instance
@@ -153,6 +176,10 @@ export const productManager = {
     async deleteProduct(id) {
         const manager = await getProductManager();
         return manager.deleteProduct(id);
+    },
+    
+    filterProducts(category, search) {
+        return productManagerInstance ? productManagerInstance.filterProducts(category, search) : [];
     }
 };
 
