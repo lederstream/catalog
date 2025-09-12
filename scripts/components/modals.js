@@ -1,5 +1,5 @@
 // scripts/components/modals.js
-import { Utils } from './utils.js';
+import { Utils } from '../core/utils.js';
 
 // Sistema de modales
 class ModalSystem {
