@@ -1,20 +1,9 @@
-// scripts/utils.js
-// Sistema de utilidades - Versión optimizada y corregida
+// Sistema de utilidades
 class Utils {
     static debugMode = localStorage.getItem('debug') === 'true';
-    static notificationCounter = 0;
-    static maxNotifications = 3;
     
     // ===== NOTIFICACIONES =====
     static showNotification(message, type = 'info', duration = 5000) {
-        // Limitar número de notificaciones simultáneas
-        if (this.notificationCounter >= this.maxNotifications) {
-            return { close: () => {}, element: null };
-        }
-        
-        this.notificationCounter++;
-        
-        // Crear contenedor si no existe
         let container = document.getElementById('notifications-container');
         if (!container) {
             container = document.createElement('div');
@@ -23,7 +12,6 @@ class Utils {
             document.body.appendChild(container);
         }
 
-        const notificationId = `notification-${Date.now()}`;
         const notification = document.createElement('div');
         const icons = {
             success: '✅',
@@ -39,7 +27,6 @@ class Utils {
             info: 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
         };
         
-        notification.id = notificationId;
         notification.className = `p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-x-full ${colors[type]}`;
         notification.innerHTML = `
             <div class="flex items-center">
@@ -67,7 +54,6 @@ class Utils {
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
-                    this.notificationCounter--;
                 }
             }, 300);
         };
@@ -182,17 +168,6 @@ class Utils {
         };
     }
     
-    static throttle(func, limit) {
-        let inThrottle;
-        return function(...args) {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
-        };
-    }
-    
     // ===== FORMATEO =====
     static formatCurrency(amount, currency = 'PEN', locale = 'es-PE') {
         if (amount === null || amount === undefined || isNaN(amount)) amount = 0;
@@ -209,26 +184,7 @@ class Utils {
         if (!text || typeof text !== 'string') return '';
         return text.length <= maxLength ? text : text.substr(0, maxLength) + suffix;
     }
-    
-    // Limpiar todas las notificaciones
-    static clearAllNotifications() {
-        const container = document.getElementById('notifications-container');
-        if (container) {
-            container.innerHTML = '';
-            this.notificationCounter = 0;
-        }
-    }
 }
 
-// Exportar la clase completa
-export { Utils };
-
-// Hacer disponible globalmente
-window.Utils = Utils;
-
-// Inicialización automática
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('✅ Utils inicializado');
-    });
-}
+// Exportar como objeto único
+export default Utils;
