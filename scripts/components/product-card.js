@@ -1,5 +1,5 @@
 // scripts/components/product-card.js
-import { Utils } from '../utils.js';
+import { Utils } from '../core/utils.js';
 
 // Crear tarjeta de producto
 export const createProductCard = (product, isListView = false, index = 0) => {
