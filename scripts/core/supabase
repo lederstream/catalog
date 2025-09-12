@@ -12,186 +12,169 @@ export const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON
     }
 });
 
-// Función para verificar la conexión con Supabase
+// Funciones básicas de Supabase
+export const supabaseClient = {
+    // Categorías
+    async getCategories() {
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .select('*')
+                .order('name');
+            
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting categories:', error);
+            return [];
+        }
+    },
+
+    async addCategory(categoryData) {
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .insert([{
+                    name: categoryData.name,
+                    description: categoryData.description,
+                    icon: categoryData.icon || 'fas fa-tag',
+                    color: categoryData.color || 'blue',
+                    created_at: new Date().toISOString()
+                }])
+                .select();
+            
+            if (error) throw error;
+            return data && data.length > 0 ? data[0] : null;
+        } catch (error) {
+            console.error('Error adding category:', error);
+            throw error;
+        }
+    },
+
+    async updateCategory(id, categoryData) {
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .update({
+                    name: categoryData.name,
+                    description: categoryData.description,
+                    icon: categoryData.icon,
+                    color: categoryData.color,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .select();
+            
+            if (error) throw error;
+            return data && data.length > 0 ? data[0] : null;
+        } catch (error) {
+            console.error('Error updating category:', error);
+            throw error;
+        }
+    },
+
+    async deleteCategory(id) {
+        try {
+            const { error } = await supabase
+                .from('categories')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            throw error;
+        }
+    },
+
+    // Productos
+    async getProducts() {
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .select('*, categories(*)')
+                .order('created_at', { ascending: false });
+            
+            if (error) throw error;
+            return data || [];
+        } catch (error) {
+            console.error('Error getting products:', error);
+            return [];
+        }
+    },
+
+    async addProduct(productData) {
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .insert([{
+                    name: productData.name,
+                    description: productData.description,
+                    category_id: productData.category_id,
+                    photo_url: productData.photo_url,
+                    plans: productData.plans || [],
+                    created_at: new Date().toISOString()
+                }])
+                .select();
+            
+            if (error) throw error;
+            return data && data.length > 0 ? data[0] : null;
+        } catch (error) {
+            console.error('Error adding product:', error);
+            throw error;
+        }
+    },
+
+    async updateProduct(id, productData) {
+        try {
+            const { data, error } = await supabase
+                .from('products')
+                .update({
+                    name: productData.name,
+                    description: productData.description,
+                    category_id: productData.category_id,
+                    photo_url: productData.photo_url,
+                    plans: productData.plans,
+                    updated_at: new Date().toISOString()
+                })
+                .eq('id', id)
+                .select();
+            
+            if (error) throw error;
+            return data && data.length > 0 ? data[0] : null;
+        } catch (error) {
+            console.error('Error updating product:', error);
+            throw error;
+        }
+    },
+
+    async deleteProduct(id) {
+        try {
+            const { error } = await supabase
+                .from('products')
+                .delete()
+                .eq('id', id);
+            
+            if (error) throw error;
+            return true;
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            throw error;
+        }
+    }
+};
+
+// Verificar conexión
 export const checkSupabaseConnection = async () => {
     try {
         const { data, error } = await supabase.from('products').select('count').limit(1).single();
-        
-        if (error) {
-            console.warn('Error conectando con Supabase:', error.message);
-            return false;
-        }
-        
-        console.log('✅ Conexión con Supabase verificada');
-        return true;
+        return !error;
     } catch (error) {
-        console.error('Error verificando conexión:', error);
+        console.error('Supabase connection error:', error);
         return false;
     }
 };
 
-// Función para obtener categorías desde Supabase
-export const loadCategoriesFromSupabase = async () => {
-    try {
-        const { data, error } = await supabase
-            .from('categories')
-            .select('*')
-            .order('name');
-        
-        if (error) throw error;
-        return data || [];
-    } catch (error) {
-        console.error('Error cargando categorías:', error);
-        return [];
-    }
-};
-
-// Función para agregar categoría en Supabase
-export const addCategoryToSupabase = async (categoryData) => {
-    try {
-        const { data, error } = await supabase
-            .from('categories')
-            .insert([{
-                name: categoryData.name,
-                created_at: new Date().toISOString()
-            }])
-            .select();
-        
-        if (error) throw error;
-        return data && data.length > 0 ? data[0] : null;
-    } catch (error) {
-        console.error('Error agregando categoría:', error);
-        throw error;
-    }
-};
-
-// Función para actualizar categoría en Supabase
-export const updateCategoryInSupabase = async (id, categoryData) => {
-    try {
-        const { data, error } = await supabase
-            .from('categories')
-            .update({
-                name: categoryData.name,
-                updated_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select();
-        
-        if (error) throw error;
-        return data && data.length > 0 ? data[0] : null;
-    } catch (error) {
-        console.error('Error actualizando categoría:', error);
-        throw error;
-    }
-};
-
-// Función para eliminar categoría en Supabase
-export const deleteCategoryFromSupabase = async (id) => {
-    try {
-        const { error } = await supabase
-            .from('categories')
-            .delete()
-            .eq('id', id);
-        
-        if (error) throw error;
-        return true;
-    } catch (error) {
-        console.error('Error eliminando categoría:', error);
-        throw error;
-    }
-};
-
-// Función para obtener productos desde Supabase
-export const loadProductsFromSupabase = async () => {
-    try {
-        const { data, error } = await supabase
-            .from('products')
-            .select('*, categories(*)')
-            .order('created_at', { ascending: false });
-        
-        if (error) throw error;
-        return data || [];
-    } catch (error) {
-        console.error('Error cargando productos:', error);
-        return [];
-    }
-};
-
-// Función para agregar producto en Supabase - CORREGIDO
-export const addProductToSupabase = async (productData) => {
-    try {
-        // Asegurar que los campos requeridos tengan valores por defecto
-        const productToInsert = {
-            name: productData.name || 'Producto sin nombre',
-            description: productData.description || '',
-            category_id: productData.category_id || null,
-            photo_url: productData.photo_url || '',
-            plans: productData.plans || [],
-            price_soles: 0,
-            price_dollars: 0,
-            created_at: new Date().toISOString()
-        };
-
-        const { data, error } = await supabase
-            .from('products')
-            .insert([productToInsert])
-            .select();
-        
-        if (error) throw error;
-        return data && data.length > 0 ? data[0] : null;
-    } catch (error) {
-        console.error('Error agregando producto:', error);
-        throw error;
-    }
-};
-
-// Función para actualizar producto en Supabase - CORREGIDO
-export const updateProductInSupabase = async (id, productData) => {
-    try {
-        const { data, error } = await supabase
-            .from('products')
-            .update({
-                name: productData.name,
-                description: productData.description,
-                category_id: productData.category_id,
-                photo_url: productData.photo_url,
-                plans: productData.plans,
-                price_soles: 0,
-                price_dollars: 0,
-                created_at: new Date().toISOString()
-            })
-            .eq('id', id)
-            .select();
-        
-        if (error) throw error;
-        return data && data.length > 0 ? data[0] : null;
-    } catch (error) {
-        console.error('Error actualizando producto:', error);
-        throw error;
-    }
-};
-
-// Función para eliminar producto en Supabase
-export const deleteProductFromSupabase = async (id) => {
-    try {
-        const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
-        
-        if (error) throw error;
-        return true;
-    } catch (error) {
-        console.error('Error eliminando producto:', error);
-        throw error;
-    }
-};
-
-// Verificar conexión al cargar
-checkSupabaseConnection().then(isConnected => {
-    if (isConnected) {
-        console.log('✅ Supabase inicializado correctamente');
-    } else {
-        console.warn('⚠️ Supabase no está disponible, usando modo offline');
-    }
-});
+// Hacer disponible globalmente
+window.supabaseClient = supabaseClient;
