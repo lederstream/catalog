@@ -1,9 +1,60 @@
-// Sistema de utilidades
-class Utils {
+// scripts/core/utils.js
+export class Utils {
     static debugMode = localStorage.getItem('debug') === 'true';
     
-    // ===== NOTIFICACIONES =====
-    static showNotification(message, type = 'info', duration = 5000) {
+    static enableDebugMode(enable = true) {
+        this.debugMode = enable;
+        console.log(`Debug mode ${enable ? 'enabled' : 'disabled'}`);
+    }
+    
+    static log(...args) {
+        if (this.debugMode) {
+            console.log('[DEBUG]', ...args);
+        }
+    }
+    
+    static debounce(func, wait, immediate = false) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                timeout = null;
+                if (!immediate) func(...args);
+            };
+            const callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func(...args);
+        };
+    }
+    
+    static throttle(func, limit) {
+        let inThrottle;
+        return function(...args) {
+            if (!inThrottle) {
+                func.apply(this, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+    
+    static formatCurrency(amount, currency = 'PEN') {
+        if (amount === null || amount === undefined || isNaN(amount)) amount = 0;
+        
+        return new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    }
+    
+    static truncateText(text, maxLength = 100, suffix = '...') {
+        if (!text || typeof text !== 'string') return '';
+        return text.length <= maxLength ? text : text.substr(0, maxLength) + suffix;
+    }
+    
+    static showNotification(message, type = 'info', duration = 3000) {
         let container = document.getElementById('notifications-container');
         if (!container) {
             container = document.createElement('div');
@@ -72,23 +123,22 @@ class Utils {
         };
     }
     
-    static showSuccess(message, duration = 5000) {
+    static showSuccess(message, duration = 3000) {
         return this.showNotification(message, 'success', duration);
     }
     
-    static showError(message, duration = 5000) {
+    static showError(message, duration = 3000) {
         return this.showNotification(message, 'error', duration);
     }
     
-    static showWarning(message, duration = 5000) {
+    static showWarning(message, duration = 3000) {
         return this.showNotification(message, 'warning', duration);
     }
     
-    static showInfo(message, duration = 5000) {
+    static showInfo(message, duration = 3000) {
         return this.showNotification(message, 'info', duration);
     }
     
-    // ===== VALIDACIONES =====
     static validateEmail(email) {
         if (!email || typeof email !== 'string') return false;
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -114,13 +164,6 @@ class Utils {
         return true;
     }
     
-    static validateNumber(value, min = 0, max = Infinity) {
-        if (value === null || value === undefined || value === '') return false;
-        const num = parseFloat(value);
-        return !isNaN(num) && isFinite(num) && num >= min && num <= max;
-    }
-    
-    // ===== ANIMACIONES =====
     static async fadeIn(element, duration = 300, display = 'block') {
         if (!element) return;
         
@@ -152,39 +195,7 @@ class Utils {
             });
         });
     }
-    
-    // ===== MANEJO DE DATOS =====
-    static debounce(func, wait, immediate = false) {
-        let timeout;
-        return function executedFunction(...args) {
-            const later = () => {
-                timeout = null;
-                if (!immediate) func(...args);
-            };
-            const callNow = immediate && !timeout;
-            clearTimeout(timeout);
-            timeout = setTimeout(later, wait);
-            if (callNow) func(...args);
-        };
-    }
-    
-    // ===== FORMATEO =====
-    static formatCurrency(amount, currency = 'PEN', locale = 'es-PE') {
-        if (amount === null || amount === undefined || isNaN(amount)) amount = 0;
-        
-        return new Intl.NumberFormat(locale, {
-            style: 'currency',
-            currency: currency,
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    }
-    
-    static truncateText(text, maxLength = 100, suffix = '...') {
-        if (!text || typeof text !== 'string') return '';
-        return text.length <= maxLength ? text : text.substr(0, maxLength) + suffix;
-    }
 }
 
-// Exportar como objeto único
+// Exportación por defecto para compatibilidad
 export default Utils;
