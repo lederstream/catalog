@@ -1,4 +1,4 @@
-// scripts/event-listeners.js - VERSIÓN CORREGIDA
+// scripts/event-listeners.js
 import { Utils } from './utils.js';
 
 // Configurar todos los event listeners globales
@@ -15,7 +15,28 @@ export function setupAllEventListeners() {
     }
 }
 
-// Manejadores específicos para evitar problemas
+// Listeners globales de clic
+function setupGlobalClickListeners() {
+    document.addEventListener('click', function(e) {
+        // Evitar procesar clicks en elementos de formulario
+        const isFormElement = e.target.matches('input, select, textarea, label, button[type="submit"], button[type="button"]');
+        const isInForm = e.target.closest('form');
+        
+        if (isFormElement || isInForm) {
+            return;
+        }
+        
+        // Manejar clicks en botones específicos
+        if (e.target.closest('.view-details-btn')) {
+            handleViewDetails(e);
+        }
+        
+        if (e.target.closest('.edit-product')) {
+            handleEditProduct(e);
+        }
+    });
+}
+
 function handleViewDetails(e) {
     e.preventDefault();
     const btn = e.target.closest('.view-details-btn');
@@ -34,52 +55,7 @@ function handleEditProduct(e) {
     }
 }
 
-function handleSearchImage(e) {
-    e.preventDefault();
-    if (typeof window.openImageSearchModal === 'function') {
-        window.openImageSearchModal();
-    }
-}
-
-function handleManageCategories(e) {
-    e.preventDefault();
-    if (typeof window.openCategoriesModal === 'function') {
-        window.openCategoriesModal();
-    }
-}
-
-// Listeners globales de clic - VERSIÓN SEGURA
-function setupGlobalClickListeners() {
-    document.addEventListener('click', function(e) {
-        // EXCLUSIÓN CRÍTICA: No procesar clicks en elementos de formulario
-        const isFormElement = e.target.matches('input, select, textarea, label, button[type="submit"], button[type="button"]');
-        const isInForm = e.target.closest('form');
-        
-        // Si es un elemento de formulario o está dentro de uno, NO procesar
-        if (isFormElement || isInForm) {
-            return; // Permitir comportamiento normal
-        }
-        
-        // Solo procesar clicks en botones específicos
-        if (e.target.closest('.view-details-btn')) {
-            handleViewDetails(e);
-        }
-        
-        if (e.target.closest('.edit-product')) {
-            handleEditProduct(e);
-        }
-        
-        if (e.target.closest('#searchImageBtn')) {
-            handleSearchImage(e);
-        }
-        
-        if (e.target.closest('#manageCategoriesBtn')) {
-            handleManageCategories(e);
-        }
-    });
-}
-
-// Listeners para formularios (sin interferencias)
+// Listeners para formularios
 function setupFormEventListeners() {
     const forms = document.querySelectorAll('form');
     forms.forEach(form => {
@@ -91,16 +67,32 @@ function setupFormEventListeners() {
         });
     });
     
-    // Asegurar que los campos de formulario sean completamente interactivos
+    // Asegurar que los campos de formulario sean interactivos
     document.addEventListener('focus', (e) => {
         if (e.target.matches('input, select, textarea')) {
-            // Remover cualquier atributo que pueda interferir
             e.target.removeAttribute('readonly');
             e.target.removeAttribute('disabled');
             e.target.classList.remove('pointer-events-none');
             e.target.style.pointerEvents = 'auto';
         }
     }, true);
+}
+
+// Validación de formulario
+function validateForm(form) {
+    if (!form) return true;
+    
+    let isValid = true;
+    const requiredFields = form.querySelectorAll('[required]');
+    
+    requiredFields.forEach(field => {
+        if (!field.value.trim()) {
+            isValid = false;
+            field.classList.add('border-red-500');
+        }
+    });
+    
+    return isValid;
 }
 
 // Listeners de navegación
@@ -141,23 +133,6 @@ function setupUIEventListeners() {
             card.style.transition = 'all 0.3s ease';
         });
     });
-}
-
-// Validación de formulario completo
-function validateForm(form) {
-    if (!form) return true;
-    
-    let isValid = true;
-    const requiredFields = form.querySelectorAll('[required]');
-    
-    requiredFields.forEach(field => {
-        if (!field.value.trim()) {
-            isValid = false;
-            field.classList.add('border-red-500');
-        }
-    });
-    
-    return isValid;
 }
 
 // Función para limpiar interferencias en formularios
