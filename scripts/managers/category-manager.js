@@ -1,6 +1,6 @@
 // scripts/managers/category-manager.js
-import { supabase } from './supabase.js';
-import { Utils } from './utils.js';
+import { supabase } from '../core/supabase.js';
+import { Utils } from '../core/utils.js';
 
 class CategoryManager {
     constructor() {
