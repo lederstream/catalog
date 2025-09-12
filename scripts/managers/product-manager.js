@@ -1,4 +1,4 @@
-// scripts/products.js
+// scripts/managers/product-manager.js
 import Utils from '../core/utils.js';
 import { supabaseClient } from '../core/supabase.js';
 
