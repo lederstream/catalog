@@ -1,13 +1,13 @@
 // scripts/core/app.js
 import { Utils } from './utils.js';
 import { supabase } from './supabase.js';
-import { CategoryManager } from './categories.js';
-import { ProductManager } from './products.js';
-import { ModalSystem } from './modals.js';
+import { CategoryManager } from '../managers/category-manager.js';
+import { ProductManager } from '../managers/product-manager.js';
+import { ModalSystem } from '../components/modals.js'
 import { AuthManager } from './auth.js';
 import { initAdminPanel } from './components/admin-panel.js';
 import { initCatalogGrid } from './components/catalog-grid.js';
-import { setupAllEventListeners } from './event-listeners.js';
+import { setupAllEventListeners } from '../event-listeners.js';
 
 class DigitalCatalogApp {
     constructor() {
