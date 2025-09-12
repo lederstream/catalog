@@ -76,6 +76,7 @@
     <!-- Footer -->
     <footer class="bg-gray-800 text-white py-8 mt-12">
         <div class="container mx-auto px-4">
+
             <div class="border-t border-gray-700 mt-8 pt-6 text-center text-gray-400">
                 <p>&copy; 2025 Cinebestial. Todos los derechos reservados.</p>
             </div>
@@ -84,12 +85,12 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module" src="scripts/supabase.js"></script>
-    <script type="module" src="scripts/utils.js"></script>
-    <script type="module" src="scripts/products.js"></script>
-    <script type="module" src="scripts/categories.js"></script>
+    <script type="module" src="scripts/core/supabase.js"></script>
+    <script type="module" src="scripts/core/utils.js"></script>
+    <script type="module" src="scripts/managers/product-manager.js"></script>
+    <script type="module" src="scripts/managers/category-manager.js"></script>
     <script type="module" src="scripts/components/product-card.js"></script>
     <script type="module" src="scripts/components/catalog-grid.js"></script>
-    <script type="module" src="scripts/app-index.js"></script>
+    <script type="module" src="scripts/core/app.js"></script>
 </body>
 </html>
