@@ -1,5 +1,5 @@
 // scripts/components/header.js
-import { isUserLoggedIn, getCurrentUser } from '../auth.js';
+import { isUserLoggedIn, getCurrentUser } from '../core/auth.js';
 
 // Renderizar header
 export function renderHeader() {
