@@ -3,10 +3,7 @@ import { Utils } from './utils.js';
 import { supabase } from './supabase.js';
 import { CategoryManager } from '../managers/category-manager.js';
 import { ProductManager } from '../managers/product-manager.js';
-import { ModalSystem } from '../components/modals.js'
 import { AuthManager } from './auth.js';
-import initAdminPanel from './components/admin-panel.js';
-import initCatalogGrid from './components/catalog-grid.js';
 import { setupAllEventListeners } from '../event-listeners.js';
 
 class DigitalCatalogApp {
@@ -14,7 +11,6 @@ class DigitalCatalogApp {
         this.isInitialized = false;
         this.isOnline = navigator.onLine;
         this.currentUser = null;
-        this.pendingActions = [];
         this.state = {
             products: [],
             categories: [],
@@ -49,9 +45,6 @@ class DigitalCatalogApp {
             // Cargar datos iniciales
             await this.loadInitialData();
             
-            // Inicializar UI components
-            this.initializeUIComponents();
-            
             // Finalizar inicialización
             await this.hideLoadingState();
             this.isInitialized = true;
@@ -67,15 +60,34 @@ class DigitalCatalogApp {
     
     async initializeCoreComponents() {
         // Inicializar Supabase
-        await supabase.init();
+        await this.initSupabase();
         
         // Inicializar managers
         await Promise.all([
             CategoryManager.init(),
             ProductManager.init(),
-            ModalSystem.init(),
             AuthManager.init()
         ]);
+    }
+    
+    async initSupabase() {
+        try {
+            // Verificar conexión con Supabase
+            const { data, error } = await supabase.from('products').select('count').limit(1);
+            
+            if (error) {
+                console.error('Error conectando con Supabase:', error);
+                throw error;
+            }
+            
+            console.log('✅ Supabase conectado correctamente');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Error inicializando Supabase:', error);
+            Utils.showError('Error de conexión con la base de datos');
+            throw error;
+        }
     }
     
     async loadInitialData() {
@@ -98,10 +110,6 @@ class DigitalCatalogApp {
             this.state.lastUpdate = new Date().toISOString();
             
             this.persistState();
-            
-            // Actualizar UI
-            this.updateCategoryFilter();
-            this.filterAndRenderProducts();
             
         } catch (error) {
             console.error('Error loading initial data:', error);
@@ -146,7 +154,6 @@ class DigitalCatalogApp {
         window.addEventListener('online', () => {
             this.isOnline = true;
             Utils.showSuccess('📶 Conexión restaurada. Sincronizando datos...');
-            this.executePendingActions();
             this.refreshData();
         });
         
@@ -177,7 +184,7 @@ class DigitalCatalogApp {
         scrollBtn.setAttribute('aria-label', 'Volver arriba');
         
         scrollBtn.addEventListener('click', () => {
-            Utils.smoothScrollTo(document.body);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         });
         
         document.body.appendChild(scrollBtn);
@@ -207,8 +214,9 @@ class DigitalCatalogApp {
             }
             
             // Escape para cerrar modales
-            if (e.key === 'Escape' && ModalSystem.currentModal) {
-                ModalSystem.closeCurrentModal();
+            if (e.key === 'Escape') {
+                const modals = document.querySelectorAll('.modal-container');
+                modals.forEach(modal => modal.classList.add('hidden'));
             }
         });
     }
@@ -224,79 +232,6 @@ class DigitalCatalogApp {
             Utils.showError('❌ Error en operación asíncrona');
             e.preventDefault();
         });
-    }
-    
-    initializeUIComponents() {
-        // Inicializar componentes de UI
-        if (typeof initAdminPanel === 'function') {
-            initAdminPanel();
-        }
-        
-        if (typeof initCatalogGrid === 'function') {
-            initCatalogGrid();
-        }
-        
-        // Configurar animaciones de scroll
-        this.setupScrollAnimations();
-    }
-    
-    setupScrollAnimations() {
-        const animatedElements = document.querySelectorAll('.fade-in-up, .fade-in-left, .fade-in-right');
-        
-        if (animatedElements.length > 0 && 'IntersectionObserver' in window) {
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('animate-in');
-                        observer.unobserve(entry.target);
-                    }
-                });
-            }, { threshold: 0.1 });
-            
-            animatedElements.forEach(el => observer.observe(el));
-        }
-    }
-    
-    updateCategoryFilter() {
-        const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter) return;
-        
-        const currentValue = categoryFilter.value;
-        categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>';
-        
-        this.state.categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            if (category.icon) {
-                option.textContent = `${category.name}`;
-            }
-            categoryFilter.appendChild(option);
-        });
-        
-        if (currentValue && categoryFilter.querySelector(`option[value="${currentValue}"]`)) {
-            categoryFilter.value = currentValue;
-        }
-    }
-    
-    filterAndRenderProducts() {
-        const searchInput = document.getElementById('searchInput');
-        const categoryFilter = document.getElementById('categoryFilter');
-        const productsGrid = document.getElementById('productsGrid');
-        
-        if (!searchInput || !categoryFilter || !productsGrid) return;
-        
-        const searchText = searchInput.value.toLowerCase().trim();
-        const category = categoryFilter.value;
-        
-        // Guardar estado actual de filtros
-        this.state.currentFilter = { category, search: searchText };
-        
-        // Filtrar productos
-        const filteredProducts = ProductManager.filterProducts(category, searchText);
-        
-        // Renderizar productos
-        ProductManager.renderProductsGrid(filteredProducts, 'productsGrid');
     }
     
     async refreshData() {
@@ -318,31 +253,12 @@ class DigitalCatalogApp {
             this.state.lastUpdate = new Date().toISOString();
             
             this.persistState();
-            this.updateCategoryFilter();
-            this.filterAndRenderProducts();
             
             Utils.showSuccess('✅ Datos actualizados correctamente');
             
         } catch (error) {
             console.error('Error refreshing data:', error);
             Utils.showError('❌ Error al actualizar datos');
-        }
-    }
-    
-    addPendingAction(action) {
-        this.pendingActions.push(action);
-    }
-    
-    executePendingActions() {
-        if (this.pendingActions.length > 0 && this.isOnline) {
-            this.pendingActions.forEach(action => {
-                try {
-                    action();
-                } catch (error) {
-                    console.error('Error ejecutando acción pendiente:', error);
-                }
-            });
-            this.pendingActions = [];
         }
     }
     
@@ -373,10 +289,6 @@ class DigitalCatalogApp {
     async refresh() {
         return this.refreshData();
     }
-    
-    filterProducts() {
-        return this.filterAndRenderProducts();
-    }
 }
 
 // Singleton instance
@@ -388,10 +300,3 @@ export { app };
 // Hacer disponible globalmente
 window.DigitalCatalogApp = DigitalCatalogApp;
 window.app = app;
-
-// Inicializar automáticamente cuando el DOM esté listo
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => app.initialize());
-} else {
-    setTimeout(() => app.initialize(), 100);
-}
