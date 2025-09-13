@@ -5,7 +5,9 @@ import { supabaseClient } from '../core/supabase.js';
 class ProductManager {
     constructor() {
         this.products = [];
+        this.filteredProducts = [];
         this.isLoading = false;
+        this.listeners = new Set();
     }
     
     static async init() {
@@ -18,18 +20,24 @@ class ProductManager {
         if (this.isLoading) return this.products;
         
         this.isLoading = true;
+        this.notifyListeners('loadingStart');
         
         try {
             const data = await supabaseClient.getProducts();
             this.products = this.processProducts(data);
+            this.filteredProducts = [...this.products];
+            
+            this.notifyListeners('productsLoaded', this.products);
             return this.products;
             
         } catch (error) {
             console.error('❌ Error cargando productos:', error);
             Utils.showError('Error al cargar productos');
+            this.notifyListeners('loadError', error);
             return [];
         } finally {
             this.isLoading = false;
+            this.notifyListeners('loadingEnd');
         }
     }
     
@@ -40,6 +48,7 @@ class ProductManager {
             ...product,
             plans: this.parsePlans(product.plans),
             category_name: product.categories?.name || 'Sin categoría',
+            min_price: this.calculateMinPrice(product.plans)
         }));
     }
     
@@ -56,8 +65,23 @@ class ProductManager {
         }
     }
     
+    calculateMinPrice(plans) {
+        if (!plans?.length) return 0;
+        
+        const prices = plans.flatMap(plan => [
+            plan.price_soles || Infinity,
+            plan.price_dollars || Infinity
+        ]).filter(price => price > 0 && price !== Infinity);
+        
+        return prices.length ? Math.min(...prices) : 0;
+    }
+    
     getProducts() {
         return this.products;
+    }
+    
+    getFilteredProducts() {
+        return this.filteredProducts;
     }
     
     getProductById(id) {
@@ -66,11 +90,28 @@ class ProductManager {
     
     async addProduct(productData) {
         try {
+            // Validar datos antes de enviar
+            if (!productData.name || !productData.category_id) {
+                throw new Error('Nombre y categoría son obligatorios');
+            }
+            
+            // Procesar planes si es necesario
+            if (productData.plans && typeof productData.plans === 'string') {
+                try {
+                    productData.plans = JSON.parse(productData.plans);
+                } catch (e) {
+                    console.warn('Los planes no están en formato JSON válido', e);
+                }
+            }
+            
             const result = await supabaseClient.addProduct(productData);
             
             if (result) {
                 const newProduct = this.processProducts([result])[0];
                 this.products.unshift(newProduct);
+                this.filteredProducts.unshift(newProduct);
+                
+                this.notifyListeners('productAdded', newProduct);
                 Utils.showSuccess('✅ Producto agregado correctamente');
                 return newProduct;
             }
@@ -78,7 +119,7 @@ class ProductManager {
             return null;
         } catch (error) {
             console.error('Error al agregar producto:', error);
-            Utils.showError('Error al agregar producto');
+            Utils.showError(error.message || 'Error al agregar producto');
             throw error;
         }
     }
@@ -90,9 +131,19 @@ class ProductManager {
             if (result) {
                 const updatedProduct = this.processProducts([result])[0];
                 const index = this.products.findIndex(p => p.id === id);
-                if (index !== -1) this.products[index] = updatedProduct;
-                Utils.showSuccess('✅ Producto actualizado correctamente');
-                return updatedProduct;
+                
+                if (index !== -1) {
+                    this.products[index] = updatedProduct;
+                    // Actualizar también en filteredProducts si existe
+                    const filteredIndex = this.filteredProducts.findIndex(p => p.id === id);
+                    if (filteredIndex !== -1) {
+                        this.filteredProducts[filteredIndex] = updatedProduct;
+                    }
+                    
+                    this.notifyListeners('productUpdated', updatedProduct);
+                    Utils.showSuccess('✅ Producto actualizado correctamente');
+                    return updatedProduct;
+                }
             }
             
             return null;
@@ -106,7 +157,11 @@ class ProductManager {
     async deleteProduct(id) {
         try {
             await supabaseClient.deleteProduct(id);
+            
             this.products = this.products.filter(p => p.id !== id);
+            this.filteredProducts = this.filteredProducts.filter(p => p.id !== id);
+            
+            this.notifyListeners('productDeleted', id);
             Utils.showSuccess('✅ Producto eliminado correctamente');
             return true;
         } catch (error) {
@@ -116,7 +171,7 @@ class ProductManager {
         }
     }
     
-    filterProducts(category = 'all', search = '') {
+    filterProducts(category = 'all', search = '', sortBy = 'name', sortOrder = 'asc') {
         let filtered = [...this.products];
         
         // Filtrar por categoría
@@ -134,7 +189,72 @@ class ProductManager {
             );
         }
         
+        // Ordenar
+        filtered = this.sortProducts(filtered, sortBy, sortOrder);
+        
+        this.filteredProducts = filtered;
+        this.notifyListeners('productsFiltered', filtered);
+        
         return filtered;
+    }
+    
+    sortProducts(products, field, order = 'asc') {
+        return [...products].sort((a, b) => {
+            let aValue, bValue;
+            
+            switch (field) {
+                case 'name':
+                    aValue = a.name?.toLowerCase() || '';
+                    bValue = b.name?.toLowerCase() || '';
+                    break;
+                case 'price':
+                    aValue = a.min_price || 0;
+                    bValue = b.min_price || 0;
+                    break;
+                case 'category':
+                    aValue = a.category_name?.toLowerCase() || '';
+                    bValue = b.category_name?.toLowerCase() || '';
+                    break;
+                case 'date':
+                    aValue = new Date(a.created_at || 0).getTime();
+                    bValue = new Date(b.created_at || 0).getTime();
+                    break;
+                default:
+                    aValue = a[field] || '';
+                    bValue = b[field] || '';
+            }
+            
+            if (aValue === bValue) return 0;
+            
+            const comparison = aValue < bValue ? -1 : 1;
+            return order === 'asc' ? comparison : -comparison;
+        });
+    }
+    
+    // Sistema de eventos
+    addListener(event, callback) {
+        this.listeners.add({ event, callback });
+    }
+    
+    removeListener(event, callback) {
+        for (const listener of this.listeners) {
+            if (listener.event === event && listener.callback === callback) {
+                this.listeners.delete(listener);
+                break;
+            }
+        }
+    }
+    
+    notifyListeners(event, data) {
+        for (const listener of this.listeners) {
+            if (listener.event === event) {
+                try {
+                    listener.callback(data);
+                } catch (error) {
+                    console.error(`Error en listener para evento ${event}:`, error);
+                }
+            }
+        }
     }
 }
 
@@ -158,6 +278,10 @@ export const productManager = {
     getProducts() {
         return productManagerInstance ? productManagerInstance.getProducts() : [];
     },
+    
+    getFilteredProducts() {
+        return productManagerInstance ? productManagerInstance.getFilteredProducts() : [];
+    },
 
     getProductById(id) {
         return productManagerInstance ? productManagerInstance.getProductById(id) : null;
@@ -178,8 +302,21 @@ export const productManager = {
         return manager.deleteProduct(id);
     },
     
-    filterProducts(category, search) {
-        return productManagerInstance ? productManagerInstance.filterProducts(category, search) : [];
+    filterProducts(category, search, sortBy, sortOrder) {
+        return productManagerInstance ? 
+            productManagerInstance.filterProducts(category, search, sortBy, sortOrder) : [];
+    },
+    
+    addListener(event, callback) {
+        if (productManagerInstance) {
+            productManagerInstance.addListener(event, callback);
+        }
+    },
+    
+    removeListener(event, callback) {
+        if (productManagerInstance) {
+            productManagerInstance.removeListener(event, callback);
+        }
     }
 };
 
