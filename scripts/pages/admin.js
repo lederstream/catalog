@@ -12,6 +12,8 @@ class AdminPage {
         this.currentUser = null;
         this.categoryManager = null;
         this.productManager = null;
+        this.authCheckAttempts = 0;
+        this.maxAuthCheckAttempts = 5;
         this.state = {
             products: [],
             categories: [],
@@ -28,8 +30,10 @@ class AdminPage {
         if (this.isInitialized) return;
 
         try {
-            // Verificar autenticación
-            await this.checkAuthentication();
+            console.log('🔄 Inicializando panel admin...');
+            
+            // Verificar autenticación con retries
+            await this.checkAuthenticationWithRetry();
             
             // Inicializar componentes
             await this.initializeComponents();
@@ -41,26 +45,92 @@ class AdminPage {
             this.setupEventListeners();
             
             this.isInitialized = true;
-            console.log('✅ Panel de administración inicializado');
+            console.log('✅ Panel de administración inicializado correctamente');
+            
+            // Mostrar mensaje de bienvenida
+            Utils.showSuccess(`Bienvenido ${this.currentUser.email}`);
             
         } catch (error) {
             console.error('❌ Error inicializando panel admin:', error);
-            Utils.showError('Error al inicializar el panel de administración');
-            // Redirigir al login si hay error de autenticación
-            if (error.message.includes('autenticación') || error.message.includes('autenticado') || error.message.includes('Usuario no autenticado')) {
+            
+            if (error.message.includes('autenticación') || 
+                error.message.includes('autenticado') || 
+                error.message.includes('Usuario no autenticado') ||
+                error.message.includes('No autenticado')) {
+                
+                Utils.showError('Sesión expirada o no autenticado. Redirigiendo al login...');
                 setTimeout(() => window.location.href = 'login.html', 2000);
+            } else {
+                Utils.showError('Error al inicializar el panel de administración');
+            }
+        }
+    }
+
+    async checkAuthenticationWithRetry() {
+        while (this.authCheckAttempts < this.maxAuthCheckAttempts) {
+            try {
+                await this.checkAuthentication();
+                return; // Éxito, salir del loop
+            } catch (error) {
+                this.authCheckAttempts++;
+                
+                if (this.authCheckAttempts >= this.maxAuthCheckAttempts) {
+                    throw new Error('No autenticado después de múltiples intentos');
+                }
+                
+                // Esperar antes de reintentar (backoff exponencial)
+                const delay = Math.pow(2, this.authCheckAttempts) * 100;
+                console.log(`⏳ Reintentando autenticación en ${delay}ms (intento ${this.authCheckAttempts})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
             }
         }
     }
 
     async checkAuthentication() {
-        // Esperar a que el AuthManager esté completamente inicializado
-        this.currentUser = await AuthManagerFunctions.getCurrentUser();
-        if (!this.currentUser) {
+        try {
+            // Obtener estado actual de autenticación
+            const authState = await AuthManagerFunctions.getAuthState();
+            console.log('🔍 Estado de autenticación:', authState);
+            
+            // Si ya estamos autenticados, proceder
+            if (authState === 'AUTHENTICATED') {
+                this.currentUser = await AuthManagerFunctions.getCurrentUser();
+                if (this.currentUser) {
+                    console.log('👤 Usuario autenticado:', this.currentUser.email);
+                    return;
+                }
+            }
+            
+            // Si está inicializando, esperar un poco más
+            if (authState === 'INITIALIZING') {
+                console.log('⏳ AuthManager aún se está inicializando, esperando...');
+                await new Promise(resolve => setTimeout(resolve, 500));
+                return this.checkAuthentication(); // Recursivo
+            }
+            
+            // Si no está autenticado, verificar si hay sesión en localStorage como fallback
+            const lastAuthEmail = localStorage.getItem('lastAuthEmail');
+            if (lastAuthEmail) {
+                console.log('🔍 Sesión previa encontrada en localStorage:', lastAuthEmail);
+                
+                // Esperar un poco más para que Supabase termine de inicializar
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Verificar nuevamente
+                const finalCheck = await AuthManagerFunctions.isAuthenticated();
+                if (finalCheck) {
+                    this.currentUser = await AuthManagerFunctions.getCurrentUser();
+                    console.log('✅ Sesión restaurada después de espera:', this.currentUser.email);
+                    return;
+                }
+            }
+            
+            throw new Error('Usuario no autenticado');
+            
+        } catch (error) {
+            console.error('❌ Error en checkAuthentication:', error);
             throw new Error('Usuario no autenticado');
         }
-        
-        console.log('👤 Usuario autenticado:', this.currentUser.email);
     }
 
     async initializeComponents() {
@@ -95,7 +165,7 @@ class AdminPage {
             Utils.showSuccess('✅ Datos cargados correctamente');
             
         } catch (error) {
-            console.error('Error cargando datos:', error);
+            console.error('❌ Error cargando datos:', error);
             Utils.showError('Error al cargar los datos');
             throw error;
         }
@@ -408,6 +478,7 @@ class AdminPage {
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         const viewStatsBtn = document.getElementById('viewStatsBtn');
         const logoutBtn = document.getElementById('logoutBtn');
+        const refreshBtn = document.getElementById('refreshBtn');
         
         if (addProductBtn) {
             addProductBtn.addEventListener('click', 
@@ -433,8 +504,24 @@ class AdminPage {
             );
         }
         
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', 
+                () => this.refreshData()
+            );
+        }
+        
         // Configurar event listeners globales
         setupAllEventListeners();
+        
+        // Listener para cambios de autenticación
+        AuthManagerFunctions.addAuthStateListener((event, data) => {
+            console.log('🔍 AdminPage detectó cambio de auth:', event);
+            
+            if (event === 'SIGNED_OUT') {
+                Utils.showInfo('Sesión cerrada. Redirigiendo...');
+                setTimeout(() => window.location.href = 'login.html', 1000);
+            }
+        });
     }
 
     async addProduct() {
