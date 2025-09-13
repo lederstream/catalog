@@ -144,6 +144,9 @@ export async function getCategoryManager() {
     return categoryManagerInstance;
 }
 
+// Exportar la clase también
+export { CategoryManager };
+
 // Funciones de compatibilidad
 export const categoryManager = {
     async loadCategories() {
