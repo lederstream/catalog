@@ -1,7 +1,7 @@
 // scripts/pages/index.js
 import { Utils } from '../core/utils.js';
-import { ProductManager } from '../managers/product-manager.js';
-import { CategoryManager } from '../managers/category-manager.js';
+import { getProductManager } from '../managers/product-manager.js';
+import { getCategoryManager } from '../managers/category-manager.js';
 import { createProductCard, addProductCardEventListeners, animateProductsEntry } from '../components/product-card.js';
 
 class IndexPage {
@@ -40,8 +40,8 @@ class IndexPage {
     }
 
     async initializeManagers() {
-        await CategoryManager.init();
-        await ProductManager.init();
+        await getCategoryManager();
+        await getProductManager();
     }
 
     async loadData() {
@@ -49,8 +49,8 @@ class IndexPage {
             Utils.showInfo('🔄 Cargando catálogo...');
             
             const [categories, products] = await Promise.all([
-                CategoryManager.loadCategories(),
-                ProductManager.loadProducts()
+                categoryManager.loadCategories(),
+                productManager.loadProducts()
             ]);
             
             this.state.categories = categories;
@@ -192,7 +192,7 @@ class IndexPage {
                 <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
                 <p class="text-gray-500 mb-4">Intenta con otros términos de búsqueda o categorías</p>
                 <button class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" 
-                        onclick="this.resetFilters()">
+                        onclick="window.resetFilters()">
                     <i class="fas fa-refresh mr-2"></i>
                     Limpiar filtros
                 </button>
