@@ -1,5 +1,5 @@
 // scripts/pages/login.js
-import { AuthManager } from '../core/auth.js';
+import { getAuthManager, AuthManagerFunctions } from '../core/auth.js';
 import { Utils } from '../core/utils.js';
 
 class LoginPage {
@@ -7,12 +7,16 @@ class LoginPage {
         this.isInitialized = false;
         this.loginForm = null;
         this.resetForm = null;
+        this.authManager = null;
     }
 
     async initialize() {
         if (this.isInitialized) return;
 
         try {
+            // Obtener instancia del AuthManager
+            this.authManager = await getAuthManager();
+            
             // Verificar si ya está autenticado
             const isAuthenticated = await this.checkAuthentication();
             if (isAuthenticated) {
@@ -34,48 +38,16 @@ class LoginPage {
 
     async checkAuthentication() {
         try {
-            const currentUser = await AuthManager.getCurrentUser();
-            return currentUser !== null;
+            // Usar la instancia del AuthManager
+            if (this.authManager) {
+                return this.authManager.isAuthenticated();
+            }
+            
+            // Fallback: usar las funciones globales
+            return AuthManagerFunctions.isAuthenticated();
         } catch (error) {
             console.error('Error verificando autenticación:', error);
             return false;
-        }
-    }
-
-    setupEventListeners() {
-        this.loginForm = document.getElementById('loginForm');
-        this.resetForm = document.getElementById('resetForm');
-        
-        if (this.loginForm) {
-            this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-            
-            // Mostrar/ocultar contraseña
-            const togglePassword = document.getElementById('togglePassword');
-            if (togglePassword) {
-                togglePassword.addEventListener('click', () => this.togglePasswordVisibility());
-            }
-        }
-        
-        if (this.resetForm) {
-            this.resetForm.addEventListener('submit', (e) => this.handleResetPassword(e));
-        }
-        
-        // Manejar navegación entre formularios
-        const showResetLink = document.getElementById('showReset');
-        const showLoginLink = document.getElementById('showLoginFromReset');
-        
-        if (showResetLink) {
-            showResetLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showResetForm();
-            });
-        }
-        
-        if (showLoginLink) {
-            showLoginLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showLoginForm();
-            });
         }
     }
 
@@ -94,7 +66,13 @@ class LoginPage {
         try {
             this.setFormLoading(this.loginForm, true);
             
-            const success = await AuthManager.signIn(email, password);
+            // Usar la instancia del AuthManager o las funciones globales
+            let success;
+            if (this.authManager) {
+                success = await this.authManager.signIn(email, password);
+            } else {
+                success = await AuthManagerFunctions.signIn(email, password);
+            }
             
             if (success) {
                 Utils.showSuccess('✅ Inicio de sesión exitoso');
@@ -125,7 +103,12 @@ class LoginPage {
         try {
             this.setFormLoading(this.resetForm, true);
             
-            await AuthManager.resetPassword(email);
+            // Usar la instancia del AuthManager o las funciones globales
+            if (this.authManager) {
+                await this.authManager.resetPassword(email);
+            } else {
+                await AuthManagerFunctions.resetPassword(email);
+            }
             
             this.setFormLoading(this.resetForm, false);
             this.showLoginForm();
@@ -136,6 +119,7 @@ class LoginPage {
         }
     }
 
+    // El resto del código permanece igual...
     validateLoginForm(email, password) {
         let isValid = true;
         
@@ -254,6 +238,43 @@ class LoginPage {
         this.resetForm.classList.add('hidden');
         this.loginForm.classList.remove('hidden');
         this.clearFormErrors(this.resetForm);
+    }
+
+    setupEventListeners() {
+        this.loginForm = document.getElementById('loginForm');
+        this.resetForm = document.getElementById('resetForm');
+        
+        if (this.loginForm) {
+            this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+            
+            // Mostrar/ocultar contraseña
+            const togglePassword = document.getElementById('togglePassword');
+            if (togglePassword) {
+                togglePassword.addEventListener('click', () => this.togglePasswordVisibility());
+            }
+        }
+        
+        if (this.resetForm) {
+            this.resetForm.addEventListener('submit', (e) => this.handleResetPassword(e));
+        }
+        
+        // Manejar navegación entre formularios
+        const showResetLink = document.getElementById('showReset');
+        const showLoginLink = document.getElementById('showLoginFromReset');
+        
+        if (showResetLink) {
+            showResetLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showResetForm();
+            });
+        }
+        
+        if (showLoginLink) {
+            showLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                this.showLoginForm();
+            });
+        }
     }
 }
 
