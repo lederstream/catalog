@@ -45,7 +45,8 @@ class ProductManager {
             ...product,
             plans: this.parsePlans(product.plans),
             category_name: product.categories?.name || 'Sin categoría',
-            min_price: this.calculateMinPrice(product.plans)
+            min_price: this.calculateMinPrice(product.plans),
+            formatted_min_price: this.formatMinPrice(product.plans)
         }));
     }
     
@@ -54,10 +55,19 @@ class ProductManager {
         
         try {
             if (Array.isArray(plans)) return plans;
-            if (typeof plans === 'string') return JSON.parse(plans);
+            if (typeof plans === 'string') {
+                // Intentar parsear como JSON
+                try {
+                    return JSON.parse(plans);
+                } catch (parseError) {
+                    console.warn('No se pudo parsear plans como JSON:', plans);
+                    return [];
+                }
+            }
             if (typeof plans === 'object') return [plans];
             return [];
-        } catch {
+        } catch (error) {
+            console.warn('Error parseando planes:', error);
             return [];
         }
     }
@@ -73,12 +83,21 @@ class ProductManager {
         return prices.length ? Math.min(...prices) : 0;
     }
     
+    formatMinPrice(plans) {
+        const minPrice = this.calculateMinPrice(plans);
+        return Utils.formatCurrency(minPrice);
+    }
+    
     getProducts() {
         return this.products;
     }
     
     getProductById(id) {
         return this.products.find(product => product.id == id);
+    }
+    
+    getProductsByCategory(categoryId) {
+        return this.products.filter(product => product.category_id == categoryId);
     }
     
     async addProduct(productData) {
@@ -159,6 +178,20 @@ class ProductManager {
         return filtered;
     }
     
+    searchProducts(query) {
+        if (!query) return this.products;
+        
+        const searchTerm = query.toLowerCase();
+        return this.products.filter(product => 
+            product.name.toLowerCase().includes(searchTerm) ||
+            (product.description && product.description.toLowerCase().includes(searchTerm)) ||
+            (product.category_name && product.category_name.toLowerCase().includes(searchTerm)) ||
+            (product.plans && product.plans.some(plan => 
+                plan.name.toLowerCase().includes(searchTerm)
+            ))
+        );
+    }
+    
     // Sistema de eventos
     addListener(event, callback) {
         this.listeners.add({ event, callback });
@@ -213,6 +246,14 @@ export const productManager = {
     getProductById(id) {
         return productManagerInstance ? productManagerInstance.getProductById(id) : null;
     },
+    
+    getProductsByCategory(categoryId) {
+        return productManagerInstance ? productManagerInstance.getProductsByCategory(categoryId) : [];
+    },
+    
+    searchProducts(query) {
+        return productManagerInstance ? productManagerInstance.searchProducts(query) : [];
+    },
 
     async addProduct(productData) {
         const manager = await getProductManager();
@@ -248,3 +289,13 @@ export const productManager = {
 
 // Hacer disponible globalmente
 window.productManager = productManager;
+
+// Inicializar automáticamente
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await getProductManager();
+        console.log('✅ ProductManager inicializado');
+    } catch (error) {
+        console.error('Error inicializando ProductManager:', error);
+    }
+});
