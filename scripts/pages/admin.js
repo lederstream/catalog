@@ -63,7 +63,6 @@ class AdminPage {
         if (this.isInitialized) return;
 
         try {
-            console.log('🔄 Inicializando panel admin...');
             this.showLoadingState(true);
             
             // Verificar autenticación con retries mejorados
@@ -79,7 +78,6 @@ class AdminPage {
             this.setupEventListeners();
             
             this.isInitialized = true;
-            console.log('✅ Panel de administración inicializado correctamente');
             
             // Mostrar mensaje de bienvenida
             Utils.showSuccess(`Bienvenido ${this.currentUser.email}`, 3000);
