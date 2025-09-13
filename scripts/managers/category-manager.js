@@ -6,6 +6,7 @@ class CategoryManager {
     constructor() {
         this.categories = [];
         this.isLoading = false;
+        this.listeners = new Set();
     }
     
     static async init() {
@@ -18,18 +19,22 @@ class CategoryManager {
         if (this.isLoading) return this.categories;
         
         this.isLoading = true;
+        this.notifyListeners('loadingStart');
         
         try {
             const data = await supabaseClient.getCategories();
             this.categories = data || [];
+            this.notifyListeners('categoriesLoaded', this.categories);
             return this.categories;
             
         } catch (error) {
             console.error('❌ Error cargando categorías:', error);
             Utils.showError('Error al cargar categorías');
+            this.notifyListeners('loadError', error);
             return [];
         } finally {
             this.isLoading = false;
+            this.notifyListeners('loadingEnd');
         }
     }
     
@@ -41,12 +46,19 @@ class CategoryManager {
         return this.categories.find(category => category.id == id);
     }
     
+    getCategoryByName(name) {
+        return this.categories.find(category => 
+            category.name.toLowerCase() === name.toLowerCase()
+        );
+    }
+    
     async addCategory(categoryData) {
         try {
             const result = await supabaseClient.addCategory(categoryData);
             
             if (result) {
                 this.categories.push(result);
+                this.notifyListeners('categoryAdded', result);
                 Utils.showSuccess('✅ Categoría agregada correctamente');
                 return result;
             }
@@ -65,7 +77,10 @@ class CategoryManager {
             
             if (result) {
                 const index = this.categories.findIndex(c => c.id === id);
-                if (index !== -1) this.categories[index] = result;
+                if (index !== -1) {
+                    this.categories[index] = result;
+                    this.notifyListeners('categoryUpdated', result);
+                }
                 Utils.showSuccess('✅ Categoría actualizada correctamente');
                 return result;
             }
@@ -82,12 +97,39 @@ class CategoryManager {
         try {
             await supabaseClient.deleteCategory(id);
             this.categories = this.categories.filter(c => c.id !== id);
+            this.notifyListeners('categoryDeleted', id);
             Utils.showSuccess('✅ Categoría eliminada correctamente');
             return true;
         } catch (error) {
             console.error('Error al eliminar categoría:', error);
             Utils.showError('Error al eliminar categoría');
             throw error;
+        }
+    }
+    
+    // Sistema de eventos
+    addListener(event, callback) {
+        this.listeners.add({ event, callback });
+    }
+    
+    removeListener(event, callback) {
+        for (const listener of this.listeners) {
+            if (listener.event === event && listener.callback === callback) {
+                this.listeners.delete(listener);
+                break;
+            }
+        }
+    }
+    
+    notifyListeners(event, data) {
+        for (const listener of this.listeners) {
+            if (listener.event === event) {
+                try {
+                    listener.callback(data);
+                } catch (error) {
+                    console.error(`Error en listener para evento ${event}:`, error);
+                }
+            }
         }
     }
 }
@@ -116,6 +158,10 @@ export const categoryManager = {
     getCategoryById(id) {
         return categoryManagerInstance ? categoryManagerInstance.getCategoryById(id) : null;
     },
+    
+    getCategoryByName(name) {
+        return categoryManagerInstance ? categoryManagerInstance.getCategoryByName(name) : null;
+    },
 
     async addCategory(categoryData) {
         const manager = await getCategoryManager();
@@ -130,6 +176,18 @@ export const categoryManager = {
     async deleteCategory(id) {
         const manager = await getCategoryManager();
         return manager.deleteCategory(id);
+    },
+    
+    addListener(event, callback) {
+        if (categoryManagerInstance) {
+            categoryManagerInstance.addListener(event, callback);
+        }
+    },
+    
+    removeListener(event, callback) {
+        if (categoryManagerInstance) {
+            categoryManagerInstance.removeListener(event, callback);
+        }
     }
 };
 
@@ -140,6 +198,7 @@ window.categoryManager = categoryManager;
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         await getCategoryManager();
+        console.log('✅ CategoryManager inicializado');
     } catch (error) {
         console.error('Error inicializando CategoryManager:', error);
     }
