@@ -44,7 +44,7 @@ class LoginPage {
             }
             
             // Fallback: usar las funciones globales
-            return AuthManagerFunctions.isAuthenticated();
+            return await AuthManagerFunctions.isAuthenticated();
         } catch (error) {
             console.error('Error verificando autenticación:', error);
             return false;
