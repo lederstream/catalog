@@ -55,7 +55,7 @@ class AdminPage {
     }
 
     async checkAuthentication() {
-        this.currentUser = AuthManager.getCurrentUser();
+        this.currentUser = AuthManagerFunctions.getCurrentUser();
         if (!this.currentUser) {
             throw new Error('Usuario no autenticado');
         }
@@ -492,6 +492,7 @@ window.deleteProduct = async (productId) => {
         return success;
     } catch (error) {
         console.error('Error eliminando producto:', error);
+        Utils.showError('Error al eliminar producto');
         return false;
     }
 };
@@ -501,17 +502,19 @@ window.addCategory = async (categoryData) => {
         const newCategory = await window.categoryManager.addCategory(categoryData);
         if (newCategory) {
             // Recargar las categorías
-            await window.adminPage.loadData();
+             if (newCategory && window.adminPage);
+                await window.adminPage.loadData();
         }
         return newCategory;
     } catch (error) {
         console.error('Error agregando categoría:', error);
+        Utils.showError('Error al agregar categoría');
         return false;
     }
 };
 
 window.renderCategoriesList = (container) => {
-    if (!container) return;
+    if (!container || !window.adminPage) return;
     
     container.innerHTML = window.adminPage.state.categories.map(category => `
         <div class="flex items-center justify-between p-3 border-b border-gray-200">
@@ -549,7 +552,7 @@ window.renderCategoriesList = (container) => {
 
 window.loadStats = () => {
     const statsContent = document.getElementById('statsContent');
-    if (!statsContent) return;
+    if (!statsContent || !window.adminPage) return;
     
     statsContent.innerHTML = `
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
