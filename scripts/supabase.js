@@ -1,4 +1,3 @@
-// scripts/supabase.js
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import { Utils } from './core/utils.js';
 
@@ -159,6 +158,10 @@ export const supabaseClient = {
       cache.products = data || [];
       cache.lastUpdated = Date.now();
       
+      // Precargar imágenes
+      const imageUrls = data.map(p => p.photo_url).filter(url => url);
+      Utils.preloadImages(imageUrls);
+      
       return cache.products;
     } catch (error) {
       return handleError(error, 'getProducts');
@@ -178,7 +181,7 @@ export const supabaseClient = {
           name: productData.name,
           description: productData.description,
           category_id: productData.category_id,
-          photo_url: productData.photo_url,
+          photo_url: productData.photo_url || CONFIG.IMAGE_PLACEHOLDER,
           plans: plans,
           created_at: new Date().toISOString()
         }])
@@ -208,7 +211,7 @@ export const supabaseClient = {
           name: productData.name,
           description: productData.description,
           category_id: productData.category_id,
-          photo_url: productData.photo_url,
+          photo_url: productData.photo_url || CONFIG.IMAGE_PLACEHOLDER,
           plans: plans,
           updated_at: new Date().toISOString()
         })
@@ -365,3 +368,8 @@ if (typeof window !== 'undefined') {
     setTimeout(ensureInitialized, 1000);
   }
 }
+
+// Hacer funciones disponibles globalmente
+window.supabaseClient = supabaseClient;
+window.initSupabase = initSupabase;
+window.clearCache = clearCache;
