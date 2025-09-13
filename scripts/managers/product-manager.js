@@ -5,7 +5,6 @@ import { supabaseClient } from '../supabase.js';
 class ProductManager {
     constructor() {
         this.products = [];
-        this.filteredProducts = [];
         this.isLoading = false;
         this.listeners = new Set();
     }
@@ -25,8 +24,6 @@ class ProductManager {
         try {
             const data = await supabaseClient.getProducts();
             this.products = this.processProducts(data);
-            this.filteredProducts = [...this.products];
-            
             this.notifyListeners('productsLoaded', this.products);
             return this.products;
             
@@ -80,37 +77,17 @@ class ProductManager {
         return this.products;
     }
     
-    getFilteredProducts() {
-        return this.filteredProducts;
-    }
-    
     getProductById(id) {
         return this.products.find(product => product.id == id);
     }
     
     async addProduct(productData) {
         try {
-            // Validar datos antes de enviar
-            if (!productData.name || !productData.category_id) {
-                throw new Error('Nombre y categoría son obligatorios');
-            }
-            
-            // Procesar planes si es necesario
-            if (productData.plans && typeof productData.plans === 'string') {
-                try {
-                    productData.plans = JSON.parse(productData.plans);
-                } catch (e) {
-                    console.warn('Los planes no están en formato JSON válido', e);
-                }
-            }
-            
             const result = await supabaseClient.addProduct(productData);
             
             if (result) {
                 const newProduct = this.processProducts([result])[0];
                 this.products.unshift(newProduct);
-                this.filteredProducts.unshift(newProduct);
-                
                 this.notifyListeners('productAdded', newProduct);
                 Utils.showSuccess('✅ Producto agregado correctamente');
                 return newProduct;
@@ -119,7 +96,7 @@ class ProductManager {
             return null;
         } catch (error) {
             console.error('Error al agregar producto:', error);
-            Utils.showError(error.message || 'Error al agregar producto');
+            Utils.showError('Error al agregar producto');
             throw error;
         }
     }
@@ -131,15 +108,8 @@ class ProductManager {
             if (result) {
                 const updatedProduct = this.processProducts([result])[0];
                 const index = this.products.findIndex(p => p.id === id);
-                
                 if (index !== -1) {
                     this.products[index] = updatedProduct;
-                    // Actualizar también en filteredProducts si existe
-                    const filteredIndex = this.filteredProducts.findIndex(p => p.id === id);
-                    if (filteredIndex !== -1) {
-                        this.filteredProducts[filteredIndex] = updatedProduct;
-                    }
-                    
                     this.notifyListeners('productUpdated', updatedProduct);
                     Utils.showSuccess('✅ Producto actualizado correctamente');
                     return updatedProduct;
@@ -157,10 +127,7 @@ class ProductManager {
     async deleteProduct(id) {
         try {
             await supabaseClient.deleteProduct(id);
-            
             this.products = this.products.filter(p => p.id !== id);
-            this.filteredProducts = this.filteredProducts.filter(p => p.id !== id);
-            
             this.notifyListeners('productDeleted', id);
             Utils.showSuccess('✅ Producto eliminado correctamente');
             return true;
@@ -171,7 +138,7 @@ class ProductManager {
         }
     }
     
-    filterProducts(category = 'all', search = '', sortBy = 'name', sortOrder = 'asc') {
+    filterProducts(category = 'all', search = '') {
         let filtered = [...this.products];
         
         // Filtrar por categoría
@@ -189,46 +156,7 @@ class ProductManager {
             );
         }
         
-        // Ordenar
-        filtered = this.sortProducts(filtered, sortBy, sortOrder);
-        
-        this.filteredProducts = filtered;
-        this.notifyListeners('productsFiltered', filtered);
-        
         return filtered;
-    }
-    
-    sortProducts(products, field, order = 'asc') {
-        return [...products].sort((a, b) => {
-            let aValue, bValue;
-            
-            switch (field) {
-                case 'name':
-                    aValue = a.name?.toLowerCase() || '';
-                    bValue = b.name?.toLowerCase() || '';
-                    break;
-                case 'price':
-                    aValue = a.min_price || 0;
-                    bValue = b.min_price || 0;
-                    break;
-                case 'category':
-                    aValue = a.category_name?.toLowerCase() || '';
-                    bValue = b.category_name?.toLowerCase() || '';
-                    break;
-                case 'date':
-                    aValue = new Date(a.created_at || 0).getTime();
-                    bValue = new Date(b.created_at || 0).getTime();
-                    break;
-                default:
-                    aValue = a[field] || '';
-                    bValue = b[field] || '';
-            }
-            
-            if (aValue === bValue) return 0;
-            
-            const comparison = aValue < bValue ? -1 : 1;
-            return order === 'asc' ? comparison : -comparison;
-        });
     }
     
     // Sistema de eventos
@@ -268,6 +196,9 @@ export async function getProductManager() {
     return productManagerInstance;
 }
 
+// Exportar la clase también
+export { ProductManager };
+
 // Funciones de compatibilidad
 export const productManager = {
     async loadProducts() {
@@ -277,10 +208,6 @@ export const productManager = {
 
     getProducts() {
         return productManagerInstance ? productManagerInstance.getProducts() : [];
-    },
-    
-    getFilteredProducts() {
-        return productManagerInstance ? productManagerInstance.getFilteredProducts() : [];
     },
 
     getProductById(id) {
@@ -302,9 +229,8 @@ export const productManager = {
         return manager.deleteProduct(id);
     },
     
-    filterProducts(category, search, sortBy, sortOrder) {
-        return productManagerInstance ? 
-            productManagerInstance.filterProducts(category, search, sortBy, sortOrder) : [];
+    filterProducts(category, search) {
+        return productManagerInstance ? productManagerInstance.filterProducts(category, search) : [];
     },
     
     addListener(event, callback) {
