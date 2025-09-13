@@ -1,3 +1,4 @@
+// scripts/components/catalog-grid.js
 import { Utils } from '../core/utils.js';
 import { createProductCard, addProductCardEventListeners, animateProductsEntry } from './product-card.js';
 
