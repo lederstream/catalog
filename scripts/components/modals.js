@@ -1,12 +1,11 @@
 // scripts/components/modals.js
-import Utils from '../core/utils.js';
+import { Utils } from '../core/utils.js';
 
 // Sistema de modales
 class ModalSystem {
     constructor() {
         this.currentModal = null;
         this.modalStack = [];
-        this.init();
     }
     
     static getInstance() {
@@ -461,7 +460,13 @@ window.initModals = initModals;
 
 // Inicializar automáticamente cuando el DOM esté listo
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initModals);
+    document.addEventListener('DOMContentLoaded', () => {
+        const modalSystem = ModalSystem.getInstance();
+        modalSystem.init();
+    });
 } else {
-    setTimeout(initModals, 0);
+    setTimeout(() => {
+        const modalSystem = ModalSystem.getInstance();
+        modalSystem.init();
+    }, 0);
 }
