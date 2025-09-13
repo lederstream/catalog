@@ -119,7 +119,6 @@ class LoginPage {
         }
     }
 
-    // El resto del código permanece igual...
     validateLoginForm(email, password) {
         let isValid = true;
         
@@ -173,12 +172,13 @@ class LoginPage {
         let errorElement = field.parentNode.querySelector('.error-message');
         if (!errorElement) {
             errorElement = document.createElement('p');
-            errorElement.className = 'error-message';
+            errorElement.className = 'error-message text-red-500 text-xs mt-1';
             field.parentNode.appendChild(errorElement);
         }
         
         errorElement.textContent = message;
         field.classList.add('border-red-500', 'focus:ring-red-500');
+        field.classList.remove('focus:ring-blue-500');
     }
 
     clearFormErrors(form) {
@@ -194,6 +194,7 @@ class LoginPage {
 
     setFormLoading(form, loading) {
         const submitButton = form.querySelector('button[type="submit"]');
+        if (!submitButton) return;
         
         if (loading) {
             submitButton.disabled = true;
@@ -215,6 +216,8 @@ class LoginPage {
     togglePasswordVisibility() {
         const passwordInput = this.loginForm.querySelector('[name="password"]');
         const toggleButton = document.getElementById('togglePassword');
+        if (!passwordInput || !toggleButton) return;
+        
         const icon = toggleButton.querySelector('i');
         
         if (passwordInput.type === 'password') {
@@ -229,14 +232,14 @@ class LoginPage {
     }
     
     showResetForm() {
-        this.loginForm.classList.add('hidden');
-        this.resetForm.classList.remove('hidden');
+        if (this.loginForm) this.loginForm.classList.add('hidden');
+        if (this.resetForm) this.resetForm.classList.remove('hidden');
         this.clearFormErrors(this.loginForm);
     }
     
     showLoginForm() {
-        this.resetForm.classList.add('hidden');
-        this.loginForm.classList.remove('hidden');
+        if (this.resetForm) this.resetForm.classList.add('hidden');
+        if (this.loginForm) this.loginForm.classList.remove('hidden');
         this.clearFormErrors(this.resetForm);
     }
 
