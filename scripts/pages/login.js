@@ -5,80 +5,105 @@ import { Utils } from '../core/utils.js';
 // Controlador de la interfaz de usuario de login
 class LoginPage {
     constructor() {
-        this.init();
+        this.isInitialized = false;
     }
-    
-    async init() {
-        this.bindEvents();
-        await this.checkExistingSession();
-    }
-    
-    bindEvents() {
-        // Evento de envío del formulario
-        const loginForm = document.getElementById('loginFormElement');
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleLogin();
-            });
+
+    async initialize() {
+        if (this.isInitialized) return;
+
+        try {
+            // Verificar si ya está autenticado
+            const isAuthenticated = await this.checkAuthentication();
+            if (isAuthenticated) {
+                window.location.href = 'admin.html';
+                return;
+            }
+            
+            // Configurar event listeners
+            this.setupEventListeners();
+            
+            this.isInitialized = true;
+            console.log('✅ Página de login inicializada');
+            
+        } catch (error) {
+            console.error('❌ Error inicializando página de login:', error);
+            this.showError('Error al cargar la página de login');
         }
+    }
+
+    async checkAuthentication() {
+        try {
+            const authManager = await AuthManager.getAuthManager();
+            const currentUser = await authManager.getCurrentUser();
+            return currentUser !== null;
+        } catch (error) {
+            console.error('Error verificando autenticación:', error);
+            return false;
+        }
+    }
+
+    setupEventListeners() {
+        const form = document.getElementById('loginFormElement');
+        if (!form) return;
         
-        // Evento para mostrar/ocultar contraseña
+        form.addEventListener('submit', (e) => this.handleLogin(e));
+        
+        // Mostrar/ocultar contraseña
         const togglePassword = document.getElementById('togglePassword');
         if (togglePassword) {
-            togglePassword.addEventListener('click', () => {
-                this.togglePasswordVisibility();
-            });
+            togglePassword.addEventListener('click', () => this.togglePasswordVisibility());
         }
         
-        // Eventos de entrada para limpiar errores
+        // Limpiar errores al escribir
         const emailInput = document.getElementById('email');
         const passwordInput = document.getElementById('password');
         
         if (emailInput) {
-            emailInput.addEventListener('input', () => {
-                Utils.clearErrors();
-            });
+            emailInput.addEventListener('input', () => Utils.clearErrors());
         }
         
         if (passwordInput) {
-            passwordInput.addEventListener('input', () => {
-                Utils.clearErrors();
-            });
+            passwordInput.addEventListener('input', () => Utils.clearErrors());
         }
     }
-    
-    async checkExistingSession() {
-        try {
-            const user = await AuthManager.getCurrentUser();
-            if (user) {
-                window.location.href = 'admin.html';
-            }
-        } catch (error) {
-            console.error('Error checking session:', error);
-        }
-    }
-    
-    togglePasswordVisibility() {
-        const passwordInput = document.getElementById('password');
-        const toggleIcon = document.getElementById('togglePassword')?.querySelector('i');
+
+    async handleLogin(e) {
+        e.preventDefault();
         
-        if (passwordInput && toggleIcon) {
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                toggleIcon.classList.replace('fa-eye', 'fa-eye-slash');
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        // Validaciones
+        if (!this.validateForm(email, password)) {
+            return;
+        }
+        
+        try {
+            Utils.setLoading(true);
+            
+            const authManager = await AuthManager.getAuthManager();
+            const result = await authManager.signIn(email, password);
+            
+            if (result.success) {
+                Utils.showNotification('✅ Inicio de sesión exitoso', 'success');
+                setTimeout(() => {
+                    window.location.href = 'admin.html';
+                }, 1000);
             } else {
-                passwordInput.type = 'password';
-                toggleIcon.classList.replace('fa-eye-slash', 'fa-eye');
+                Utils.showError(result.error);
             }
+            
+        } catch (error) {
+            console.error('Error en login:', error);
+            Utils.showError('Error inesperado al iniciar sesión');
+        } finally {
+            Utils.setLoading(false);
         }
     }
-    
-    validateForm() {
+
+    validateForm(email, password) {
         Utils.clearErrors();
         
-        const email = document.getElementById('email')?.value.trim();
-        const password = document.getElementById('password')?.value;
         let isValid = true;
         
         // Validar email
@@ -101,42 +126,29 @@ class LoginPage {
         
         return isValid;
     }
-    
-    async handleLogin() {
-        // Validar formulario
-        if (!this.validateForm()) {
-            return;
-        }
+
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('togglePassword')?.querySelector('i');
         
-        const email = document.getElementById('email')?.value.trim();
-        const password = document.getElementById('password')?.value;
-        
-        if (!email || !password) return;
-        
-        Utils.setLoading(true);
-        
-        try {
-            const result = await AuthManager.signIn(email, password);
-            
-            if (result.success) {
-                Utils.showNotification('✅ Inicio de sesión exitoso', 'success');
-                // Redirigir al dashboard después de login exitoso
-                setTimeout(() => {
-                    window.location.href = 'admin.html';
-                }, 1000);
+        if (passwordInput && toggleIcon) {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.replace('fa-eye', 'fa-eye-slash');
             } else {
-                Utils.showError(result.error);
+                passwordInput.type = 'password';
+                toggleIcon.classList.replace('fa-eye-slash', 'fa-eye');
             }
-        } catch (error) {
-            console.error('Login error:', error);
-            Utils.showError('Error inesperado al iniciar sesión');
-        } finally {
-            Utils.setLoading(false);
         }
+    }
+    
+    showError(message) {
+        alert(message); // Fallback simple
     }
 }
 
-// Inicializar la aplicación cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
-    new LoginPage();
+// Inicializar la página cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', async () => {
+    const loginPage = new LoginPage();
+    await loginPage.initialize();
 });
