@@ -1,6 +1,6 @@
 // scripts/pages/admin.js
 import { Utils } from '../core/utils.js';
-import { supabase } from '../core/supabase.js';
+import { supabase } from '../supabase.js';
 import categoryManager from '../managers/category-manager.js';
 import productManager from '../managers/product-manager.js';
 import { AuthManager } from '../core/auth.js';
