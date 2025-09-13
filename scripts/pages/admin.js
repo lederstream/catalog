@@ -1,6 +1,5 @@
 // scripts/pages/admin.js
 import { Utils } from '../core/utils.js';
-import { supabase } from '../supabase.js';
 import { getCategoryManager } from '../managers/category-manager.js';
 import { getProductManager } from '../managers/product-manager.js';
 import { AuthManagerFunctions } from '../core/auth.js';
@@ -48,14 +47,15 @@ class AdminPage {
             console.error('❌ Error inicializando panel admin:', error);
             Utils.showError('Error al inicializar el panel de administración');
             // Redirigir al login si hay error de autenticación
-            if (error.message.includes('autenticación') || error.message.includes('autenticado') || error.message.includes('autenticado')) {
+            if (error.message.includes('autenticación') || error.message.includes('autenticado') || error.message.includes('Usuario no autenticado')) {
                 setTimeout(() => window.location.href = 'login.html', 2000);
             }
         }
     }
 
     async checkAuthentication() {
-        this.currentUser = AuthManagerFunctions.getCurrentUser();
+        // Esperar a que el AuthManager esté completamente inicializado
+        this.currentUser = await AuthManagerFunctions.getCurrentUser();
         if (!this.currentUser) {
             throw new Error('Usuario no autenticado');
         }
@@ -514,8 +514,14 @@ class AdminPage {
 
 // Inicializar la página cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', async () => {
-    const adminPage = new AdminPage();
-    await adminPage.initialize();
+    try {
+        const adminPage = new AdminPage();
+        await adminPage.initialize();
+    } catch (error) {
+        console.error('Error inicializando AdminPage:', error);
+        Utils.showError('Error al cargar el panel de administración');
+        setTimeout(() => window.location.href = 'login.html', 2000);
+    }
 });
 
 // Hacer funciones disponibles globalmente
