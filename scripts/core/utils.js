@@ -14,6 +14,19 @@ class Utils {
         };
     }
 
+    static throttle(func, limit) {
+        let inThrottle;
+        return function() {
+            const args = arguments;
+            const context = this;
+            if (!inThrottle) {
+                func.apply(context, args);
+                inThrottle = true;
+                setTimeout(() => inThrottle = false, limit);
+            }
+        };
+    }
+
     static async fadeIn(element, duration = 300) {
         return new Promise(resolve => {
             element.style.opacity = '0';
@@ -214,6 +227,15 @@ class Utils {
         if (!text) return '';
         if (text.length <= maxLength) return text;
         return text.substring(0, maxLength) + '...';
+    }
+
+    static enableDebugMode(enable = true) {
+        if (enable) {
+            window.debugMode = true;
+            console.log('🔧 Debug mode enabled');
+        } else {
+            window.debugMode = false;
+        }
     }
 }
 
