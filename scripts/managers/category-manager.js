@@ -1,5 +1,5 @@
 // scripts/managers/category-manager.js
-import { supabaseClient } from '../core/supabase.js';
+import { supabaseClient } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
 class CategoryManager {
