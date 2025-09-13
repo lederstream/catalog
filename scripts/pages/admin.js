@@ -3,7 +3,7 @@ import { Utils } from '../core/utils.js';
 import { supabase } from '../supabase.js';
 import { getCategoryManager } from '../managers/category-manager.js';
 import { getProductManager } from '../managers/product-manager.js';
-import { AuthManager } from '../core/auth.js';
+import { AuthManagerFunctions } from '../core/auth.js';
 import { setupAllEventListeners } from '../event-listeners.js';
 import { initModals, openCategoriesModal, openStatsModal, showDeleteConfirm } from '../components/modals.js';
 
@@ -461,7 +461,7 @@ class AdminPage {
 
     async logout() {
         try {
-            await AuthManager.signOut();
+            await AuthManagerFunctions.signOut();
             Utils.showSuccess('Sesión cerrada correctamente');
             setTimeout(() => window.location.href = 'login.html', 1000);
         } catch (error) {
@@ -485,8 +485,7 @@ window.adminPage = new AdminPage();
 window.deleteProduct = async (productId) => {
     try {
         const success = await window.productManager.deleteProduct(productId);
-        if (success) {
-            // Recargar los productos
+        if (success && window.adminPage) {
             await window.adminPage.loadData();
         }
         return success;
@@ -500,10 +499,8 @@ window.deleteProduct = async (productId) => {
 window.addCategory = async (categoryData) => {
     try {
         const newCategory = await window.categoryManager.addCategory(categoryData);
-        if (newCategory) {
-            // Recargar las categorías
-             if (newCategory && window.adminPage);
-                await window.adminPage.loadData();
+        if (newCategory && window.adminPage) {
+            await window.adminPage.loadData();
         }
         return newCategory;
     } catch (error) {
