@@ -78,6 +78,9 @@ class DigitalCatalogApp {
             Utils.showInfo('🔄 Cargando datos...');
             this.emit('data:loadingStart');
             
+            const categoryManager = await getCategoryManager();
+            const productManager = await getProductManager();
+            
             const [categories, products] = await Promise.all([
                 categoryManager.loadCategories(),
                 productManager.loadProducts()
@@ -264,6 +267,9 @@ class DigitalCatalogApp {
             Utils.showInfo('🔄 Actualizando datos...');
             this.emit('data:refreshStart');
             
+            const categoryManager = await getCategoryManager();
+            const productManager = await getProductManager();
+            
             const [products, categories] = await Promise.all([
                 productManager.loadProducts(),
                 categoryManager.loadCategories()
@@ -360,7 +366,6 @@ export { app };
 
 // Hacer disponible globalmente
 window.DigitalCatalogApp = DigitalCatalogApp;
-window.app = app;
 
 // Inicializar automáticamente cuando el DOM esté listo
 if (document.readyState === 'loading') {
