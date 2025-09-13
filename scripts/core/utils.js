@@ -1,154 +1,171 @@
-// scripts/components/product-card.js
-import { Utils } from '../core/utils.js';
+// scripts/core/utils.js
+class Utils {
+    static debounce(func, wait, immediate = false) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                timeout = null;
+                if (!immediate) func.apply(this, args);
+            };
+            const callNow = immediate && !timeout;
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+            if (callNow) func.apply(this, args);
+        };
+    }
 
-// Configuración
+    static async fadeIn(element, duration = 300) {
+        return new Promise(resolve => {
+            element.style.opacity = '0';
+            element.style.display = 'block';
+            
+            let start = null;
+            const animate = timestamp => {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const opacity = Math.min(progress / duration, 1);
+                
+                element.style.opacity = opacity.toString();
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    resolve();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        });
+    }
+
+    static async fadeOut(element, duration = 300) {
+        return new Promise(resolve => {
+            let start = null;
+            const animate = timestamp => {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const opacity = Math.max(1 - progress / duration, 0);
+                
+                element.style.opacity = opacity.toString();
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.style.display = 'none';
+                    resolve();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        });
+    }
+
+    static showNotification(message, type = 'info') {
+        const types = {
+            info: { bg: 'bg-blue-100', text: 'text-blue-800', icon: 'ℹ️' },
+            success: { bg: 'bg-green-100', text: 'text-green-800', icon: '✅' },
+            warning: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: '⚠️' },
+            error: { bg: 'bg-red-100', text: 'text-red-800', icon: '❌' }
+        };
+
+        const { bg, text, icon } = types[type] || types.info;
+        
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 ${bg} ${text} px-6 py-4 rounded-lg shadow-lg z-50 transform transition-transform duration-300 translate-x-full`;
+        notification.innerHTML = `
+            <div class="flex items-center">
+                <span class="mr-2">${icon}</span>
+                <span>${message}</span>
+            </div>
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Animación de entrada
+        requestAnimationFrame(() => {
+            notification.classList.remove('translate-x-full');
+            notification.classList.add('translate-x-0');
+        });
+        
+        // Auto-eliminar después de 5 segundos
+        setTimeout(() => {
+            notification.classList.remove('translate-x-0');
+            notification.classList.add('translate-x-full');
+            setTimeout(() => {
+                if (notification.parentNode) {
+                    notification.parentNode.removeChild(notification);
+                }
+            }, 300);
+        }, 5000);
+        
+        return notification;
+    }
+
+    static showError(message) {
+        return this.showNotification(message, 'error');
+    }
+
+    static showSuccess(message) {
+        return this.showNotification(message, 'success');
+    }
+
+    static showInfo(message) {
+        return this.showNotification(message, 'info');
+    }
+
+    static showWarning(message) {
+        return this.showNotification(message, 'warning');
+    }
+
+    static formatCurrency(amount, currency = 'PEN') {
+        const formatter = new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: 2
+        });
+        
+        return formatter.format(amount);
+    }
+
+    static safeParseJSON(str, fallback = []) {
+        try {
+            return typeof str === 'string' ? JSON.parse(str) : (str || fallback);
+        } catch (error) {
+            console.warn('Error parsing JSON:', error);
+            return fallback;
+        }
+    }
+
+    static preloadImages(urls) {
+        urls.forEach(url => {
+            if (!url || url === CONFIG.IMAGE_PLACEHOLDER) return;
+            
+            const img = new Image();
+            img.src = url;
+        });
+    }
+
+    static generateSlug(text) {
+        return text
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/[^\w\-]+/g, '')
+            .replace(/\-\-+/g, '-')
+            .replace(/^-+/, '')
+            .replace(/-+$/, '');
+    }
+}
+
+// Configuración global
 const CONFIG = {
     IMAGE_PLACEHOLDER: 'https://via.placeholder.com/300x200?text=Imagen+no+disponible'
 };
 
-// Crear tarjeta de producto
-export function createProductCard(product, isListView = false, index = 0) {
-    const plans = Utils.safeParseJSON(product.plans);
-    const minPrice = getProductMinPrice(product);
-    const categoryName = getCategoryName(product);
-    const imageUrl = product.photo_url || CONFIG.IMAGE_PLACEHOLDER;
-    
-    if (isListView) {
-        return createListView(product, plans, minPrice, categoryName, imageUrl, index);
-    } else {
-        return createGridView(product, plans, minPrice, categoryName, imageUrl, index);
-    }
-}
+// Hacer disponible globalmente
+window.Utils = Utils;
+window.CONFIG = CONFIG;
 
-function createGridView(product, plans, minPrice, categoryName, imageUrl, index) {
-    return `
-        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 fade-in-up will-change-transform product-card" style="animation-delay: ${index * 0.05}s" data-id="${product.id}">
-            <div class="relative overflow-hidden">
-                <img 
-                    src="${imageUrl}" 
-                    alt="${product.name}"
-                    class="w-full h-48 object-cover product-image transition-transform duration-300 hover:scale-105"
-                    loading="lazy"
-                    onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
-                >
-                ${minPrice !== Infinity ? `
-                    <div class="absolute top-3 right-3 bg-blue-600 text-white text-sm font-bold px-2 py-1 rounded-lg">
-                        ${Utils.formatCurrency(minPrice)}
-                    </div>
-                ` : ''}
-            </div>
-            <div class="p-4">
-                <h3 class="font-semibold text-lg mb-1 text-gray-800 line-clamp-1">${product.name}</h3>
-                <p class="text-sm text-gray-600 mb-2">${categoryName}</p>
-                <p class="text-gray-500 text-sm mb-3 line-clamp-2">${product.description || 'Sin descripción'}</p>
-                <div class="flex justify-between items-center">
-                    <button class="view-details-btn text-blue-600 hover:text-blue-800 font-medium text-sm" data-product-id="${product.id}">
-                        Ver detalles
-                    </button>
-                    ${plans.length > 1 ? `
-                        <span class="text-xs text-gray-500">${plans.length} planes</span>
-                    ` : ''}
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-function createListView(product, plans, minPrice, categoryName, imageUrl, index) {
-    return `
-        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 fade-in-up will-change-transform product-card" style="animation-delay: ${index * 0.05}s" data-id="${product.id}">
-            <div class="flex">
-                <div class="flex-shrink-0 w-32 md:w-48">
-                    <img 
-                        src="${imageUrl}" 
-                        alt="${product.name}"
-                        class="w-full h-full object-cover product-image"
-                        loading="lazy"
-                        onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
-                    >
-                </div>
-                <div class="p-4 flex-1">
-                    <div class="flex flex-col md:flex-row md:justify-between md:items-start gap-2">
-                        <div class="flex-1">
-                            <h3 class="font-semibold text-lg text-gray-800">${product.name}</h3>
-                            <p class="text-sm text-gray-600 mb-1">${categoryName}</p>
-                            <p class="text-gray-500 text-sm mb-2">${product.description || 'Sin descripción'}</p>
-                        </div>
-                        ${minPrice !== Infinity ? `
-                            <div class="text-blue-600 font-bold text-lg">
-                                ${Utils.formatCurrency(minPrice)}
-                            </div>
-                        ` : ''}
-                    </div>
-                    <div class="flex justify-between items-center mt-3">
-                        <button class="view-details-btn text-blue-600 hover:text-blue-800 font-medium text-sm" data-product-id="${product.id}">
-                            Ver detalles y planes
-                        </button>
-                        ${plans.length > 1 ? `
-                            <span class="text-xs text-gray-500">${plans.length} planes disponibles</span>
-                        ` : ''}
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-}
-
-// Obtener precio mínimo de un producto
-export function getProductMinPrice(product) {
-    if (!product.plans || !product.plans.length) return Infinity;
-    
-    const plans = Utils.safeParseJSON(product.plans);
-    if (!plans.length) return Infinity;
-    
-    return Math.min(...plans.map(plan => 
-        Math.min(
-            plan.price_soles || Infinity,
-            plan.price_dollars || Infinity
-        )
-    ).filter(price => price > 0));
-}
-
-// Obtener nombre de categoría
-function getCategoryName(product) {
-    if (product.categories?.name) return product.categories.name;
-    if (product.category_id && window.categoryManager) {
-        try {
-            const category = window.categoryManager.getCategoryById(product.category_id);
-            return category?.name || `Categoría ${product.category_id}`;
-        } catch (error) {
-            console.error('Error obteniendo categoría:', error);
-        }
-    }
-    return product.category || 'General';
-}
-
-// Añadir event listeners a las tarjetas de producto
-export function addProductCardEventListeners() {
-    // Event listeners para botones de ver detalles
-    document.querySelectorAll('.view-details-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const productId = btn.dataset.productId;
-            if (productId && typeof window.showProductDetails === 'function') {
-                window.showProductDetails(productId);
-            }
-        });
-    });
-}
-
-// Animar entrada de productos
-export function animateProductsEntry() {
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.classList.add('animate-in');
-                observer.unobserve(entry.target);
-            }
-        });
-    }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
-    
-    document.querySelectorAll('.fade-in-up').forEach(el => {
-        observer.observe(el);
-    });
-}
+export { Utils, CONFIG };
