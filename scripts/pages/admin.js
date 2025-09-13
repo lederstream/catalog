@@ -3,7 +3,6 @@ import { Utils } from '../core/utils.js';
 import { supabase } from '../core/supabase.js';
 import { CategoryManager } from '../managers/category-manager.js';
 import { ProductManager } from '../managers/product-manager.js';
-import { ModalSystem } from '../components/modals.js';
 import { AuthManager } from '../core/auth.js';
 import { setupAllEventListeners } from '../event-listeners.js';
 
@@ -46,20 +45,19 @@ class AdminPage {
             console.error('❌ Error inicializando panel admin:', error);
             Utils.showError('Error al inicializar el panel de administración');
             // Redirigir al login si hay error de autenticación
-            if (error.message.includes('autenticación')) {
+            if (error.message.includes('autenticación') || error.message.includes('autenticado')) {
                 setTimeout(() => window.location.href = 'login.html', 2000);
             }
         }
     }
 
     async checkAuthentication() {
-        this.currentUser = await AuthManager.getCurrentUser();
+        this.currentUser = AuthManager.getCurrentUser();
         if (!this.currentUser) {
             throw new Error('Usuario no autenticado');
         }
         
         // Verificar si el usuario tiene permisos de administrador
-        // (aquí puedes agregar lógica adicional de verificación de roles)
         console.log('👤 Usuario autenticado:', this.currentUser.email);
     }
 
@@ -67,7 +65,6 @@ class AdminPage {
         // Inicializar managers
         await CategoryManager.init();
         await ProductManager.init();
-        await ModalSystem.init();
     }
 
     async loadData() {
@@ -393,10 +390,8 @@ class AdminPage {
 
     async addProduct() {
         try {
-            // Aquí implementarías la lógica para abrir el modal de agregar producto
             console.log('Agregar nuevo producto');
-            // ModalSystem.openModal('productModal');
-            
+            // Implementar lógica para abrir modal de producto
         } catch (error) {
             console.error('Error al agregar producto:', error);
             Utils.showError('Error al intentar agregar producto');
@@ -405,10 +400,8 @@ class AdminPage {
 
     async editProduct(productId) {
         try {
-            // Aquí implementarías la lógica para editar el producto
             console.log('Editar producto:', productId);
-            // ModalSystem.openModal('productModal', { productId });
-            
+            // Implementar lógica para editar producto
         } catch (error) {
             console.error('Error al editar producto:', error);
             Utils.showError('Error al intentar editar producto');
@@ -439,10 +432,8 @@ class AdminPage {
 
     manageCategories() {
         try {
-            // Aquí implementarías la lógica para gestionar categorías
             console.log('Gestionar categorías');
-            // ModalSystem.openModal('categoriesModal');
-            
+            // Implementar lógica para gestionar categorías
         } catch (error) {
             console.error('Error al gestionar categorías:', error);
             Utils.showError('Error al intentar gestionar categorías');
@@ -451,10 +442,8 @@ class AdminPage {
 
     viewStats() {
         try {
-            // Aquí implementarías la lógica para ver estadísticas
             console.log('Ver estadísticas');
-            // ModalSystem.openModal('statsModal');
-            
+            // Implementar lógica para ver estadísticas
         } catch (error) {
             console.error('Error al ver estadísticas:', error);
             Utils.showError('Error al intentar ver estadísticas');
@@ -478,3 +467,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     const adminPage = new AdminPage();
     await adminPage.initialize();
 });
+
+// Hacer funciones disponibles globalmente
+window.AdminPage = AdminPage;
