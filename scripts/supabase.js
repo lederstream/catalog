@@ -1,14 +1,15 @@
 // scripts/supabase.js
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { Utils, CONFIG } from './core/utils.js';
+import { Utils } from './core/utils.js';
 
-// Crear cliente Supabase con configuración mejorada
-export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true
-  },
+// Configuración directa
+const SUPABASE_URL = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
+const IMAGE_PLACEHOLDER = 'https://via.placeholder.com/300x200?text=Sin+imagen';
+
+// Crear cliente Supabase
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
   global: {
     headers: {
       'X-Application-Name': 'catalog-app',
@@ -16,32 +17,25 @@ export const supabase = createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_K
       'X-Client-Version': '1.0.0'
     },
   },
-  db: {
-    schema: 'public'
-  }
+  db: { schema: 'public' }
 });
 
-// Cache para mejorar el rendimiento
+// Cache unificado
 const cache = {
   categories: null,
   products: null,
   lastUpdated: null,
-  CACHE_DURATION: 5 * 60 * 1000, // 5 minutos
+  CACHE_DURATION: 5 * 60 * 1000,
 };
 
-// Utilidad para manejar errores
+// Manejo de errores centralizado
 const handleError = (error, context, showNotification = true) => {
   console.error(`Error en ${context}:`, error);
   
-  // Mostrar notificación al usuario
   if (showNotification) {
     let errorMessage = `Error en ${context}`;
-    
-    if (error.message.includes('JWT')) {
-      errorMessage = 'Error de autenticación. Por favor, inicia sesión nuevamente.';
-    } else if (error.message.includes('network')) {
-      errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
-    }
+    if (error.message.includes('JWT')) errorMessage = 'Error de autenticación';
+    else if (error.message.includes('network')) errorMessage = 'Error de conexión';
     
     Utils.showError(errorMessage);
   }
@@ -49,32 +43,23 @@ const handleError = (error, context, showNotification = true) => {
   throw error;
 };
 
-// Utilidad para verificar si la caché es válida
 const isCacheValid = (cacheKey) => {
-  return cache[cacheKey] && cache.lastUpdated && (Date.now() - cache.lastUpdated) < cache.CACHE_DURATION;
+  return cache[cacheKey] && cache.lastUpdated && 
+         (Date.now() - cache.lastUpdated) < cache.CACHE_DURATION;
 };
 
-// Funciones básicas de Supabase
+// Funciones de Supabase optimizadas
 export const supabaseClient = {
   // Categorías
   async getCategories(forceRefresh = false) {
     try {
-      // Usar caché si está disponible y no se fuerza refresco
-      if (isCacheValid('categories') && !forceRefresh) {
-        return cache.categories;
-      }
+      if (isCacheValid('categories') && !forceRefresh) return cache.categories;
       
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .order('name');
-      
+      const { data, error } = await supabase.from('categories').select('*').order('name');
       if (error) throw error;
       
-      // Actualizar caché
       cache.categories = data || [];
       cache.lastUpdated = Date.now();
-      
       return cache.categories;
     } catch (error) {
       return handleError(error, 'getCategories');
@@ -83,12 +68,7 @@ export const supabaseClient = {
 
   async getCategory(id) {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('id', id)
-        .single();
-      
+      const { data, error } = await supabase.from('categories').select('*').eq('id', id).single();
       if (error) throw error;
       return data;
     } catch (error) {
@@ -98,23 +78,17 @@ export const supabaseClient = {
 
   async addCategory(categoryData) {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .insert([{
-          name: categoryData.name,
-          description: categoryData.description,
-          icon: categoryData.icon || 'fas fa-tag',
-          color: categoryData.color || 'blue',
-          created_at: new Date().toISOString()
-        }])
-        .select();
+      const { data, error } = await supabase.from('categories').insert([{
+        name: categoryData.name,
+        description: categoryData.description,
+        icon: categoryData.icon || 'fas fa-tag',
+        color: categoryData.color || 'blue',
+        created_at: new Date().toISOString()
+      }]).select();
       
       if (error) throw error;
-      
-      // Invalidar caché después de una modificación
       cache.categories = null;
-      
-      return data && data.length > 0 ? data[0] : null;
+      return data?.[0] || null;
     } catch (error) {
       return handleError(error, 'addCategory');
     }
@@ -122,24 +96,17 @@ export const supabaseClient = {
 
   async updateCategory(id, categoryData) {
     try {
-      const { data, error } = await supabase
-        .from('categories')
-        .update({
-          name: categoryData.name,
-          description: categoryData.description,
-          icon: categoryData.icon,
-          color: categoryData.color,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select();
+      const { data, error } = await supabase.from('categories').update({
+        name: categoryData.name,
+        description: categoryData.description,
+        icon: categoryData.icon,
+        color: categoryData.color,
+        updated_at: new Date().toISOString()
+      }).eq('id', id).select();
       
       if (error) throw error;
-      
-      // Invalidar caché después de una modificación
       cache.categories = null;
-      
-      return data && data.length > 0 ? data[0] : null;
+      return data?.[0] || null;
     } catch (error) {
       return handleError(error, 'updateCategory');
     }
@@ -147,30 +114,18 @@ export const supabaseClient = {
 
   async deleteCategory(id) {
     try {
-      // Primero verificar si hay productos asociados a esta categoría
+      // Verificar productos asociados
       const { data: products, error: checkError } = await supabase
-        .from('products')
-        .select('id')
-        .eq('category_id', id)
-        .limit(1);
+        .from('products').select('id').eq('category_id', id).limit(1);
       
       if (checkError) throw checkError;
+      if (products?.length > 0) throw new Error('Categoría tiene productos asociados');
       
-      if (products && products.length > 0) {
-        throw new Error('No se puede eliminar la categoría porque tiene productos asociados');
-      }
-      
-      const { error } = await supabase
-        .from('categories')
-        .delete()
-        .eq('id', id);
-      
+      const { error } = await supabase.from('categories').delete().eq('id', id);
       if (error) throw error;
       
-      // Invalidar caché después de una modificación
       cache.categories = null;
       cache.products = null;
-      
       return true;
     } catch (error) {
       return handleError(error, 'deleteCategory');
@@ -180,49 +135,28 @@ export const supabaseClient = {
   // Productos
   async getProducts(forceRefresh = false, options = {}) {
     try {
-      // Usar caché si está disponible y no se fuerza refresco
       if (isCacheValid('products') && !forceRefresh && !options.category_id && !options.search) {
         return cache.products;
       }
       
-      let query = supabase
-        .from('products')
-        .select('*, categories(*)');
+      let query = supabase.from('products').select('*, categories(*)');
       
-      // Filtrar por categoría si se especifica
-      if (options.category_id) {
-        query = query.eq('category_id', options.category_id);
-      }
+      if (options.category_id) query = query.eq('category_id', options.category_id);
+      if (options.search) query = query.or(`name.ilike.%${options.search}%,description.ilike.%${options.search}%`);
       
-      // Búsqueda si se especifica
-      if (options.search) {
-        query = query.or(`name.ilike.%${options.search}%,description.ilike.%${options.search}%`);
-      }
-      
-      // Ordenar
       const orderBy = options.orderBy || 'created_at';
       const ascending = options.ascending !== undefined ? options.ascending : false;
+      query = query.order(orderBy, { ascending });
       
-      query = query.order(orderBy, { ascending: ascending });
-      
-      // Límite si se especifica
-      if (options.limit) {
-        query = query.limit(options.limit);
-      }
+      if (options.limit) query = query.limit(options.limit);
       
       const { data, error } = await query;
-      
       if (error) throw error;
       
-      // Actualizar caché solo si no hay filtros aplicados
       if (!options.category_id && !options.search && !options.limit) {
         cache.products = data || [];
         cache.lastUpdated = Date.now();
       }
-      
-      // Precargar imágenes
-      const imageUrls = data.map(p => p.photo_url).filter(url => url);
-      Utils.preloadImages(imageUrls);
       
       return data;
     } catch (error) {
@@ -233,11 +167,7 @@ export const supabaseClient = {
   async getProduct(id) {
     try {
       const { data, error } = await supabase
-        .from('products')
-        .select('*, categories(*)')
-        .eq('id', id)
-        .single();
-      
+        .from('products').select('*, categories(*)').eq('id', id).single();
       if (error) throw error;
       return data;
     } catch (error) {
@@ -247,29 +177,22 @@ export const supabaseClient = {
 
   async addProduct(productData) {
     try {
-      // Asegurar que los planes estén en formato correcto
       const plans = typeof productData.plans === 'string' 
         ? productData.plans 
         : JSON.stringify(productData.plans || []);
       
-      const { data, error } = await supabase
-        .from('products')
-        .insert([{
-          name: productData.name,
-          description: productData.description,
-          category_id: productData.category_id,
-          photo_url: productData.photo_url || CONFIG.IMAGE_PLACEHOLDER,
-          plans: plans,
-          created_at: new Date().toISOString()
-        }])
-        .select('*, categories(*)');
+      const { data, error } = await supabase.from('products').insert([{
+        name: productData.name,
+        description: productData.description,
+        category_id: productData.category_id,
+        photo_url: productData.photo_url || IMAGE_PLACEHOLDER, // Usamos constante directa
+        plans: plans,
+        created_at: new Date().toISOString()
+      }]).select('*, categories(*)');
       
       if (error) throw error;
-      
-      // Invalidar caché después de una modificación
       cache.products = null;
-      
-      return data && data.length > 0 ? data[0] : null;
+      return data?.[0] || null;
     } catch (error) {
       return handleError(error, 'addProduct');
     }
@@ -277,30 +200,22 @@ export const supabaseClient = {
 
   async updateProduct(id, productData) {
     try {
-      // Asegurar que los planes estén en formato correcto
       const plans = typeof productData.plans === 'string' 
         ? productData.plans 
         : JSON.stringify(productData.plans || []);
       
-      const { data, error } = await supabase
-        .from('products')
-        .update({
-          name: productData.name,
-          description: productData.description,
-          category_id: productData.category_id,
-          photo_url: productData.photo_url || CONFIG.IMAGE_PLACEHOLDER,
-          plans: plans,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select('*, categories(*)');
+      const { data, error } = await supabase.from('products').update({
+        name: productData.name,
+        description: productData.description,
+        category_id: productData.category_id,
+        photo_url: productData.photo_url || IMAGE_PLACEHOLDER, // Usamos constante directa
+        plans: plans,
+        updated_at: new Date().toISOString()
+      }).eq('id', id).select('*, categories(*)');
       
       if (error) throw error;
-      
-      // Invalidar caché después de una modificación
       cache.products = null;
-      
-      return data && data.length > 0 ? data[0] : null;
+      return data?.[0] || null;
     } catch (error) {
       return handleError(error, 'updateProduct');
     }
@@ -308,23 +223,15 @@ export const supabaseClient = {
 
   async deleteProduct(id) {
     try {
-      const { error } = await supabase
-        .from('products')
-        .delete()
-        .eq('id', id);
-      
+      const { error } = await supabase.from('products').delete().eq('id', id);
       if (error) throw error;
-      
-      // Invalidar caché después de una modificación
       cache.products = null;
-      
       return true;
     } catch (error) {
       return handleError(error, 'deleteProduct');
     }
   },
 
-  // Búsqueda avanzada de productos
   async searchProducts(query, categoryId = null, limit = 50) {
     try {
       let queryBuilder = supabase
@@ -333,12 +240,9 @@ export const supabaseClient = {
         .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
         .limit(limit);
       
-      if (categoryId) {
-        queryBuilder = queryBuilder.eq('category_id', categoryId);
-      }
+      if (categoryId) queryBuilder = queryBuilder.eq('category_id', categoryId);
       
       const { data, error } = await queryBuilder.order('name');
-      
       if (error) throw error;
       return data || [];
     } catch (error) {
@@ -346,7 +250,6 @@ export const supabaseClient = {
     }
   },
 
-  // Obtener productos por categoría
   async getProductsByCategory(categoryId, limit = 100) {
     try {
       const { data, error } = await supabase
@@ -363,36 +266,25 @@ export const supabaseClient = {
     }
   },
   
-  // Subir archivo a storage
   async uploadFile(file, path, bucket = 'products') {
     try {
-      const { data, error } = await supabase.storage
-        .from(bucket)
-        .upload(path, file, {
-          cacheControl: '3600',
-          upsert: false
-        });
+      const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
+        cacheControl: '3600',
+        upsert: false
+      });
       
       if (error) throw error;
       
-      // Obtener URL pública
-      const { data: { publicUrl } } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(path);
-      
+      const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(path);
       return publicUrl;
     } catch (error) {
       return handleError(error, 'uploadFile');
     }
   },
   
-  // Eliminar archivo de storage
   async deleteFile(path, bucket = 'products') {
     try {
-      const { error } = await supabase.storage
-        .from(bucket)
-        .remove([path]);
-      
+      const { error } = await supabase.storage.from(bucket).remove([path]);
       if (error) throw error;
       return true;
     } catch (error) {
@@ -401,66 +293,41 @@ export const supabaseClient = {
   }
 };
 
-// Verificar conexión con reintentos
+// Utilidades de conexión
 export const checkSupabaseConnection = async (maxRetries = 3) => {
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
-      const { data, error } = await supabase.from('products').select('count').limit(1);
-      
+      const { error } = await supabase.from('products').select('count').limit(1);
       if (!error) {
         console.log('✅ Supabase conectado correctamente');
         return true;
       }
       
       if (attempt < maxRetries) {
-        console.warn(`⚠️ Intento ${attempt} fallido, reintentando en 2 segundos...`);
+        console.warn(`⚠️ Intento ${attempt} fallido, reintentando...`);
         await new Promise(resolve => setTimeout(resolve, 2000));
       }
     } catch (error) {
       console.error(`❌ Error en intento ${attempt}:`, error.message);
-      if (attempt === maxRetries) {
-        console.error('❌ Error conectando con Supabase después de varios intentos');
-        return false;
-      }
+      if (attempt === maxRetries) return false;
     }
   }
 };
 
-// Inicializar Supabase con manejo de errores mejorado
 export const initSupabase = async () => {
   try {
     const isConnected = await checkSupabaseConnection();
-    
     if (isConnected) {
       console.log('✅ Supabase inicializado correctamente');
-      
-      // Escuchar cambios en tiempo real
-      const channel = supabase
-        .channel('schema-db-changes')
-        .on('postgres_changes', { event: '*', schema: 'public' }, (payload) => {
-          console.log('🔄 Cambio en la base de datos:', payload);
-          // Invalidar caché cuando hay cambios en la base de datos
-          cache.categories = null;
-          cache.products = null;
-        })
-        .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            console.log('✅ Suscrito a cambios en tiempo real');
-          }
-        });
-      
       return true;
-    } else {
-      console.error('❌ Error conectando con Supabase');
-      return false;
     }
+    return false;
   } catch (error) {
     console.error('Error inicializando Supabase:', error);
     return false;
   }
 };
 
-// Utilidad para limpiar caché
 export const clearCache = () => {
   cache.categories = null;
   cache.products = null;
@@ -468,7 +335,7 @@ export const clearCache = () => {
   console.log('🗑️ Caché limpiada');
 };
 
-// Inicializar automáticamente pero de forma no bloqueante
+// Inicialización diferida
 let initializationPromise = null;
 export const ensureInitialized = async () => {
   if (!initializationPromise) {
@@ -480,19 +347,16 @@ export const ensureInitialized = async () => {
   return initializationPromise;
 };
 
-// Inicialización diferida para mejor performance
+// Inicialización automática
 if (typeof window !== 'undefined') {
-  // Esperar a que la página cargue antes de inicializar
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-      setTimeout(ensureInitialized, 1000); // Inicializar después de 1 segundo
-    });
+    document.addEventListener('DOMContentLoaded', () => setTimeout(ensureInitialized, 1000));
   } else {
     setTimeout(ensureInitialized, 1000);
   }
 }
 
-// Hacer funciones disponibles globalmente
+// Globales
 window.supabaseClient = supabaseClient;
 window.initSupabase = initSupabase;
 window.clearCache = clearCache;
