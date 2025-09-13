@@ -1,10 +1,11 @@
 // scripts/pages/admin.js
 import { Utils } from '../core/utils.js';
-import { supabase } from '../supabase.js';
-import { CategoryManager } from '../managers/category-manager.js';
-import { ProductManager } from '../managers/product-manager.js';
+import { supabase } from '../core/supabase.js';
+import categoryManager from '../managers/category-manager.js';
+import productManager from '../managers/product-manager.js';
 import { AuthManager } from '../core/auth.js';
 import { setupAllEventListeners } from '../event-listeners.js';
+import { initModals, openCategoriesModal, openImageSearchModal, openStatsModal, showDeleteConfirm } from '../components/modals.js';
 
 class AdminPage {
     constructor() {
@@ -57,14 +58,16 @@ class AdminPage {
             throw new Error('Usuario no autenticado');
         }
         
-        // Verificar si el usuario tiene permisos de administrador
         console.log('👤 Usuario autenticado:', this.currentUser.email);
     }
 
     async initializeComponents() {
         // Inicializar managers
-        await CategoryManager.init();
-        await ProductManager.init();
+        await categoryManager.init();
+        await productManager.init();
+        
+        // Inicializar modales
+        initModals();
     }
 
     async loadData() {
@@ -72,8 +75,8 @@ class AdminPage {
             Utils.showInfo('🔄 Cargando datos...');
             
             const [products, categories] = await Promise.all([
-                ProductManager.loadProducts(),
-                CategoryManager.loadCategories()
+                productManager.loadProducts(),
+                categoryManager.loadCategories()
             ]);
             
             this.state.products = products;
@@ -211,7 +214,10 @@ class AdminPage {
             return '<span class="text-gray-500 text-xs">Sin planes definidos</span>';
         }
         
-        return plans.map(plan => `
+        // Asegurarse de que los planes estén en el formato correcto
+        const parsedPlans = typeof plans === 'string' ? JSON.parse(plans) : plans;
+        
+        return parsedPlans.map(plan => `
             <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
                 ${plan.name}: ${Utils.formatCurrency(plan.price_soles || 0)}
             </span>
@@ -391,7 +397,8 @@ class AdminPage {
     async addProduct() {
         try {
             console.log('Agregar nuevo producto');
-            // Implementar lógica para abrir modal de producto
+            // Abrir modal de producto para agregar nuevo
+            this.openProductModal();
         } catch (error) {
             console.error('Error al agregar producto:', error);
             Utils.showError('Error al intentar agregar producto');
@@ -401,29 +408,27 @@ class AdminPage {
     async editProduct(productId) {
         try {
             console.log('Editar producto:', productId);
-            // Implementar lógica para editar producto
+            // Abrir modal de producto para editar
+            this.openProductModal(productId);
         } catch (error) {
             console.error('Error al editar producto:', error);
             Utils.showError('Error al intentar editar producto');
         }
     }
 
+    openProductModal(productId = null) {
+        // Implementar lógica para abrir el modal de producto
+        // Esto sería parte de tu sistema de modales
+        console.log('Abrir modal de producto para:', productId || 'nuevo producto');
+        
+        // Por ahora, mostramos un mensaje
+        Utils.showInfo('Funcionalidad de edición/agregar producto en desarrollo');
+    }
+
     async deleteProduct(productId, productName) {
         try {
-            const confirmed = confirm(`¿Estás seguro de que deseas eliminar el producto "${productName}"? Esta acción no se puede deshacer.`);
-            
-            if (!confirmed) return;
-            
-            Utils.showInfo('Eliminando producto...');
-            
-            // Aquí implementarías la lógica para eliminar el producto
-            // await ProductManager.deleteProduct(productId);
-            
-            Utils.showSuccess('Producto eliminado correctamente');
-            
-            // Recargar la lista de productos
-            await this.loadData();
-            
+            // Usar el modal de confirmación para eliminar
+            showDeleteConfirm(productId, productName);
         } catch (error) {
             console.error('Error al eliminar producto:', error);
             Utils.showError('Error al intentar eliminar producto');
@@ -433,7 +438,8 @@ class AdminPage {
     manageCategories() {
         try {
             console.log('Gestionar categorías');
-            // Implementar lógica para gestionar categorías
+            // Abrir modal de categorías
+            openCategoriesModal();
         } catch (error) {
             console.error('Error al gestionar categorías:', error);
             Utils.showError('Error al intentar gestionar categorías');
@@ -443,7 +449,8 @@ class AdminPage {
     viewStats() {
         try {
             console.log('Ver estadísticas');
-            // Implementar lógica para ver estadísticas
+            // Abrir modal de estadísticas
+            openStatsModal();
         } catch (error) {
             console.error('Error al ver estadísticas:', error);
             Utils.showError('Error al intentar ver estadísticas');
@@ -470,3 +477,119 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Hacer funciones disponibles globalmente
 window.AdminPage = AdminPage;
+window.adminPage = new AdminPage();
+
+// Funciones globales para uso en modales
+window.deleteProduct = async (productId) => {
+    try {
+        const success = await productManager.deleteProduct(productId);
+        if (success) {
+            // Recargar los productos
+            await adminPage.loadData();
+        }
+        return success;
+    } catch (error) {
+        console.error('Error eliminando producto:', error);
+        return false;
+    }
+};
+
+window.addCategory = async (categoryData) => {
+    try {
+        const newCategory = await categoryManager.addCategory(categoryData);
+        if (newCategory) {
+            // Recargar las categorías
+            await adminPage.loadData();
+        }
+        return newCategory;
+    } catch (error) {
+        console.error('Error agregando categoría:', error);
+        return false;
+    }
+};
+
+window.renderCategoriesList = (container) => {
+    if (!container) return;
+    
+    container.innerHTML = adminPage.state.categories.map(category => `
+        <div class="flex items-center justify-between p-3 border-b border-gray-200">
+            <div>
+                <span class="font-medium">${category.name}</span>
+                <p class="text-sm text-gray-500">${category.description || 'Sin descripción'}</p>
+            </div>
+            <div class="flex space-x-2">
+                <button class="edit-category p-2 text-blue-600 hover:text-blue-800" data-id="${category.id}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-category p-2 text-red-600 hover:text-red-800" data-id="${category.id}" data-name="${category.name}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    // Agregar event listeners para los botones de categoría
+    container.querySelectorAll('.edit-category').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const categoryId = btn.dataset.id;
+            console.log('Editar categoría:', categoryId);
+        });
+    });
+    
+    container.querySelectorAll('.delete-category').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const categoryId = btn.dataset.id;
+            const categoryName = btn.dataset.name;
+            console.log('Eliminar categoría:', categoryId, categoryName);
+        });
+    });
+};
+
+window.loadStats = () => {
+    const statsContent = document.getElementById('statsContent');
+    if (!statsContent) return;
+    
+    statsContent.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h4 class="text-lg font-semibold mb-4">Resumen General</h4>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span>Total de Productos:</span>
+                        <span class="font-bold">${adminPage.state.stats.totalProducts}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Total de Categorías:</span>
+                        <span class="font-bold">${adminPage.state.stats.totalCategories}</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>Productos Recientes (7 días):</span>
+                        <span class="font-bold">${adminPage.state.stats.recentProducts}</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-6 rounded-lg shadow">
+                <h4 class="text-lg font-semibold mb-4">Distribución por Categoría</h4>
+                <div class="space-y-3">
+                    ${adminPage.state.categories.map(category => {
+                        const count = adminPage.state.products.filter(p => p.category_id === category.id).length;
+                        return `
+                            <div class="flex justify-between">
+                                <span>${category.name}:</span>
+                                <span class="font-bold">${count}</span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            </div>
+        </div>
+    `;
+};
+
+window.updateImagePreview = (imageUrl) => {
+    const preview = document.getElementById('imagePreview');
+    if (preview) {
+        preview.innerHTML = `<img src="${imageUrl}" class="w-full h-full object-cover" alt="Vista previa">`;
+    }
+};
