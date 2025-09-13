@@ -48,7 +48,7 @@ class AdminPage {
             console.error('❌ Error inicializando panel admin:', error);
             Utils.showError('Error al inicializar el panel de administración');
             // Redirigir al login si hay error de autenticación
-            if (error.message.includes('autenticación') || error.message.includes('autenticado')) {
+            if (error.message.includes('autenticación') || error.message.includes('autenticado') || error.message.includes('autenticado')) {
                 setTimeout(() => window.location.href = 'login.html', 2000);
             }
         }
@@ -212,12 +212,25 @@ class AdminPage {
     }
 
     renderProductPlans(plans) {
-        if (!plans || !Array.isArray(plans) || plans.length === 0) {
+        if (!plans || plans.length === 0) {
             return '<span class="text-gray-500 text-xs">Sin planes definidos</span>';
         }
         
         // Asegurarse de que los planes estén en el formato correcto
-        const parsedPlans = typeof plans === 'string' ? JSON.parse(plans) : plans;
+        let parsedPlans;
+        try {
+            parsedPlans = typeof plans === 'string' ? JSON.parse(plans) : plans;
+            if (!Array.isArray(parsedPlans)) {
+                parsedPlans = [];
+            }
+        } catch (error) {
+            console.warn('Error parsing plans:', error);
+            parsedPlans = [];
+        }
+        
+        if (parsedPlans.length === 0) {
+            return '<span class="text-gray-500 text-xs">Sin planes definidos</span>';
+        }
         
         return parsedPlans.map(plan => `
             <span class="bg-gray-100 text-gray-700 text-xs px-2 py-1 rounded">
@@ -234,12 +247,17 @@ class AdminPage {
     formatDate(dateString) {
         if (!dateString) return 'Fecha desconocida';
         
-        const date = new Date(dateString);
-        return date.toLocaleDateString('es-ES', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric'
-        });
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        } catch (error) {
+            console.warn('Error formatting date:', error);
+            return 'Fecha inválida';
+        }
     }
 
     addProductCardEventListeners() {
@@ -363,34 +381,57 @@ class AdminPage {
 
     setupEventListeners() {
         // Filtros y búsqueda
-        document.getElementById('searchProducts')?.addEventListener('input', 
-            Utils.debounce(() => this.renderProductsList(), 300)
-        );
+        const searchInput = document.getElementById('searchProducts');
+        const filterCategory = document.getElementById('filterCategory');
+        const sortProducts = document.getElementById('sortProducts');
         
-        document.getElementById('filterCategory')?.addEventListener('change', 
-            () => this.renderProductsList()
-        );
+        if (searchInput) {
+            searchInput.addEventListener('input', 
+                Utils.debounce(() => this.renderProductsList(), 300)
+            );
+        }
         
-        document.getElementById('sortProducts')?.addEventListener('change', 
-            () => this.renderProductsList()
-        );
+        if (filterCategory) {
+            filterCategory.addEventListener('change', 
+                () => this.renderProductsList()
+            );
+        }
+        
+        if (sortProducts) {
+            sortProducts.addEventListener('change', 
+                () => this.renderProductsList()
+            );
+        }
         
         // Botones principales
-        document.getElementById('addProductBtn')?.addEventListener('click', 
-            () => this.addProduct()
-        );
+        const addProductBtn = document.getElementById('addProductBtn');
+        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
         
-        document.getElementById('manageCategoriesBtn')?.addEventListener('click', 
-            () => this.manageCategories()
-        );
+        if (addProductBtn) {
+            addProductBtn.addEventListener('click', 
+                () => this.addProduct()
+            );
+        }
         
-        document.getElementById('viewStatsBtn')?.addEventListener('click', 
-            () => this.viewStats()
-        );
+        if (manageCategoriesBtn) {
+            manageCategoriesBtn.addEventListener('click', 
+                () => this.manageCategories()
+            );
+        }
         
-        document.getElementById('logoutBtn')?.addEventListener('click', 
-            () => this.logout()
-        );
+        if (viewStatsBtn) {
+            viewStatsBtn.addEventListener('click', 
+                () => this.viewStats()
+            );
+        }
+        
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', 
+                () => this.logout()
+            );
+        }
         
         // Configurar event listeners globales
         setupAllEventListeners();
@@ -479,12 +520,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Hacer funciones disponibles globalmente
 window.AdminPage = AdminPage;
-window.adminPage = new AdminPage();
 
 // Funciones globales para uso en modales
 window.deleteProduct = async (productId) => {
     try {
-        const success = await window.productManager.deleteProduct(productId);
+        const productManager = await getProductManager();
+        const success = await productManager.deleteProduct(productId);
         if (success && window.adminPage) {
             await window.adminPage.loadData();
         }
@@ -498,7 +539,8 @@ window.deleteProduct = async (productId) => {
 
 window.addCategory = async (categoryData) => {
     try {
-        const newCategory = await window.categoryManager.addCategory(categoryData);
+        const categoryManager = await getCategoryManager();
+        const newCategory = await categoryManager.addCategory(categoryData);
         if (newCategory && window.adminPage) {
             await window.adminPage.loadData();
         }
