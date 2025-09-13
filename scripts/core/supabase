@@ -1,193 +1,244 @@
 // scripts/core/supabase.js
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { Utils } from './utils.js';
 
-// Configuración de Supabase
-const SUPABASE_URL = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
+class SupabaseClient {
+    constructor() {
+        this.supabaseUrl = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
+        this.supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
+        this.init();
+    }
 
-// Crear cliente Supabase
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
-// Funciones básicas de Supabase
-export const supabaseClient = {
-    // Categorías
-    async getCategories() {
+    init() {
         try {
-            const { data, error } = await supabase
+            // Intenta cargar Supabase desde CDN si no está disponible
+            if (typeof supabase === 'undefined') {
+                this.loadSupabaseFromCDN();
+            } else {
+                this.client = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+                console.log('✅ Supabase conectado correctamente');
+            }
+        } catch (error) {
+            console.error('❌ Error inicializando Supabase:', error);
+            this.setupMockData();
+        }
+    }
+
+    loadSupabaseFromCDN() {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2';
+        script.onload = () => {
+            this.client = supabase.createClient(this.supabaseUrl, this.supabaseKey);
+            console.log('✅ Supabase cargado desde CDN y conectado correctamente');
+        };
+        script.onerror = () => {
+            console.warn('⚠️ No se pudo cargar Supabase desde CDN, usando datos mock');
+            this.setupMockData();
+        };
+        document.head.appendChild(script);
+    }
+
+    setupMockData() {
+        console.warn('⚠️ Usando datos de prueba (mock)');
+        this.mockData = {
+            products: [],
+            categories: []
+        };
+        // Datos de ejemplo para desarrollo
+        this.mockData.categories = [
+            { id: 1, name: 'Hosting', description: 'Servicios de alojamiento web' },
+            { id: 2, name: 'Dominios', description: 'Registro de nombres de dominio' },
+            { id: 3, name: 'SSL', description: 'Certificados de seguridad' }
+        ];
+        
+        this.mockData.products = [
+            {
+                id: 1,
+                name: 'Hosting Básico',
+                description: 'Plan ideal para sitios web pequeños',
+                category_id: 1,
+                photo_url: 'https://via.placeholder.com/300x200?text=Hosting+Básico',
+                plans: [{ name: 'Básico', price_soles: 29.90, price_dollars: 9.90 }],
+                created_at: new Date().toISOString()
+            }
+        ];
+    }
+
+    // Métodos para categorías
+    async getCategories() {
+        if (this.client) {
+            const { data, error } = await this.client
                 .from('categories')
                 .select('*')
                 .order('name');
             
             if (error) throw error;
-            return data || [];
-        } catch (error) {
-            console.error('Error getting categories:', error);
-            return [];
+            return data;
         }
-    },
+        return this.mockData.categories;
+    }
 
     async addCategory(categoryData) {
-        try {
-            const { data, error } = await supabase
+        if (this.client) {
+            const { data, error } = await this.client
                 .from('categories')
-                .insert([{
-                    name: categoryData.name,
-                    description: categoryData.description,
-                    icon: categoryData.icon || 'fas fa-tag',
-                    color: categoryData.color || 'blue',
-                    created_at: new Date().toISOString()
-                }])
-                .select();
+                .insert([categoryData])
+                .select()
+                .single();
             
             if (error) throw error;
-            return data && data.length > 0 ? data[0] : null;
-        } catch (error) {
-            console.error('Error adding category:', error);
-            throw error;
+            return data;
         }
-    },
+        
+        // Mock implementation
+        const newCategory = {
+            id: Math.max(...this.mockData.categories.map(c => c.id)) + 1,
+            ...categoryData,
+            created_at: new Date().toISOString()
+        };
+        this.mockData.categories.push(newCategory);
+        return newCategory;
+    }
 
     async updateCategory(id, categoryData) {
-        try {
-            const { data, error } = await supabase
+        if (this.client) {
+            const { data, error } = await this.client
                 .from('categories')
-                .update({
-                    name: categoryData.name,
-                    description: categoryData.description,
-                    icon: categoryData.icon,
-                    color: categoryData.color,
-                    updated_at: new Date().toISOString()
-                })
+                .update(categoryData)
                 .eq('id', id)
-                .select();
+                .select()
+                .single();
             
             if (error) throw error;
-            return data && data.length > 0 ? data[0] : null;
-        } catch (error) {
-            console.error('Error updating category:', error);
-            throw error;
+            return data;
         }
-    },
+        
+        // Mock implementation
+        const index = this.mockData.categories.findIndex(c => c.id === id);
+        if (index !== -1) {
+            this.mockData.categories[index] = { ...this.mockData.categories[index], ...categoryData };
+            return this.mockData.categories[index];
+        }
+        return null;
+    }
 
     async deleteCategory(id) {
-        try {
-            const { error } = await supabase
+        if (this.client) {
+            const { error } = await this.client
                 .from('categories')
                 .delete()
                 .eq('id', id);
             
             if (error) throw error;
             return true;
-        } catch (error) {
-            console.error('Error deleting category:', error);
-            throw error;
         }
-    },
+        
+        // Mock implementation
+        this.mockData.categories = this.mockData.categories.filter(c => c.id !== id);
+        return true;
+    }
 
-    // Productos
+    // Métodos para productos
     async getProducts() {
-        try {
-            const { data, error } = await supabase
+        if (this.client) {
+            const { data, error } = await this.client
                 .from('products')
-                .select('*, categories(*)')
+                .select(`
+                    *,
+                    categories (name)
+                `)
                 .order('created_at', { ascending: false });
             
             if (error) throw error;
-            return data || [];
-        } catch (error) {
-            console.error('Error getting products:', error);
-            return [];
+            return data;
         }
-    },
+        return this.mockData.products;
+    }
 
     async addProduct(productData) {
-        try {
-            const { data, error } = await supabase
+        if (this.client) {
+            const { data, error } = await this.client
                 .from('products')
-                .insert([{
-                    name: productData.name,
-                    description: productData.description,
-                    category_id: productData.category_id,
-                    photo_url: productData.photo_url,
-                    plans: productData.plans || [],
-                    created_at: new Date().toISOString()
-                }])
-                .select();
+                .insert([productData])
+                .select(`
+                    *,
+                    categories (name)
+                `)
+                .single();
             
             if (error) throw error;
-            return data && data.length > 0 ? data[0] : null;
-        } catch (error) {
-            console.error('Error adding product:', error);
-            throw error;
+            return data;
         }
-    },
+        
+        // Mock implementation
+        const newProduct = {
+            id: Math.max(...this.mockData.products.map(p => p.id), 0) + 1,
+            ...productData,
+            created_at: new Date().toISOString()
+        };
+        this.mockData.products.unshift(newProduct);
+        return newProduct;
+    }
 
     async updateProduct(id, productData) {
-        try {
-            const { data, error } = await supabase
+        if (this.client) {
+            const { data, error } = await this.client
                 .from('products')
-                .update({
-                    name: productData.name,
-                    description: productData.description,
-                    category_id: productData.category_id,
-                    photo_url: productData.photo_url,
-                    plans: productData.plans,
-                    updated_at: new Date().toISOString()
-                })
+                .update(productData)
                 .eq('id', id)
-                .select();
+                .select(`
+                    *,
+                    categories (name)
+                `)
+                .single();
             
             if (error) throw error;
-            return data && data.length > 0 ? data[0] : null;
-        } catch (error) {
-            console.error('Error updating product:', error);
-            throw error;
+            return data;
         }
-    },
+        
+        // Mock implementation
+        const index = this.mockData.products.findIndex(p => p.id === id);
+        if (index !== -1) {
+            this.mockData.products[index] = { ...this.mockData.products[index], ...productData };
+            return this.mockData.products[index];
+        }
+        return null;
+    }
 
     async deleteProduct(id) {
-        try {
-            const { error } = await supabase
+        if (this.client) {
+            const { error } = await this.client
                 .from('products')
                 .delete()
                 .eq('id', id);
             
             if (error) throw error;
             return true;
-        } catch (error) {
-            console.error('Error deleting product:', error);
-            throw error;
         }
+        
+        // Mock implementation
+        this.mockData.products = this.mockData.products.filter(p => p.id !== id);
+        return true;
     }
-};
+}
 
-// Verificar conexión
-export const checkSupabaseConnection = async () => {
-    try {
-        const { data, error } = await supabase.from('products').select('count').limit(1);
-        return !error;
-    } catch (error) {
-        console.error('Supabase connection error:', error);
-        return false;
+// Crear instancia única
+let supabaseClientInstance = null;
+
+export function getSupabaseClient() {
+    if (!supabaseClientInstance) {
+        supabaseClientInstance = new SupabaseClient();
     }
-};
+    return supabaseClientInstance;
+}
 
-// Inicializar Supabase
-export const initSupabase = async () => {
-    try {
-        const isConnected = await checkSupabaseConnection();
-        if (isConnected) {
-            console.log('✅ Supabase conectado correctamente');
-            return true;
-        } else {
-            console.error('❌ Error conectando con Supabase');
-            return false;
-        }
-    } catch (error) {
-        console.error('Error inicializando Supabase:', error);
-        return false;
-    }
+// Para compatibilidad con código existente
+export const supabaseClient = {
+    getCategories: () => getSupabaseClient().getCategories(),
+    addCategory: (categoryData) => getSupabaseClient().addCategory(categoryData),
+    updateCategory: (id, categoryData) => getSupabaseClient().updateCategory(id, categoryData),
+    deleteCategory: (id) => getSupabaseClient().deleteCategory(id),
+    getProducts: () => getSupabaseClient().getProducts(),
+    addProduct: (productData) => getSupabaseClient().addProduct(productData),
+    updateProduct: (id, productData) => getSupabaseClient().updateProduct(id, productData),
+    deleteProduct: (id) => getSupabaseClient().deleteProduct(id)
 };
-
-// Inicializar automáticamente
-initSupabase();
