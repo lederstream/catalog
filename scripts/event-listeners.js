@@ -1,5 +1,5 @@
 // scripts/event-listeners.js
-import { Utils } from './utils.js';
+import { Utils } from './core/utils.js';
 
 // Configurar todos los event listeners globales
 export function setupAllEventListeners() {
