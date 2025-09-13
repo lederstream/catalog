@@ -2,166 +2,141 @@
 import { AuthManager } from '../core/auth.js';
 import { Utils } from '../core/utils.js';
 
+// Controlador de la interfaz de usuario de login
 class LoginPage {
     constructor() {
-        this.isInitialized = false;
-        this.form = null;
+        this.init();
     }
-
-    async initialize() {
-        if (this.isInitialized) return;
-
-        try {
-            // Verificar si ya está autenticado
-            const isAuthenticated = await this.checkAuthentication();
-            if (isAuthenticated) {
-                window.location.href = 'admin.html';
-                return;
-            }
-            
-            // Configurar event listeners
-            this.setupEventListeners();
-            
-            this.isInitialized = true;
-            console.log('✅ Página de login inicializada');
-            
-        } catch (error) {
-            console.error('❌ Error inicializando página de login:', error);
-            Utils.showError('Error al cargar la página de login');
+    
+    async init() {
+        this.bindEvents();
+        await this.checkExistingSession();
+    }
+    
+    bindEvents() {
+        // Evento de envío del formulario
+        const loginForm = document.getElementById('loginFormElement');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                this.handleLogin();
+            });
         }
-    }
-
-    async checkAuthentication() {
-        try {
-            const currentUser = await AuthManager.getCurrentUser();
-            return currentUser !== null;
-        } catch (error) {
-            console.error('Error verificando autenticación:', error);
-            return false;
-        }
-    }
-
-    setupEventListeners() {
-        this.form = document.getElementById('loginForm');
-        if (!this.form) return;
         
-        this.form.addEventListener('submit', (e) => this.handleLogin(e));
-        
-        // Mostrar/ocultar contraseña
+        // Evento para mostrar/ocultar contraseña
         const togglePassword = document.getElementById('togglePassword');
         if (togglePassword) {
-            togglePassword.addEventListener('click', () => this.togglePasswordVisibility());
+            togglePassword.addEventListener('click', () => {
+                this.togglePasswordVisibility();
+            });
+        }
+        
+        // Eventos de entrada para limpiar errores
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        
+        if (emailInput) {
+            emailInput.addEventListener('input', () => {
+                Utils.clearErrors();
+            });
+        }
+        
+        if (passwordInput) {
+            passwordInput.addEventListener('input', () => {
+                Utils.clearErrors();
+            });
         }
     }
-
-    async handleLogin(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this.form);
-        const email = formData.get('email');
-        const password = formData.get('password');
-        
-        // Validaciones
-        if (!this.validateForm(email, password)) {
-            return;
-        }
-        
+    
+    async checkExistingSession() {
         try {
-            this.setFormLoading(true);
-            
-            const success = await AuthManager.signIn(email, password);
-            
-            if (success) {
-                Utils.showSuccess('✅ Inicio de sesión exitoso');
-                setTimeout(() => {
-                    window.location.href = 'admin.html';
-                }, 1000);
-            } else {
-                this.setFormLoading(false);
+            const user = await AuthManager.getCurrentUser();
+            if (user) {
+                window.location.href = 'admin.html';
             }
-            
         } catch (error) {
-            console.error('Error en login:', error);
-            this.setFormLoading(false);
+            console.error('Error checking session:', error);
         }
     }
-
-    validateForm(email, password) {
+    
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password');
+        const toggleIcon = document.getElementById('togglePassword')?.querySelector('i');
+        
+        if (passwordInput && toggleIcon) {
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                toggleIcon.classList.replace('fa-eye', 'fa-eye-slash');
+            } else {
+                passwordInput.type = 'password';
+                toggleIcon.classList.replace('fa-eye-slash', 'fa-eye');
+            }
+        }
+    }
+    
+    validateForm() {
+        Utils.clearErrors();
+        
+        const email = document.getElementById('email')?.value.trim();
+        const password = document.getElementById('password')?.value;
         let isValid = true;
         
-        // Resetear errores
-        this.clearErrors();
-        
         // Validar email
-        if (!email || !Utils.validateEmail(email)) {
-            this.showError('email', 'Por favor ingresa un email válido');
+        if (!email) {
+            Utils.showFieldError('email', 'El email es obligatorio');
+            isValid = false;
+        } else if (!Utils.validateEmail(email)) {
+            Utils.showFieldError('email', 'Por favor ingresa un email válido');
             isValid = false;
         }
         
         // Validar contraseña
-        if (!password || password.length < 6) {
-            this.showError('password', 'La contraseña debe tener al menos 6 caracteres');
+        if (!password) {
+            Utils.showFieldError('password', 'La contraseña es obligatoria');
+            isValid = false;
+        } else if (password.length < 6) {
+            Utils.showFieldError('password', 'La contraseña debe tener al menos 6 caracteres');
             isValid = false;
         }
         
         return isValid;
     }
-
-    showError(fieldName, message) {
-        const field = this.form.querySelector(`[name="${fieldName}"]`);
-        if (!field) return;
-        
-        // Crear elemento de error
-        let errorElement = field.parentNode.querySelector('.error-message');
-        if (!errorElement) {
-            errorElement = document.createElement('p');
-            errorElement.className = 'error-message text-red-500 text-sm mt-1';
-            field.parentNode.appendChild(errorElement);
+    
+    async handleLogin() {
+        // Validar formulario
+        if (!this.validateForm()) {
+            return;
         }
         
-        errorElement.textContent = message;
-        field.classList.add('border-red-500');
-    }
-
-    clearErrors() {
-        const errorElements = this.form.querySelectorAll('.error-message');
-        errorElements.forEach(element => element.remove());
+        const email = document.getElementById('email')?.value.trim();
+        const password = document.getElementById('password')?.value;
         
-        const fields = this.form.querySelectorAll('input');
-        fields.forEach(field => field.classList.remove('border-red-500'));
-    }
-
-    setFormLoading(loading) {
-        const submitButton = this.form.querySelector('button[type="submit"]');
-        const spinner = submitButton.querySelector('.login-spinner');
+        if (!email || !password) return;
         
-        if (loading) {
-            submitButton.disabled = true;
-            submitButton.innerHTML = '<i class="fas fa-spinner fa-spin login-spinner"></i> Iniciando sesión...';
-            submitButton.classList.add('opacity-75');
-        } else {
-            submitButton.disabled = false;
-            submitButton.innerHTML = 'Iniciar Sesión';
-            submitButton.classList.remove('opacity-75');
-        }
-    }
-
-    togglePasswordVisibility() {
-        const passwordInput = this.form.querySelector('[name="password"]');
-        const toggleButton = document.getElementById('togglePassword');
+        Utils.setLoading(true);
         
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            toggleButton.innerHTML = '<i class="fas fa-eye-slash"></i>';
-        } else {
-            passwordInput.type = 'password';
-            toggleButton.innerHTML = '<i class="fas fa-eye"></i>';
+        try {
+            const result = await AuthManager.signIn(email, password);
+            
+            if (result.success) {
+                Utils.showNotification('✅ Inicio de sesión exitoso', 'success');
+                // Redirigir al dashboard después de login exitoso
+                setTimeout(() => {
+                    window.location.href = 'admin.html';
+                }, 1000);
+            } else {
+                Utils.showError(result.error);
+            }
+        } catch (error) {
+            console.error('Login error:', error);
+            Utils.showError('Error inesperado al iniciar sesión');
+        } finally {
+            Utils.setLoading(false);
         }
     }
 }
 
-// Inicializar la página cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', async () => {
-    const loginPage = new LoginPage();
-    await loginPage.initialize();
+// Inicializar la aplicación cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    new LoginPage();
 });
