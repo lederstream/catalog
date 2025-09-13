@@ -288,7 +288,9 @@ export const productManager = {
 };
 
 // Hacer disponible globalmente
-window.productManager = productManager;
+if (typeof window.productManager === 'undefined') {
+    window.productManager = productManager;
+}
 
 // Inicializar automáticamente
 document.addEventListener('DOMContentLoaded', async () => {
