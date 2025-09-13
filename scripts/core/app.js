@@ -31,7 +31,6 @@ class DigitalCatalogApp {
             // Configurar modo debug
             if (window.location.search.includes('debug=true')) {
                 Utils.enableDebugMode(true);
-                console.log('🔧 Modo debug activado');
             }
             
             // Configurar monitoreo de conexión
