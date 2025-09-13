@@ -1,4 +1,3 @@
-// scripts/components/catalog-grid.js
 import { Utils } from '../core/utils.js';
 import { createProductCard, addProductCardEventListeners, animateProductsEntry } from './product-card.js';
 
@@ -13,6 +12,7 @@ class CatalogState {
             priceRange: [0, 10000],
             features: []
         };
+        this.currentPage = 1;
     }
     
     static getInstance() {
@@ -39,8 +39,17 @@ class CatalogState {
     
     setFilters(filters) {
         this.filters = { ...this.filters, ...filters };
+        this.currentPage = 1; // Reset to first page on filter change
         this._persistState();
         this._triggerEvent('filtersChanged', { filters: this.filters });
+    }
+    
+    setPage(page) {
+        if (page > 0) {
+            this.currentPage = page;
+            this._persistState();
+            this._triggerEvent('pageChanged', { page });
+        }
     }
     
     _persistState() {
@@ -49,7 +58,8 @@ class CatalogState {
                 view: this.currentView,
                 sortBy: this.sortBy,
                 sortOrder: this.sortOrder,
-                filters: this.filters
+                filters: this.filters,
+                currentPage: this.currentPage
             }));
         } catch (error) {
             console.warn('Error persisting catalog state:', error);
@@ -70,6 +80,7 @@ class CatalogState {
                     priceRange: [0, 10000],
                     features: []
                 };
+                this.currentPage = state.currentPage || 1;
             }
         } catch (error) {
             console.warn('Error restoring catalog state:', error);
@@ -81,6 +92,12 @@ class CatalogState {
     }
 }
 
+// Configuración
+const CONFIG = {
+    ITEMS_PER_PAGE: 12,
+    IMAGE_PLACEHOLDER: 'https://via.placeholder.com/300x200?text=Imagen+no+disponible'
+};
+
 // Inicializar catálogo
 export function initCatalogGrid() {
     const catalogState = CatalogState.getInstance();
@@ -90,6 +107,7 @@ export function initCatalogGrid() {
     setupViewControls();
     setupSorting();
     setupScrollAnimations();
+    setupPagination();
 }
 
 // Configurar filtros del catálogo
@@ -261,6 +279,71 @@ function setupSorting() {
     }
 }
 
+// Configurar paginación
+function setupPagination() {
+    const paginationContainer = document.getElementById('pagination');
+    if (!paginationContainer) return;
+    
+    const catalogState = CatalogState.getInstance();
+    
+    window.addEventListener('productsFiltered', (e) => {
+        const totalItems = e.detail.totalItems;
+        updatePagination(totalItems);
+    });
+}
+
+function updatePagination(totalItems) {
+    const paginationContainer = document.getElementById('pagination');
+    if (!paginationContainer) return;
+    
+    const catalogState = CatalogState.getInstance();
+    const totalPages = Math.ceil(totalItems / CONFIG.ITEMS_PER_PAGE);
+    
+    if (totalPages <= 1) {
+        paginationContainer.classList.add('hidden');
+        return;
+    }
+    
+    paginationContainer.classList.remove('hidden');
+    
+    let paginationHTML = '';
+    const currentPage = catalogState.currentPage;
+    
+    // Botón anterior
+    paginationHTML += `
+        <button class="px-4 py-2 mx-1 border rounded-lg hover:bg-gray-50" 
+                ${currentPage === 1 ? 'disabled' : ''} 
+                onclick="changePage(${currentPage - 1})">
+            Anterior
+        </button>
+    `;
+    
+    // Botones de página
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+            paginationHTML += `
+                <button class="px-4 py-2 mx-1 border rounded-lg ${currentPage === i ? 'bg-blue-600 text-white' : 'hover:bg-gray-50'}" 
+                        onclick="changePage(${i})">
+                    ${i}
+                </button>
+            `;
+        } else if (i === currentPage - 2 || i === currentPage + 2) {
+            paginationHTML += `<span class="px-2 py-2">...</span>`;
+        }
+    }
+    
+    // Botón siguiente
+    paginationHTML += `
+        <button class="px-4 py-2 mx-1 border rounded-lg hover:bg-gray-50" 
+                ${currentPage === totalPages ? 'disabled' : ''} 
+                onclick="changePage(${currentPage + 1})">
+            Siguiente
+        </button>
+    `;
+    
+    paginationContainer.innerHTML = paginationHTML;
+}
+
 function updateSortOrderIcon(button, order) {
     const icon = button.querySelector('i');
     if (icon) {
@@ -328,9 +411,18 @@ export function filterAndRenderProducts() {
         // Ordenar productos
         filteredProducts = sortProducts(filteredProducts, catalogState.sortBy, catalogState.sortOrder);
 
+        // Paginar productos
+        const startIndex = (catalogState.currentPage - 1) * CONFIG.ITEMS_PER_PAGE;
+        const paginatedProducts = filteredProducts.slice(startIndex, startIndex + CONFIG.ITEMS_PER_PAGE);
+
         // Renderizar productos
-        renderProductsGrid(filteredProducts, 'productsGrid');
+        renderProductsGrid(paginatedProducts, 'productsGrid');
         updateResultsCount(filteredProducts.length);
+        
+        // Disparar evento para actualizar paginación
+        window.dispatchEvent(new CustomEvent('productsFiltered', { 
+            detail: { totalItems: filteredProducts.length } 
+        }));
         
     } catch (error) {
         console.error('Error en filterAndRenderProducts:', error);
@@ -366,7 +458,10 @@ function getSortValue(product, field) {
 function getProductMinPrice(product) {
     if (!product.plans?.length) return Infinity;
     
-    return Math.min(...product.plans.map(plan => 
+    const plans = typeof product.plans === 'string' ? 
+        JSON.parse(product.plans) : product.plans;
+    
+    return Math.min(...plans.map(plan => 
         Math.min(
             plan.price_soles || Infinity,
             plan.price_dollars || Infinity
@@ -451,6 +546,19 @@ function getCategoryName(product) {
     return product.category || 'General';
 }
 
+// Cambiar página
+window.changePage = function(page) {
+    const catalogState = CatalogState.getInstance();
+    catalogState.setPage(page);
+    filterAndRenderProducts();
+    
+    // Scroll to top of products
+    const productsSection = document.getElementById('catalog');
+    if (productsSection) {
+        productsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+};
+
 // Resetear filtros
 window.resetFilters = function() {
     const catalogState = CatalogState.getInstance();
@@ -475,6 +583,7 @@ window.resetFilters = function() {
         features: []
     });
     
+    catalogState.setPage(1);
     filterAndRenderProducts();
 };
 
