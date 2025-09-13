@@ -1,201 +1,171 @@
 // scripts/core/utils.js
-export class Utils {
-    static debugMode = localStorage.getItem('debug') === 'true';
-    
-    static enableDebugMode(enable = true) {
-        this.debugMode = enable;
-        console.log(`Debug mode ${enable ? 'enabled' : 'disabled'}`);
-    }
-    
-    static log(...args) {
-        if (this.debugMode) {
-            console.log('[DEBUG]', ...args);
-        }
-    }
-    
+class Utils {
     static debounce(func, wait, immediate = false) {
         let timeout;
         return function executedFunction(...args) {
             const later = () => {
                 timeout = null;
-                if (!immediate) func(...args);
+                if (!immediate) func.apply(this, args);
             };
             const callNow = immediate && !timeout;
             clearTimeout(timeout);
             timeout = setTimeout(later, wait);
-            if (callNow) func(...args);
+            if (callNow) func.apply(this, args);
         };
     }
-    
-    static throttle(func, limit) {
-        let inThrottle;
-        return function(...args) {
-            if (!inThrottle) {
-                func.apply(this, args);
-                inThrottle = true;
-                setTimeout(() => inThrottle = false, limit);
-            }
-        };
-    }
-    
-    static formatCurrency(amount, currency = 'PEN') {
-        if (amount === null || amount === undefined || isNaN(amount)) amount = 0;
-        
-        return new Intl.NumberFormat('es-PE', {
-            style: 'currency',
-            currency: currency,
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-        }).format(amount);
-    }
-    
-    static truncateText(text, maxLength = 100, suffix = '...') {
-        if (!text || typeof text !== 'string') return '';
-        return text.length <= maxLength ? text : text.substr(0, maxLength) + suffix;
-    }
-    
-    static showNotification(message, type = 'info', duration = 3000) {
-        let container = document.getElementById('notifications-container');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'notifications-container';
-            container.className = 'fixed top-4 right-4 z-50 space-y-2 max-w-sm';
-            document.body.appendChild(container);
-        }
 
+    static async fadeIn(element, duration = 300) {
+        return new Promise(resolve => {
+            element.style.opacity = '0';
+            element.style.display = 'block';
+            
+            let start = null;
+            const animate = timestamp => {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const opacity = Math.min(progress / duration, 1);
+                
+                element.style.opacity = opacity.toString();
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    resolve();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        });
+    }
+
+    static async fadeOut(element, duration = 300) {
+        return new Promise(resolve => {
+            let start = null;
+            const animate = timestamp => {
+                if (!start) start = timestamp;
+                const progress = timestamp - start;
+                const opacity = Math.max(1 - progress / duration, 0);
+                
+                element.style.opacity = opacity.toString();
+                
+                if (progress < duration) {
+                    requestAnimationFrame(animate);
+                } else {
+                    element.style.display = 'none';
+                    resolve();
+                }
+            };
+            
+            requestAnimationFrame(animate);
+        });
+    }
+
+    static showNotification(message, type = 'info') {
+        const types = {
+            info: { bg: 'bg-blue-100', text: 'text-blue-800', icon: 'ℹ️' },
+            success: { bg: 'bg-green-100', text: 'text-green-800', icon: '✅' },
+            warning: { bg: 'bg-yellow-100', text: 'text-yellow-800', icon: '⚠️' },
+            error: { bg: 'bg-red-100', text: 'text-red-800', icon: '❌' }
+        };
+
+        const { bg, text, icon } = types[type] || types.info;
+        
         const notification = document.createElement('div');
-        const icons = {
-            success: '✅',
-            error: '❌',
-            warning: '⚠️',
-            info: 'ℹ️'
-        };
-        
-        const colors = {
-            success: 'bg-green-100 border-l-4 border-green-500 text-green-700',
-            error: 'bg-red-100 border-l-4 border-red-500 text-red-700',
-            warning: 'bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700',
-            info: 'bg-blue-100 border-l-4 border-blue-500 text-blue-700'
-        };
-        
-        notification.className = `p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out opacity-0 translate-x-full ${colors[type]}`;
+        notification.className = `fixed top-4 right-4 ${bg} ${text} px-6 py-4 rounded-lg shadow-lg z-50 transform transition-transform duration-300 translate-x-full`;
         notification.innerHTML = `
             <div class="flex items-center">
-                <span class="mr-2 text-lg">${icons[type]}</span>
-                <span class="flex-1 text-sm font-medium">${message}</span>
-                <button class="ml-3 text-gray-400 hover:text-gray-600 transition-colors notification-close">
-                    <i class="fas fa-times"></i>
-                </button>
+                <span class="mr-2">${icon}</span>
+                <span>${message}</span>
             </div>
         `;
         
-        container.appendChild(notification);
-
+        document.body.appendChild(notification);
+        
         // Animación de entrada
         requestAnimationFrame(() => {
-            notification.classList.remove('opacity-0', 'translate-x-full');
-            notification.classList.add('opacity-100', 'translate-x-0');
+            notification.classList.remove('translate-x-full');
+            notification.classList.add('translate-x-0');
         });
-
-        // Función para cerrar
-        const closeNotification = () => {
-            notification.classList.remove('opacity-100', 'translate-x-0');
-            notification.classList.add('opacity-0', 'translate-x-full');
-            
+        
+        // Auto-eliminar después de 5 segundos
+        setTimeout(() => {
+            notification.classList.remove('translate-x-0');
+            notification.classList.add('translate-x-full');
             setTimeout(() => {
                 if (notification.parentNode) {
                     notification.parentNode.removeChild(notification);
                 }
             }, 300);
-        };
+        }, 5000);
+        
+        return notification;
+    }
 
-        // Evento para el botón de cerrar
-        notification.querySelector('.notification-close').addEventListener('click', closeNotification);
+    static showError(message) {
+        return this.showNotification(message, 'error');
+    }
 
-        // Cierre automático
-        if (duration > 0) {
-            setTimeout(closeNotification, duration);
-        }
+    static showSuccess(message) {
+        return this.showNotification(message, 'success');
+    }
 
-        return {
-            close: closeNotification,
-            element: notification
-        };
+    static showInfo(message) {
+        return this.showNotification(message, 'info');
     }
-    
-    static showSuccess(message, duration = 3000) {
-        return this.showNotification(message, 'success', duration);
+
+    static showWarning(message) {
+        return this.showNotification(message, 'warning');
     }
-    
-    static showError(message, duration = 3000) {
-        return this.showNotification(message, 'error', duration);
+
+    static formatCurrency(amount, currency = 'PEN') {
+        const formatter = new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: 2
+        });
+        
+        return formatter.format(amount);
     }
-    
-    static showWarning(message, duration = 3000) {
-        return this.showNotification(message, 'warning', duration);
-    }
-    
-    static showInfo(message, duration = 3000) {
-        return this.showNotification(message, 'info', duration);
-    }
-    
-    static validateEmail(email) {
-        if (!email || typeof email !== 'string') return false;
-        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        return re.test(email.trim());
-    }
-    
-    static validateUrl(url) {
-        if (!url || typeof url !== 'string') return false;
+
+    static safeParseJSON(str, fallback = []) {
         try {
-            const urlObj = new URL(url.startsWith('http') ? url : `https://${url}`);
-            return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
-        } catch {
-            return false;
+            return typeof str === 'string' ? JSON.parse(str) : (str || fallback);
+        } catch (error) {
+            console.warn('Error parsing JSON:', error);
+            return fallback;
         }
     }
-    
-    static validateRequired(value) {
-        if (value === null || value === undefined) return false;
-        if (typeof value === 'string') return value.trim() !== '';
-        if (typeof value === 'number') return !isNaN(value);
-        if (Array.isArray(value)) return value.length > 0;
-        if (typeof value === 'object') return Object.keys(value).length > 0;
-        return true;
-    }
-    
-    static async fadeIn(element, duration = 300, display = 'block') {
-        if (!element) return;
-        
-        return new Promise(resolve => {
-            element.style.opacity = '0';
-            element.style.display = display;
-            element.style.transition = `opacity ${duration}ms ease-out`;
+
+    static preloadImages(urls) {
+        urls.forEach(url => {
+            if (!url || url === CONFIG.IMAGE_PLACEHOLDER) return;
             
-            requestAnimationFrame(() => {
-                element.style.opacity = '1';
-                setTimeout(resolve, duration);
-            });
+            const img = new Image();
+            img.src = url;
         });
     }
-    
-    static async fadeOut(element, duration = 300) {
-        if (!element) return;
-        
-        return new Promise(resolve => {
-            element.style.opacity = '1';
-            element.style.transition = `opacity ${duration}ms ease-out`;
-            
-            requestAnimationFrame(() => {
-                element.style.opacity = '0';
-                setTimeout(() => {
-                    element.style.display = 'none';
-                    resolve();
-                }, duration);
-            });
-        });
+
+    static generateSlug(text) {
+        return text
+            .toString()
+            .toLowerCase()
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/[^\w\-]+/g, '')
+            .replace(/\-\-+/g, '-')
+            .replace(/^-+/, '')
+            .replace(/-+$/, '');
     }
 }
 
-// Exportación por defecto para compatibilidad
-export default Utils;
+// Configuración global
+const CONFIG = {
+    IMAGE_PLACEHOLDER: 'https://via.placeholder.com/300x200?text=Imagen+no+disponible'
+};
+
+// Hacer disponible globalmente
+window.Utils = Utils;
+window.CONFIG = CONFIG;
+
+export { Utils, CONFIG };
