@@ -1,16 +1,18 @@
 // scripts/pages/admin.js
 import { Utils } from '../core/utils.js';
 import { supabase } from '../supabase.js';
-import categoryManager from '../managers/category-manager.js';
-import productManager from '../managers/product-manager.js';
+import { getCategoryManager } from '../managers/category-manager.js';
+import { getProductManager } from '../managers/product-manager.js';
 import { AuthManager } from '../core/auth.js';
 import { setupAllEventListeners } from '../event-listeners.js';
-import { initModals, openCategoriesModal, openImageSearchModal, openStatsModal, showDeleteConfirm } from '../components/modals.js';
+import { initModals, openCategoriesModal, openStatsModal, showDeleteConfirm } from '../components/modals.js';
 
 class AdminPage {
     constructor() {
         this.isInitialized = false;
         this.currentUser = null;
+        this.categoryManager = null;
+        this.productManager = null;
         this.state = {
             products: [],
             categories: [],
@@ -63,8 +65,8 @@ class AdminPage {
 
     async initializeComponents() {
         // Inicializar managers
-        await categoryManager.init();
-        await productManager.init();
+        this.categoryManager = await getCategoryManager();
+        this.productManager = await getProductManager();
         
         // Inicializar modales
         initModals();
@@ -75,8 +77,8 @@ class AdminPage {
             Utils.showInfo('🔄 Cargando datos...');
             
             const [products, categories] = await Promise.all([
-                productManager.loadProducts(),
-                categoryManager.loadCategories()
+                this.productManager.loadProducts(),
+                this.categoryManager.loadCategories()
             ]);
             
             this.state.products = products;
@@ -482,10 +484,10 @@ window.adminPage = new AdminPage();
 // Funciones globales para uso en modales
 window.deleteProduct = async (productId) => {
     try {
-        const success = await productManager.deleteProduct(productId);
+        const success = await window.productManager.deleteProduct(productId);
         if (success) {
             // Recargar los productos
-            await adminPage.loadData();
+            await window.adminPage.loadData();
         }
         return success;
     } catch (error) {
@@ -496,10 +498,10 @@ window.deleteProduct = async (productId) => {
 
 window.addCategory = async (categoryData) => {
     try {
-        const newCategory = await categoryManager.addCategory(categoryData);
+        const newCategory = await window.categoryManager.addCategory(categoryData);
         if (newCategory) {
             // Recargar las categorías
-            await adminPage.loadData();
+            await window.adminPage.loadData();
         }
         return newCategory;
     } catch (error) {
@@ -511,7 +513,7 @@ window.addCategory = async (categoryData) => {
 window.renderCategoriesList = (container) => {
     if (!container) return;
     
-    container.innerHTML = adminPage.state.categories.map(category => `
+    container.innerHTML = window.adminPage.state.categories.map(category => `
         <div class="flex items-center justify-between p-3 border-b border-gray-200">
             <div>
                 <span class="font-medium">${category.name}</span>
@@ -556,15 +558,15 @@ window.loadStats = () => {
                 <div class="space-y-3">
                     <div class="flex justify-between">
                         <span>Total de Productos:</span>
-                        <span class="font-bold">${adminPage.state.stats.totalProducts}</span>
+                        <span class="font-bold">${window.adminPage.state.stats.totalProducts}</span>
                     </div>
                     <div class="flex justify-between">
                         <span>Total de Categorías:</span>
-                        <span class="font-bold">${adminPage.state.stats.totalCategories}</span>
+                        <span class="font-bold">${window.adminPage.state.stats.totalCategories}</span>
                     </div>
                     <div class="flex justify-between">
                         <span>Productos Recientes (7 días):</span>
-                        <span class="font-bold">${adminPage.state.stats.recentProducts}</span>
+                        <span class="font-bold">${window.adminPage.state.stats.recentProducts}</span>
                     </div>
                 </div>
             </div>
@@ -572,8 +574,8 @@ window.loadStats = () => {
             <div class="bg-white p-6 rounded-lg shadow">
                 <h4 class="text-lg font-semibold mb-4">Distribución por Categoría</h4>
                 <div class="space-y-3">
-                    ${adminPage.state.categories.map(category => {
-                        const count = adminPage.state.products.filter(p => p.category_id === category.id).length;
+                    ${window.adminPage.state.categories.map(category => {
+                        const count = window.adminPage.state.products.filter(p => p.category_id === category.id).length;
                         return `
                             <div class="flex justify-between">
                                 <span>${category.name}:</span>
