@@ -1,5 +1,5 @@
 // scripts/core/auth.js
-import { supabase } from './supabase.js';
+import { supabase } from '../supabase.js';
 import { Utils } from './utils.js';
 
 class AuthManager {
