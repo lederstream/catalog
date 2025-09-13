@@ -7,51 +7,65 @@ class AuthManager {
         this.currentUser = null;
         this.isInitialized = false;
         this.authStateListeners = new Set();
+        this.initializationPromise = null;
     }
     
     async initialize() {
         if (this.isInitialized) return;
+        if (this.initializationPromise) return this.initializationPromise;
         
-        try {
-            // Verificar sesión existente
-            const { data: { session }, error } = await supabase.auth.getSession();
-            
-            if (error) {
-                console.error('Error obteniendo sesión:', error);
+        this.initializationPromise = (async () => {
+            try {
+                // Verificar sesión existente
+                const { data: { session }, error } = await supabase.auth.getSession();
+                
+                if (error) {
+                    console.error('Error obteniendo sesión:', error);
+                    throw error;
+                }
+                
+                if (session) {
+                    this.currentUser = session.user;
+                    console.log('✅ Usuario autenticado:', this.currentUser.email);
+                }
+                
+                this.isInitialized = true;
+                
+                // Escuchar cambios de autenticación
+                supabase.auth.onAuthStateChange((event, session) => {
+                    console.log('Auth state changed:', event);
+                    
+                    if (event === 'SIGNED_IN' && session) {
+                        this.currentUser = session.user;
+                        this.notifyAuthStateChange('SIGNED_IN', session.user);
+                        Utils.showSuccess('✅ Sesión iniciada correctamente');
+                    } else if (event === 'SIGNED_OUT') {
+                        this.currentUser = null;
+                        this.notifyAuthStateChange('SIGNED_OUT', null);
+                        Utils.showInfo('👋 Sesión cerrada');
+                    } else if (event === 'TOKEN_REFRESHED') {
+                        this.notifyAuthStateChange('TOKEN_REFRESHED', this.currentUser);
+                    } else if (event === 'USER_UPDATED') {
+                        this.currentUser = session?.user || this.currentUser;
+                        this.notifyAuthStateChange('USER_UPDATED', this.currentUser);
+                    } else if (event === 'INITIAL_SESSION') {
+                        // Manejar sesión inicial
+                        if (session) {
+                            this.currentUser = session.user;
+                            console.log('✅ Sesión inicial detectada:', this.currentUser.email);
+                        }
+                    }
+                });
+                
+                return true;
+            } catch (error) {
+                console.error('Error inicializando auth:', error);
+                this.isInitialized = false;
                 throw error;
             }
-            
-            if (session) {
-                this.currentUser = session.user;
-                console.log('✅ Usuario autenticado:', this.currentUser.email);
-            }
-            
-            this.isInitialized = true;
-            
-            // Escuchar cambios de autenticación
-            supabase.auth.onAuthStateChange((event, session) => {
-                console.log('Auth state changed:', event);
-                
-                if (event === 'SIGNED_IN' && session) {
-                    this.currentUser = session.user;
-                    this.notifyAuthStateChange('SIGNED_IN', session.user);
-                    Utils.showSuccess('✅ Sesión iniciada correctamente');
-                } else if (event === 'SIGNED_OUT') {
-                    this.currentUser = null;
-                    this.notifyAuthStateChange('SIGNED_OUT', null);
-                    Utils.showInfo('👋 Sesión cerrada');
-                } else if (event === 'TOKEN_REFRESHED') {
-                    this.notifyAuthStateChange('TOKEN_REFRESHED', this.currentUser);
-                } else if (event === 'USER_UPDATED') {
-                    this.currentUser = session?.user || this.currentUser;
-                    this.notifyAuthStateChange('USER_UPDATED', this.currentUser);
-                }
-            });
-            
-        } catch (error) {
-            console.error('Error inicializando auth:', error);
-            throw error;
-        }
+        })();
+        
+        return this.initializationPromise;
     }
     
     async signIn(email, password) {
@@ -247,8 +261,12 @@ let authManagerInstance = null;
 export async function getAuthManager() {
     if (!authManagerInstance) {
         authManagerInstance = new AuthManager();
+    }
+    
+    if (!authManagerInstance.isInitialized) {
         await authManagerInstance.initialize();
     }
+    
     return authManagerInstance;
 }
 
@@ -279,11 +297,17 @@ export const AuthManagerFunctions = {
         return manager.updatePassword(newPassword);
     },
     
-    getCurrentUser() {
+    async getCurrentUser() {
+        if (!authManagerInstance) {
+            await getAuthManager();
+        }
         return authManagerInstance ? authManagerInstance.getCurrentUser() : null;
     },
     
-    isAuthenticated() {
+    async isAuthenticated() {
+        if (!authManagerInstance) {
+            await getAuthManager();
+        }
         return authManagerInstance ? authManagerInstance.isAuthenticated() : false;
     },
     
@@ -307,7 +331,7 @@ export const AuthManagerFunctions = {
 // Hacer disponible globalmente
 window.AuthManager = AuthManagerFunctions;
 
-// Inicializar automáticamente
+// Inicializar automáticamente pero de forma no bloqueante
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         await getAuthManager();
