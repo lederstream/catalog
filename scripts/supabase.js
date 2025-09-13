@@ -1,6 +1,8 @@
 // scripts/supabase.js
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+import { Utils } from './core/utils.js';
 
+// Configuración de Supabase
 const SUPABASE_URL = 'https://fwmpcglrwgfougbgxvnt.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ3bXBjZ2xyd2dmb3VnYmd4dm50Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTU1NzI2MzQsImV4cCI6MjA3MTE0ODYzNH0.gbW0YSUmBxGyI0XmSckKvOszNME3b4RIt5HLZa4Amjc';
 
@@ -13,6 +15,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   global: {
     headers: {
       'X-Application-Name': 'catalog-app',
+      'X-Client-Type': 'browser'
     },
   },
 });
@@ -22,20 +25,19 @@ const cache = {
   categories: null,
   products: null,
   lastUpdated: null,
-  CACHE_DURATION: 5 * 60 * 1000, // 5 minutos
+  CACHE_DURATION: 2 * 60 * 1000, // 2 minutos
 };
 
 // Utilidad para manejar errores
 const handleError = (error, context) => {
   console.error(`Error en ${context}:`, error);
   
-  // Puedes agregar aquí notificaciones a un servicio de monitoreo
-  // o mostrar notificaciones al usuario en entornos de desarrollo
-  if (process.env.NODE_ENV === 'development') {
-    console.warn(`Error details for ${context}:`, error.message);
+  // Mostrar notificación al usuario en entornos de desarrollo
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    Utils.showError(`Error en ${context}: ${error.message}`);
   }
   
-  throw new Error(`Error en ${context}: ${error.message}`);
+  throw error;
 };
 
 // Utilidad para verificar si la caché es válida
