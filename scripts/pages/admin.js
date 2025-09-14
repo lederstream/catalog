@@ -405,7 +405,7 @@ class AdminPage {
                 <div class="flex flex-col lg:flex-row">
                     <!-- Imagen -->
                     <div class="lg:w-1/4 h-48 lg:h-auto bg-gray-100 overflow-hidden relative">
-                        <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Sin+imagen'}" 
+                        <img src="${getSafeImageUrl(product.photo_url)}"
                              alt="${product.name}" 
                              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                              loading="lazy"
@@ -925,6 +925,21 @@ class AdminPage {
 
     async deleteProduct(productId, productName) {
         showDeleteConfirm(productId, productName);
+    }
+}
+
+function getSafeImageUrl(photoUrl) {
+    const placeholder = 'https://via.placeholder.com/300x200.png?text=Sin+imagen';
+    if (!photoUrl) return placeholder;
+    
+    let cleanedUrl = photoUrl.toString().trim();
+    cleanedUrl = cleanedUrl.replace(/%7B/g, '').replace(/%7D/g, '');
+    
+    try {
+        new URL(cleanedUrl);
+        return cleanedUrl;
+    } catch (error) {
+        return placeholder;
     }
 }
 
