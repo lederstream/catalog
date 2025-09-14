@@ -2,7 +2,7 @@
 import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class ProductManager {
+export class productManager {
     constructor() {
         this.products = [];
         this.currentPage = 1;
