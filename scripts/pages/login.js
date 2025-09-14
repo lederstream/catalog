@@ -1,196 +1,169 @@
 // scripts/pages/login.js
-import { Utils } from '../core/utils.js';
-import { AuthManagerFunctions } from '../core/auth.js';
+import { AuthManager } from '../core/auth.js'
+import { Utils } from '../core/utils.js'
 
 class LoginPage {
     constructor() {
-        this.isProcessing = false;
+        this.init()
     }
 
-    async init() {
-        try {
-            // Verificar si ya está autenticado
-            const isAuthenticated = await AuthManagerFunctions.isAuthenticated();
-            if (isAuthenticated) {
-                window.location.href = 'admin.html';
-                return;
-            }
-
-            this.setupEventListeners();
-            this.restoreFormData();
-            console.log('✅ LoginPage inicializada correctamente');
-        } catch (error) {
-            console.error('Error inicializando LoginPage:', error);
+    init() {
+        // Si ya está autenticado, redirigir al panel de administración
+        if (AuthManager.isAuthenticated()) {
+            window.location.href = 'admin.html'
+            return
         }
+        
+        this.setupEventListeners()
     }
 
     setupEventListeners() {
-        const loginForm = document.getElementById('loginForm');
-        const resetForm = document.getElementById('resetForm');
-        const togglePassword = document.getElementById('togglePassword');
-        const showReset = document.getElementById('showReset');
-        const showLoginFromReset = document.getElementById('showLoginFromReset');
-
-        // Toggle de visibilidad de contraseña
-        if (togglePassword) {
-            togglePassword.addEventListener('click', () => {
-                const passwordInput = document.getElementById('password');
-                if (passwordInput.type === 'password') {
-                    passwordInput.type = 'text';
-                    togglePassword.innerHTML = '<i class="fas fa-eye-slash"></i>';
-                } else {
-                    passwordInput.type = 'password';
-                    togglePassword.innerHTML = '<i class="fas fa-eye"></i>';
-                }
-            });
+        // Formulario de login
+        const loginForm = document.getElementById('loginForm')
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e))
         }
-
-        // Cambiar entre formularios
+        
+        // Formulario de restablecimiento
+        const resetForm = document.getElementById('resetForm')
+        if (resetForm) {
+            resetForm.addEventListener('submit', (e) => this.handleResetPassword(e))
+        }
+        
+        // Alternar entre formularios
+        const showReset = document.getElementById('showReset')
+        const showLoginFromReset = document.getElementById('showLoginFromReset')
+        
         if (showReset) {
             showReset.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.toggleForms(true);
-            });
+                e.preventDefault()
+                this.toggleForms()
+            })
         }
-
+        
         if (showLoginFromReset) {
             showLoginFromReset.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.toggleForms(false);
-            });
+                e.preventDefault()
+                this.toggleForms()
+            })
         }
-
-        // Envío del formulario de login
-        if (loginForm) {
-            loginForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handleLogin();
-            });
+        
+        // Mostrar/ocultar contraseña
+        const togglePassword = document.getElementById('togglePassword')
+        if (togglePassword) {
+            togglePassword.addEventListener('click', () => {
+                this.togglePasswordVisibility()
+            })
         }
-
-        // Envío del formulario de reset
-        if (resetForm) {
-            resetForm.addEventListener('submit', (e) => {
-                e.preventDefault();
-                this.handlePasswordReset();
-            });
-        }
-
-        // Escuchar cambios de autenticación
-        AuthManagerFunctions.addAuthStateListener((event, user) => {
-            if (event === 'SIGNED_IN') {
-                window.location.href = 'admin.html';
-            }
-        });
     }
 
-    toggleForms(showResetForm) {
-        const loginForm = document.getElementById('loginForm');
-        const resetForm = document.getElementById('resetForm');
-
-        if (showResetForm) {
-            loginForm.classList.add('hidden');
-            resetForm.classList.remove('hidden');
+    toggleForms() {
+        const loginForm = document.getElementById('loginForm')
+        const resetForm = document.getElementById('resetForm')
+        
+        if (loginForm.classList.contains('hidden')) {
+            loginForm.classList.remove('hidden')
+            resetForm.classList.add('hidden')
         } else {
-            resetForm.classList.add('hidden');
-            loginForm.classList.remove('hidden');
+            loginForm.classList.add('hidden')
+            resetForm.classList.remove('hidden')
         }
     }
 
-    async handleLogin() {
-        if (this.isProcessing) return;
+    togglePasswordVisibility() {
+        const passwordInput = document.getElementById('password')
+        const toggleIcon = document.getElementById('togglePassword').querySelector('i')
         
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const loginBtn = document.getElementById('loginBtn');
-        
-        const email = emailInput.value.trim();
-        const password = passwordInput.value;
-
-        // Validaciones
-        if (!email || !password) {
-            Utils.showError('Por favor completa todos los campos');
-            return;
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text'
+            toggleIcon.classList.remove('fa-eye')
+            toggleIcon.classList.add('fa-eye-slash')
+        } else {
+            passwordInput.type = 'password'
+            toggleIcon.classList.remove('fa-eye-slash')
+            toggleIcon.classList.add('fa-eye')
         }
+    }
 
+    async handleLogin(e) {
+        e.preventDefault()
+        
+        const email = document.getElementById('email').value
+        const password = document.getElementById('password').value
+        const loginBtn = document.getElementById('loginBtn')
+        
+        // Validar email
         if (!Utils.validateEmail(email)) {
-            Utils.showError('Por favor ingresa un email válido');
-            return;
+            Utils.showNotification('Por favor, ingresa un email válido', 'error')
+            return
         }
-
-        this.isProcessing = true;
-        loginBtn.disabled = true;
-        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Iniciando sesión...';
-
+        
+        // Cambiar texto del botón
+        const originalText = loginBtn.innerHTML
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Iniciando sesión...'
+        loginBtn.disabled = true
+        
         try {
-            const success = await AuthManagerFunctions.signIn(email, password);
+            const { success, error } = await AuthManager.login(email, password)
             
             if (success) {
-                // Guardar email para futuros inicios de sesión
-                localStorage.setItem('lastAuthEmail', email);
-                Utils.showSuccess('Inicio de sesión exitoso');
-                // La redirección se manejará en el auth state listener
+                Utils.showNotification('Inicio de sesión exitoso', 'success')
+                // Redirigir después de un breve delay
+                setTimeout(() => {
+                    window.location.href = 'admin.html'
+                }, 1000)
             } else {
-                Utils.showError('Error al iniciar sesión');
+                Utils.showNotification(error || 'Error al iniciar sesión', 'error')
             }
         } catch (error) {
-            console.error('Login error:', error);
-            Utils.showError('Error al iniciar sesión');
+            Utils.showNotification('Error al iniciar sesión: ' + error.message, 'error')
         } finally {
-            this.isProcessing = false;
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = 'Iniciar Sesión';
+            // Restaurar texto del botón
+            loginBtn.innerHTML = originalText
+            loginBtn.disabled = false
         }
     }
 
-    async handlePasswordReset() {
-        const resetEmailInput = document.getElementById('resetEmail');
-        const resetBtn = document.getElementById('resetBtn');
+    async handleResetPassword(e) {
+        e.preventDefault()
         
-        const email = resetEmailInput.value.trim();
-
-        if (!email) {
-            Utils.showError('Por favor ingresa tu email');
-            return;
-        }
-
+        const email = document.getElementById('resetEmail').value
+        const resetBtn = document.getElementById('resetBtn')
+        
+        // Validar email
         if (!Utils.validateEmail(email)) {
-            Utils.showError('Por favor ingresa un email válido');
-            return;
+            Utils.showNotification('Por favor, ingresa un email válido', 'error')
+            return
         }
-
-        resetBtn.disabled = true;
-        resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Enviando...';
-
+        
+        // Cambiar texto del botón
+        const originalText = resetBtn.innerHTML
+        resetBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...'
+        resetBtn.disabled = true
+        
         try {
-            // Simular envío de email de recuperación (implementar con Supabase si es necesario)
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            const { success, error } = await AuthManager.resetPassword(email)
             
-            Utils.showSuccess(`Se ha enviado un enlace de recuperación a ${email}`);
-            this.toggleForms(false);
-            
-        } catch (error) {
-            console.error('Password reset error:', error);
-            Utils.showError('Error al enviar el email de recuperación');
-        } finally {
-            resetBtn.disabled = false;
-            resetBtn.innerHTML = 'Enviar Enlace de Recuperación';
-        }
-    }
-
-    restoreFormData() {
-        const lastEmail = localStorage.getItem('lastAuthEmail');
-        if (lastEmail) {
-            const emailInput = document.getElementById('email');
-            if (emailInput) {
-                emailInput.value = lastEmail;
+            if (success) {
+                Utils.showNotification('Se ha enviado un enlace de recuperación a tu email', 'success')
+                // Volver al formulario de login después de un breve delay
+                setTimeout(() => {
+                    this.toggleForms()
+                }, 2000)
+            } else {
+                Utils.showNotification(error || 'Error al enviar el email de recuperación', 'error')
             }
+        } catch (error) {
+            Utils.showNotification('Error al enviar el email de recuperación: ' + error.message, 'error')
+        } finally {
+            // Restaurar texto del botón
+            resetBtn.innerHTML = originalText
+            resetBtn.disabled = false
         }
     }
 }
 
-// Inicializar la página cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', async () => {
-    window.loginPage = new LoginPage();
-    await window.loginPage.init();
-});
+// Inicializar la página de login cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    new LoginPage()
+})
