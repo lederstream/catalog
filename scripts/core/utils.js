@@ -1,11 +1,18 @@
 // scripts/core/utils.js
-// Utilidades generales para la aplicación
 export class Utils {
     static formatCurrency(amount, currency = 'PEN') {
+        // Convertir a número si es una cadena
+        const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+        
+        // Verificar si es un número válido
+        if (isNaN(numericAmount)) {
+            return 'Precio no disponible';
+        }
+        
         return new Intl.NumberFormat('es-PE', {
             style: 'currency',
             currency: currency
-        }).format(amount);
+        }).format(numericAmount);
     }
 
     static formatDate(dateString) {
