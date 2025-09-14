@@ -1,166 +1,279 @@
 // scripts/components/modals.js
-import { Utils } from '../core/utils.js';
-import { supabase } from '../supabase.js';
-import { getProductManager } from '../managers/product-manager.js';
-import { getCategoryManager } from '../managers/category-manager.js';
+import { Utils } from '../core/utils.js'
+import { supabase } from '../supabase.js'
+import { productManager } from '../managers/product-manager.js'
+import { categoryManager } from '../managers/category-manager.js'
 
-// Inicializar modales
-export function initModals() {
-    setupModalEventListeners();
-    setupImageSearch();
-}
+export class ModalManager {
+    constructor() {
+        this.currentModal = null
+        this.init()
+    }
 
-// Configurar event listeners para modales
-function setupModalEventListeners() {
-    // Cerrar modales al hacer clic en el botón de cerrar o fuera del modal
-    document.querySelectorAll('.close-modal, .cancel-delete, #cancelProductBtn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-            e.preventDefault();
-            const modal = btn.closest('.modal-container') || 
-                         btn.closest('[id$="Modal"]') || 
-                         document.getElementById('productModal') ||
-                         document.getElementById('deleteConfirmModal') ||
-                         document.getElementById('imageSearchModal') ||
-                         document.getElementById('categoriesModal') ||
-                         document.getElementById('statsModal');
+    init() {
+        this.setupEventListeners()
+        this.setupImageSearch()
+    }
+
+    setupEventListeners() {
+        // Cerrar modales
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('close-modal') || 
+                e.target.classList.contains('cancel-delete') || 
+                e.target.id === 'cancelProductBtn') {
+                this.hideCurrentModal()
+            }
             
-            if (modal) {
-                modal.classList.add('hidden');
+            if (e.target.classList.contains('modal-container')) {
+                this.hideCurrentModal()
             }
-        });
-    });
-    
-    // Cerrar modales al hacer clic fuera del contenido
-    document.querySelectorAll('.modal-container').forEach(modal => {
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.add('hidden');
-            }
-        });
-    });
-    
-    // Prevenir que el clic dentro del contenido cierre el modal
-    document.querySelectorAll('.modal-container > div').forEach(content => {
-        content.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-    });
-}
+        })
 
-// Configurar búsqueda de imágenes
-function setupImageSearch() {
-    const searchBtn = document.getElementById('performSearch');
-    const searchInput = document.getElementById('imageSearchQuery');
-    
-    if (searchBtn && searchInput) {
-        searchBtn.addEventListener('click', performImageSearch);
-        searchInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                performImageSearch();
+        // Tecla Escape para cerrar modales
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.currentModal) {
+                this.hideCurrentModal()
             }
-        });
+        })
     }
-}
 
-// Realizar búsqueda de imágenes
-// Realizar búsqueda de imágenes
-async function performImageSearch() {
-    const query = document.getElementById('imageSearchQuery').value.trim();
-    const resultsContainer = document.getElementById('imageSearchResults');
-    
-    if (!query) {
-        Utils.showError('Por favor ingresa un término de búsqueda');
-        return;
+    showModal(modalId, options = {}) {
+        this.hideCurrentModal()
+        
+        const modal = document.getElementById(modalId)
+        if (!modal) return false
+
+        modal.classList.remove('hidden')
+        modal.classList.add('flex')
+        this.currentModal = modal
+
+        // Animación de entrada
+        setTimeout(() => {
+            modal.classList.add('opacity-100', 'scale-100')
+        }, 10)
+
+        // Focus en el primer input si existe
+        if (options.focusFirstInput !== false) {
+            const firstInput = modal.querySelector('input, select, textarea')
+            if (firstInput) firstInput.focus()
+        }
+
+        return true
     }
-    
-    try {
-        resultsContainer.innerHTML = `
+
+    hideCurrentModal() {
+        if (this.currentModal) {
+            this.currentModal.classList.remove('opacity-100', 'scale-100')
+            setTimeout(() => {
+                this.currentModal.classList.add('hidden')
+                this.currentModal.classList.remove('flex')
+            }, 300)
+            this.currentModal = null
+        }
+    }
+
+    setupImageSearch() {
+        const searchBtn = document.getElementById('performSearch')
+        const searchInput = document.getElementById('imageSearchQuery')
+        
+        if (searchBtn && searchInput) {
+            searchBtn.addEventListener('click', () => this.performImageSearch())
+            searchInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.performImageSearch()
+            })
+        }
+    }
+
+    async performImageSearch() {
+        const query = document.getElementById('imageSearchQuery').value.trim()
+        const resultsContainer = document.getElementById('imageSearchResults')
+        
+        if (!query) {
+            Utils.showError('Por favor ingresa un término de búsqueda')
+            return
+        }
+        
+        try {
+            resultsContainer.innerHTML = this.getLoadingTemplate('Buscando imágenes...')
+            
+            // Simular búsqueda (reemplazar con API real)
+            await new Promise(resolve => setTimeout(resolve, 1000))
+            
+            resultsContainer.innerHTML = this.getImageSearchInfoTemplate()
+            
+        } catch (error) {
+            console.error('Error buscando imágenes:', error)
+            resultsContainer.innerHTML = this.getErrorTemplate('Error al buscar imágenes')
+        }
+    }
+
+    getLoadingTemplate(message) {
+        return `
             <div class="col-span-full text-center py-8">
                 <div class="loading-spinner inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p class="mt-2 text-gray-600">Buscando imágenes...</p>
+                <p class="mt-2 text-gray-600">${message}</p>
             </div>
-        `;
-        
-        // SIMULAR RESULTADOS (reemplazar con tu lógica real)
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Mostrar mensaje informativo en lugar de mock data
-        resultsContainer.innerHTML = `
+        `
+    }
+
+    getImageSearchInfoTemplate() {
+        return `
             <div class="col-span-full text-center py-8">
-                <i class="fas fa-info-circle text-2xl text-blue-400 mb-2"></i>
-                <p class="text-gray-600">Sistema de búsqueda de imágenes</p>
-                <p class="text-sm text-gray-500 mt-1">Ingresa la URL completa de la imagen manualmente</p>
-                <div class="mt-4 p-4 bg-blue-50 rounded-lg">
-                    <p class="text-sm text-blue-700">
-                        Ejemplo: https://ejemplo.com/imagen.jpg
-                    </p>
+                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-image text-2xl text-blue-500"></i>
+                </div>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Sistema de búsqueda de imágenes</h3>
+                <p class="text-gray-600 mb-4">Ingresa la URL completa de la imagen manualmente</p>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
+                    <p class="text-sm text-blue-800 font-medium mb-1">Formato recomendado:</p>
+                    <code class="text-xs bg-white p-2 rounded border block">https://ejemplo.com/ruta/imagen.jpg</code>
+                    <p class="text-xs text-blue-600 mt-2">Asegúrate de que la URL sea accesible públicamente</p>
                 </div>
             </div>
-        `;
-        
-    } catch (error) {
-        console.error('Error buscando imágenes:', error);
-        resultsContainer.innerHTML = `
-            <div class="col-span-full text-center py-8">
-                <i class="fas fa-exclamation-triangle text-2xl text-yellow-400 mb-2"></i>
-                <p class="text-gray-600">Error al buscar imágenes</p>
-            </div>
-        `;
+        `
     }
-}
 
-// Mostrar resultados de búsqueda de imágenes
-function displayImageResults(images) {
-    const resultsContainer = document.getElementById('imageSearchResults');
-    
-    if (!images || images.length === 0) {
-        resultsContainer.innerHTML = `
+    getErrorTemplate(message) {
+        return `
             <div class="col-span-full text-center py-8">
-                <i class="fas fa-search text-2xl text-gray-300 mb-2"></i>
-                <p class="text-gray-600">No se encontraron imágenes</p>
-            </div>
-        `;
-        return;
-    }
-    
-    resultsContainer.innerHTML = images.map(image => `
-        <div class="group relative cursor-pointer" data-url="${image.url}">
-            <img src="${image.url}" alt="${image.title}" 
-                 class="w-full h-32 object-cover rounded-lg transition-transform duration-300 group-hover:scale-105">
-            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-opacity duration-300 rounded-lg flex items-center justify-center">
-                <button class="select-image-btn opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 bg-white text-blue-600 font-semibold py-1 px-3 rounded text-sm">
-                    Seleccionar
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
+                </div>
+                <p class="text-gray-600">${message}</p>
+                <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                    Reintentar
                 </button>
             </div>
-        </div>
-    `).join('');
-    
-    // Añadir event listeners para seleccionar imágenes
-    resultsContainer.querySelectorAll('.select-image-btn, .group').forEach(element => {
-        element.addEventListener('click', (e) => {
-            const imageUrl = e.currentTarget.closest('[data-url]').dataset.url;
-            document.getElementById('photo_url').value = imageUrl;
-            updateImagePreview(imageUrl);
-            document.getElementById('imageSearchModal').classList.add('hidden');
-        });
-    });
-}
-
-// Actualizar vista previa de imagen
-function updateImagePreview(imageUrl) {
-    const previewContainer = document.getElementById('imagePreview');
-    if (!previewContainer) return;
-    
-    if (imageUrl) {
-        previewContainer.innerHTML = `
-            <img src="${imageUrl}" alt="Vista previa" 
-                 class="w-full h-full object-contain" 
-                 onerror="this.src='https://via.placeholder.com/300x200?text=Error+cargando+imagen'">
-        `;
-    } else {
-        previewContainer.innerHTML = `<p class="text-gray-500">La imagen aparecerá aquí</p>`;
+        `
     }
 }
+
+export class ProductModal {
+    constructor(modalManager) {
+        this.modalManager = modalManager
+        this.setupEventListeners()
+    }
+
+    setupEventListeners() {
+        document.addEventListener('DOMContentLoaded', () => {
+            // Añadir plan
+            const addPlanBtn = document.getElementById('addPlanBtn')
+            if (addPlanBtn) {
+                addPlanBtn.addEventListener('click', () => this.addPlanRow())
+            }
+
+            // Buscar imagen
+            const searchImageBtn = document.getElementById('searchImageBtn')
+            if (searchImageBtn) {
+                searchImageBtn.addEventListener('click', () => {
+                    this.modalManager.showModal('imageSearchModal')
+                })
+            }
+
+            // Vista previa de imagen
+            const photoUrlInput = document.getElementById('photo_url')
+            if (photoUrlInput) {
+                photoUrlInput.addEventListener('input', Utils.debounce((e) => {
+                    this.updateImagePreview(e.target.value)
+                }, 500))
+            }
+
+            // Envío del formulario
+            const productForm = document.getElementById('productForm')
+            if (productForm) {
+                productForm.addEventListener('submit', (e) => this.handleProductSubmit(e))
+            }
+
+            // Añadir categoría
+            const addCategoryBtn = document.getElementById('addCategoryBtn')
+            if (addCategoryBtn) {
+                addCategoryBtn.addEventListener('click', () => this.handleAddCategory())
+            }
+        })
+    }
+
+    async open(product = null) {
+        this.currentProduct = product
+        
+        if (!this.modalManager.showModal('productModal')) return
+
+        await this.initializeForm(product)
+    }
+
+    async initializeForm(product) {
+        const title = document.getElementById('productModalTitle')
+        const submitText = document.getElementById('submitProductText')
+        const form = document.getElementById('productForm')
+
+        // Limpiar formulario
+        form.reset()
+        document.getElementById('productId').value = ''
+        this.updateImagePreview('')
+
+        // Configurar para edición o creación
+        if (product) {
+            title.textContent = 'Editar Producto'
+            submitText.textContent = 'Actualizar Producto'
+            
+            // Llenar formulario
+            document.getElementById('productId').value = product.id
+            document.getElementById('name').value = product.name || ''
+            document.getElementById('category').value = product.category_id || ''
+            document.getElementById('description').value = product.description || ''
+            document.getElementById('photo_url').value = product.photo_url || ''
+            
+            // Vista previa
+            if (product.photo_url) {
+                this.updateImagePreview(product.photo_url)
+            }
+            
+            // Cargar planes
+            this.loadProductPlans(product)
+        } else {
+            title.textContent = 'Agregar Nuevo Producto'
+            submitText.textContent = 'Agregar Producto'
+            
+            // Limpiar planes
+            const plansContainer = document.getElementById('plansContainer')
+            if (plansContainer) {
+                plansContainer.innerHTML = ''
+                this.addPlanRow()
+            }
+        }
+        
+        // Cargar categorías
+        await this.loadCategories()
+    }
+
+    updateImagePreview(imageUrl) {
+        const previewContainer = document.getElementById('imagePreview')
+        if (!previewContainer) return
+        
+        if (imageUrl) {
+            previewContainer.innerHTML = `
+                <div class="relative w-full h-full">
+                    <img src="${imageUrl}" alt="Vista previa" 
+                         class="w-full h-full object-cover rounded-lg"
+                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+cargando+imagen'">
+                    <button class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
+                            onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>La imagen aparecerá aquí</p>';">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `
+        } else {
+            previewContainer.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-image text-3xl mb-2"></i>
+                    <p>La imagen aparecerá aquí</p>
+                </div>
+            `
+        }
+    }
+
+}
+export const modalManager = new ModalManager()
+export const productModal = new ProductModal(modalManager)
 
 // Abrir modal de producto
 export function openProductModal(product = null) {
