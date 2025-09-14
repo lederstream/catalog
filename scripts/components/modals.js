@@ -1,5 +1,6 @@
 // scripts/components/modals.js
 import { Utils } from '../core/utils.js';
+import { supabase } from '../supabase.js';
 import { getProductManager } from '../managers/product-manager.js';
 import { getCategoryManager } from '../managers/category-manager.js';
 
