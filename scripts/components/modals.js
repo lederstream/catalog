@@ -79,27 +79,49 @@ async function performImageSearch() {
             </div>
         `;
         
-        // En una implementación real, aquí harías una llamada a una API de imágenes
-        // Por ahora, simulamos resultados con imágenes de placeholder
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // BUSCAR IMÁGENES EN SUPABASE STORAGE
+        const { data: files, error } = await supabase
+            .storage
+            .from('products') // nombre de tu bucket
+            .list('', {
+                search: query,
+                limit: 20,
+                offset: 0
+            });
         
-        const mockResults = [
-            { url: `https://via.placeholder.com/300x200/3B82F6/FFFFFF?text=${encodeURIComponent(query)}-1`, title: `${query} 1` },
-            { url: `https://via.placeholder.com/300x200/EF4444/FFFFFF?text=${encodeURIComponent(query)}-2`, title: `${query} 2` },
-            { url: `https://via.placeholder.com/300x200/10B981/FFFFFF?text=${encodeURIComponent(query)}-3`, title: `${query} 3` },
-            { url: `https://via.placeholder.com/300x200/F59E0B/FFFFFF?text=${encodeURIComponent(query)}-4`, title: `${query} 4` },
-            { url: `https://via.placeholder.com/300x200/8B5CF6/FFFFFF?text=${encodeURIComponent(query)}-5`, title: `${query} 5` },
-            { url: `https://via.placeholder.com/300x200/EC4899/FFFFFF?text=${encodeURIComponent(query)}-6`, title: `${query} 6` }
-        ];
+        if (error) {
+            throw error;
+        }
         
-        displayImageResults(mockResults);
+        if (!files || files.length === 0) {
+            displayImageResults([]);
+            return;
+        }
+        
+        // Obtener URLs públicas de las imágenes
+        const imageResults = await Promise.all(
+            files.map(async (file) => {
+                const { data: { publicUrl } } = supabase
+                    .storage
+                    .from('products')
+                    .getPublicUrl(file.name);
+                
+                return {
+                    url: publicUrl,
+                    title: file.name,
+                    filename: file.name
+                };
+            })
+        );
+        
+        displayImageResults(imageResults);
         
     } catch (error) {
         console.error('Error buscando imágenes:', error);
         resultsContainer.innerHTML = `
             <div class="col-span-full text-center py-8">
                 <i class="fas fa-exclamation-triangle text-2xl text-yellow-400 mb-2"></i>
-                <p class="text-gray-600">Error al buscar imágenes</p>
+                <p class="text-gray-600">Error al buscar imágenes: ${error.message}</p>
             </div>
         `;
     }
