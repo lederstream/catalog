@@ -2,7 +2,7 @@
 import { Utils } from '../core/utils.js';
 import { getProductManager } from '../managers/product-manager.js';
 import { getCategoryManager } from '../managers/category-manager.js';
-import { createProductCard, addProductCardEventListeners, animateProductsEntry } from '../components/product-card.js';
+import { createProductCard, addProductCardEventListeners } from '../components/product-card.js';
 
 class IndexPage {
     constructor() {
@@ -12,11 +12,6 @@ class IndexPage {
             categories: [],
             currentFilter: { category: 'all', search: '' }
         };
-        
-        // Bind methods for event listeners
-        this.handleCategoryFilterChange = this.handleCategoryFilterChange.bind(this);
-        this.handleSearchInput = this.handleSearchInput.bind(this);
-        this.debouncedSearch = Utils.debounce(() => this.renderProducts(), 300);
     }
 
     async initialize() {
@@ -35,7 +30,6 @@ class IndexPage {
             this.setupEventListeners();
             
             this.isInitialized = true;
-            console.log('✅ Página de inicio inicializada');
             
         } catch (error) {
             console.error('❌ Error inicializando página de inicio:', error);
@@ -45,7 +39,6 @@ class IndexPage {
     }
 
     async initializeManagers() {
-        // Asegurar que los managers estén disponibles globalmente
         window.categoryManager = await getCategoryManager();
         window.productManager = await getProductManager();
     }
@@ -62,11 +55,8 @@ class IndexPage {
             this.state.categories = categories;
             this.state.products = products;
             
-            // Actualizar UI
             this.updateCategoryFilter();
             this.renderProducts();
-            
-            Utils.showSuccess('✅ Catálogo cargado correctamente');
             
         } catch (error) {
             console.error('Error cargando datos:', error);
@@ -105,7 +95,6 @@ class IndexPage {
         ).join('');
         
         addProductCardEventListeners();
-        animateProductsEntry();
     }
 
     filterProducts() {
@@ -125,52 +114,25 @@ class IndexPage {
             const searchTerm = searchInput.value.toLowerCase();
             filtered = filtered.filter(product => 
                 product.name.toLowerCase().includes(searchTerm) ||
-                (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-                (product.categories?.name && product.categories.name.toLowerCase().includes(searchTerm))
+                (product.description && product.description.toLowerCase().includes(searchTerm))
             );
         }
         
         return filtered;
     }
 
-    handleCategoryFilterChange() {
-        this.renderProducts();
-    }
-
-    handleSearchInput() {
-        this.debouncedSearch();
-    }
-
     setupEventListeners() {
         // Filtro de categoría
         const categoryFilter = document.getElementById('categoryFilter');
         if (categoryFilter) {
-            categoryFilter.removeEventListener('change', this.handleCategoryFilterChange);
-            categoryFilter.addEventListener('change', this.handleCategoryFilterChange);
+            categoryFilter.addEventListener('change', () => this.renderProducts());
         }
         
         // Búsqueda
         const searchInput = document.getElementById('searchInput');
         if (searchInput) {
-            searchInput.removeEventListener('input', this.handleSearchInput);
-            searchInput.addEventListener('input', this.handleSearchInput);
+            searchInput.addEventListener('input', Utils.debounce(() => this.renderProducts(), 300));
         }
-        
-        // Smooth scrolling para enlaces internos
-        document.addEventListener('click', (e) => {
-            if (e.target.matches('a[href^="#"]')) {
-                e.preventDefault();
-                const targetId = e.target.getAttribute('href').substring(1);
-                const targetElement = document.getElementById(targetId);
-                
-                if (targetElement) {
-                    targetElement.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            }
-        });
     }
 
     showLoadingState() {
@@ -192,10 +154,8 @@ class IndexPage {
                 <div class="text-center py-12 col-span-full">
                     <i class="fas fa-exclamation-triangle text-4xl text-yellow-400 mb-4"></i>
                     <p class="text-gray-600">Error al cargar los productos</p>
-                    <p class="text-sm text-gray-500 mt-1">Por favor, recarga la página</p>
                     <button class="mt-4 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" 
                             onclick="window.location.reload()">
-                        <i class="fas fa-refresh mr-2"></i>
                         Recargar página
                     </button>
                 </div>
@@ -205,13 +165,11 @@ class IndexPage {
 
     getNoProductsHTML() {
         return `
-            <div class="col-span-full text-center py-16 fade-in-up">
+            <div class="col-span-full text-center py-16">
                 <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
                 <h3 class="text-xl font-semibold text-gray-600 mb-2">No se encontraron productos</h3>
-                <p class="text-gray-500 mb-4">Intenta con otros términos de búsqueda o categorías</p>
                 <button class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors" 
                         onclick="window.resetFilters()">
-                    <i class="fas fa-refresh mr-2"></i>
                     Limpiar filtros
                 </button>
             </div>
@@ -230,7 +188,7 @@ window.resetFilters = function() {
     if (window.indexPage) window.indexPage.renderProducts();
 };
 
-// Inicializar la página cuando el DOM esté listo
+// Inicializar la página
 document.addEventListener('DOMContentLoaded', async () => {
     window.indexPage = new IndexPage();
     await window.indexPage.initialize();
