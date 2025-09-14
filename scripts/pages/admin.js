@@ -1,10 +1,10 @@
 // scripts/pages/admin.js
-import { Utils } from './core.utils.js';
-import { getCategoryManager } from './managers/category-manager.js';
-import { getProductManager } from './managers/product-manager.js';
-import { AuthManagerFunctions } from './coreAuth.js';
-import { setupAllEventListeners } from './event-listeners.js';
-import { initModals, openCategoriesModal, openStatsModal, showDeleteConfirm, openProductModal } from './components/modals.js';
+import { Utils } from '../core/utils.js';
+import { getCategoryManager } from '../managers/category-manager.js';
+import { getProductManager } from '../managers/product-manager.js';
+import { AuthManagerFunctions } from '../core/auth.js';
+import { setupAllEventListeners } from '../event-listeners.js';
+import { initModals, openCategoriesModal, openStatsModal, showDeleteConfirm, openProductModal } from '../components/modals.js';
 
 class AdminPage {
     constructor() {
@@ -20,6 +20,7 @@ class AdminPage {
         this.state = {
             products: [],
             categories: [],
+            filteredProducts: [],
             currentFilter: {
                 category: 'all',
                 search: '',
@@ -240,28 +241,353 @@ class AdminPage {
             );
         }
         
-        // ... resto de los filtros
+        // Filtrar por categoría
+        if (this.state.currentFilter.category !== 'all') {
+            filtered = filtered.filter(product => 
+                product.category_id == this.state.currentFilter.category
+            );
+        }
+        
+        // Filtrar por estado
+        if (this.state.currentFilter.status !== 'all') {
+            filtered = filtered.filter(product => 
+                product.status === this.state.currentFilter.status
+            );
+        }
+        
+        // Ordenar
+        switch (this.state.currentFilter.sort) {
+            case 'name':
+                filtered.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case 'recent':
+                filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+                break;
+            case 'oldest':
+                filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+                break;
+        }
+        
         this.state.filteredProducts = filtered;
     }
 
-    // Métodos restantes que necesitarás implementar:
-    showLoadingState(show, message) {}
-    setupEventListeners() {}
-    handleInitializationError(error) {}
-    renderCategoriesFilter() {}
-    renderProductsList() {}
-    renderStatsSummary() {}
-    renderPaginationControls() {}
-    updatePagination() {}
-    handlePageChange() {}
-    handleSearch() {}
-    handleFilterChange() {}
-    handleSortChange() {}
-    handlePageSizeChange() {}
-    handleRefresh() {}
-    handleLogout() {}
-    handleAuthenticationChange() {}
+    updatePagination() {
+        const totalItems = this.state.filteredProducts.length;
+        this.state.pagination.totalPages = Math.ceil(totalItems / this.state.pagination.itemsPerPage);
+        
+        // Ajustar página actual si es necesario
+        if (this.state.pagination.currentPage > this.state.pagination.totalPages) {
+            this.state.pagination.currentPage = 1;
+        }
+    }
+
+    showLoadingState(show, message = 'Cargando...') {
+        const loadingElement = document.getElementById('loadingOverlay');
+        if (!loadingElement) return;
+        
+        if (show) {
+            loadingElement.classList.remove('hidden');
+            if (message) {
+                const messageElement = loadingElement.querySelector('.loading-message');
+                if (messageElement) {
+                    messageElement.textContent = message;
+                }
+            }
+        } else {
+            loadingElement.classList.add('hidden');
+        }
+    }
+
+    setupEventListeners() {
+        // Configurar event listeners básicos
+        document.getElementById('logoutBtn').addEventListener('click', this.handleLogout);
+        document.getElementById('addProductBtn').addEventListener('click', () => openProductModal());
+        document.getElementById('manageCategoriesBtn').addEventListener('click', () => openCategoriesModal());
+        document.getElementById('viewStatsBtn').addEventListener('click', () => openStatsModal(this.state.stats));
+        
+        // Filtros
+        document.getElementById('searchProducts').addEventListener('input', this.handleSearch);
+        document.getElementById('filterCategory').addEventListener('change', this.handleFilterChange);
+        document.getElementById('sortProducts').addEventListener('change', this.handleSortChange);
+        
+        // Configurar listeners adicionales
+        setupAllEventListeners(this);
+    }
+
+    handleInitializationError(error) {
+        console.error("Error de inicialización:", error);
+        Utils.showError("Error al inicializar el panel de administración");
+        
+        // Redirigir al login si no está autenticado
+        if (error.message.includes("no autenticado")) {
+            setTimeout(() => {
+                window.location.href = 'login.html';
+            }, 2000);
+        }
+    }
+
+    renderCategoriesFilter() {
+        const categoryFilter = document.getElementById('filterCategory');
+        if (!categoryFilter) return;
+        
+        categoryFilter.innerHTML = '<option value="all">Todas las categorías</option>';
+        
+        this.state.categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categoryFilter.appendChild(option);
+        });
+        
+        // Establecer valor actual si existe
+        if (this.state.currentFilter.category) {
+            categoryFilter.value = this.state.currentFilter.category;
+        }
+    }
+
+    renderProductsList() {
+        const productsList = document.getElementById('adminProductsList');
+        if (!productsList) return;
+        
+        const startIndex = (this.state.pagination.currentPage - 1) * this.state.pagination.itemsPerPage;
+        const endIndex = startIndex + this.state.pagination.itemsPerPage;
+        const paginatedProducts = this.state.filteredProducts.slice(startIndex, endIndex);
+        
+        if (paginatedProducts.length === 0) {
+            productsList.innerHTML = `
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-search text-3xl mb-3"></i>
+                    <p>No se encontraron productos</p>
+                    <p class="text-sm mt-1">Intenta con otros filtros de búsqueda</p>
+                </div>
+            `;
+            return;
+        }
+        
+        productsList.innerHTML = paginatedProducts.map(product => `
+            <div class="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div class="flex items-start gap-4 flex-1">
+                    <img src="${product.photo_url || 'https://via.placeholder.com/80?text=Sin+imagen'}" 
+                         alt="${product.name}" 
+                         class="w-16 h-16 object-cover rounded-lg">
+                    <div class="flex-1">
+                        <h4 class="font-semibold text-gray-800">${product.name}</h4>
+                        <p class="text-sm text-gray-600 mt-1">${product.description || 'Sin descripción'}</p>
+                        <div class="flex flex-wrap gap-2 mt-2">
+                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${this.getCategoryName(product.category_id)}</span>
+                            <span class="${product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs px-2 py-1 rounded">${product.status === 'active' ? 'Activo' : 'Inactivo'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button class="edit-product px-3 py-2 bg-blue-500 text-white rounded-lg text-sm" data-id="${product.id}">
+                        <i class="fas fa-edit mr-1"></i> Editar
+                    </button>
+                    <button class="delete-product px-3 py-2 bg-red-500 text-white rounded-lg text-sm" data-id="${product.id}">
+                        <i class="fas fa-trash mr-1"></i> Eliminar
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Añadir event listeners a los botones
+        productsList.querySelectorAll('.edit-product').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const productId = btn.dataset.id;
+                const product = this.state.products.find(p => p.id == productId);
+                if (product) {
+                    openProductModal(product);
+                }
+            });
+        });
+        
+        productsList.querySelectorAll('.delete-product').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const productId = btn.dataset.id;
+                const product = this.state.products.find(p => p.id == productId);
+                if (product) {
+                    showDeleteConfirm(product);
+                }
+            });
+        });
+    }
+
+    getCategoryName(categoryId) {
+        const category = this.state.categories.find(c => c.id == categoryId);
+        return category ? category.name : 'Sin categoría';
+    }
+
+    renderStatsSummary() {
+        const statsContainer = document.getElementById('statsSummary');
+        if (!statsContainer) return;
+        
+        statsContainer.innerHTML = `
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                        <i class="fas fa-box text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total Productos</p>
+                        <h3 class="text-2xl font-bold">${this.state.stats.totalProducts}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
+                        <i class="fas fa-tags text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Total Categorías</p>
+                        <h3 class="text-2xl font-bold">${this.state.stats.totalCategories}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
+                        <i class="fas fa-clock text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Recientes (7 días)</p>
+                        <h3 class="text-2xl font-bold">${this.state.stats.recentProducts}</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="flex items-center">
+                    <div class="p-3 rounded-full bg-orange-100 text-orange-600 mr-4">
+                        <i class="fas fa-check-circle text-xl"></i>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-600">Productos Activos</p>
+                        <h3 class="text-2xl font-bold">${this.state.stats.activeProducts}</h3>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderPaginationControls() {
+        const paginationContainer = document.getElementById('productsPagination');
+        const productsCount = document.getElementById('productsCount');
+        
+        if (productsCount) {
+            productsCount.textContent = `${this.state.filteredProducts.length} productos`;
+        }
+        
+        if (!paginationContainer) return;
+        
+        if (this.state.pagination.totalPages <= 1) {
+            paginationContainer.classList.add('hidden');
+            return;
+        }
+        
+        paginationContainer.classList.remove('hidden');
+        
+        let paginationHTML = '';
+        const currentPage = this.state.pagination.currentPage;
+        const totalPages = this.state.pagination.totalPages;
+        
+        // Botón anterior
+        paginationHTML += `
+            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
+                    ${currentPage === 1 ? 'disabled' : ''} 
+                    onclick="adminPage.handlePageChange(${currentPage - 1})">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `;
+        
+        // Botones de página
+        for (let i = 1; i <= totalPages; i++) {
+            if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
+                paginationHTML += `
+                    <button class="px-3 py-1 rounded border ${currentPage === i ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}" 
+                            onclick="adminPage.handlePageChange(${i})">
+                        ${i}
+                    </button>
+                `;
+            } else if (i === currentPage - 2 || i === currentPage + 2) {
+                paginationHTML += `<span class="px-2">...</span>`;
+            }
+        }
+        
+        // Botón siguiente
+        paginationHTML += `
+            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" 
+                    ${currentPage === totalPages ? 'disabled' : ''} 
+                    onclick="adminPage.handlePageChange(${currentPage + 1})">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        `;
+        
+        paginationContainer.innerHTML = paginationHTML;
+    }
+
+    // Handlers de eventos
+    handlePageChange(page) {
+        this.state.pagination.currentPage = page;
+        this.renderProductsList();
+        this.renderPaginationControls();
+    }
+
+    handleSearch(e) {
+        this.state.currentFilter.search = e.target.value;
+        this.state.pagination.currentPage = 1;
+        this.applyFilters();
+        this.updatePagination();
+        this.renderProductsList();
+        this.renderPaginationControls();
+    }
+
+    handleFilterChange(e) {
+        this.state.currentFilter.category = e.target.value;
+        this.state.pagination.currentPage = 1;
+        this.applyFilters();
+        this.updatePagination();
+        this.renderProductsList();
+        this.renderPaginationControls();
+    }
+
+    handleSortChange(e) {
+        this.state.currentFilter.sort = e.target.value;
+        this.applyFilters();
+        this.renderProductsList();
+    }
+
+    handlePageSizeChange(e) {
+        this.state.pagination.itemsPerPage = parseInt(e.target.value);
+        this.state.pagination.currentPage = 1;
+        this.updatePagination();
+        this.renderProductsList();
+        this.renderPaginationControls();
+    }
+
+    handleRefresh() {
+        this.loadData();
+    }
+
+    handleLogout() {
+        AuthManagerFunctions.signOut().then(() => {
+            window.location.href = 'login.html';
+        });
+    }
+
+    handleAuthenticationChange(event, user) {
+        if (event === 'SIGNED_OUT') {
+            window.location.href = 'login.html';
+        }
+    }
 }
 
-// Exportar la clase para su uso
+// Crear e inicializar la instancia global
+const adminPage = new AdminPage();
+window.adminPage = adminPage;
+
+// Inicializar cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    adminPage.initialize();
+});
+
 export { AdminPage };
