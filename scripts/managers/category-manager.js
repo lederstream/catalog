@@ -109,3 +109,4 @@ export class CategoryManager {
         return category ? category.color : '#3B82F6'; // Color por defecto
     }
 }
+
