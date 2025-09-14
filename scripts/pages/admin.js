@@ -369,7 +369,8 @@ class AdminPage {
                 <div class="flex items-start gap-4 flex-1">
                     <img src="${product.photo_url || 'https://via.placeholder.com/80?text=Sin+imagen'}" 
                          alt="${product.name}" 
-                         class="w-16 h-16 object-cover rounded-lg">
+                         class="w-16 h-16 object-cover rounded-lg"
+                         onerror="this.src='https://via.placeholder.com/80?text=Error+imagen'">
                     <div class="flex-1">
                         <h4 class="font-semibold text-gray-800">${product.name}</h4>
                         <p class="text-sm text-gray-600 mt-1">${product.description || 'Sin descripción'}</p>
@@ -494,7 +495,7 @@ class AdminPage {
         paginationHTML += `
             <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}" 
                     ${currentPage === 1 ? 'disabled' : ''} 
-                    onclick="adminPage.handlePageChange(${currentPage - 1})">
+                    onclick="window.adminPage.handlePageChange(${currentPage - 1})">
                 <i class="fas fa-chevron-left"></i>
             </button>
         `;
@@ -504,7 +505,7 @@ class AdminPage {
             if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) {
                 paginationHTML += `
                     <button class="px-3 py-1 rounded border ${currentPage === i ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}" 
-                            onclick="adminPage.handlePageChange(${i})">
+                            onclick="window.adminPage.handlePageChange(${i})">
                         ${i}
                     </button>
                 `;
@@ -517,7 +518,7 @@ class AdminPage {
         paginationHTML += `
             <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}" 
                     ${currentPage === totalPages ? 'disabled' : ''} 
-                    onclick="adminPage.handlePageChange(${currentPage + 1})">
+                    onclick="window.adminPage.handlePageChange(${currentPage + 1})">
                 <i class="fas fa-chevron-right"></i>
             </button>
         `;
