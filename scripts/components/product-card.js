@@ -41,6 +41,9 @@ export class ProductCard {
         let html = '<div class="space-y-2">'
         
         plans.forEach(plan => {
+            // Asegurarse de que los precios sean números
+            const pricePen = typeof plan.price_pen === 'number' ? plan.price_pen : parseFloat(plan.price_pen || 0);
+            const priceUsd = typeof plan.price_usd === 'number' ? plan.price_usd : parseFloat(plan.price_usd || 0);
             html += `
                 <div class="flex justify-between items-center text-sm">
                     <span class="font-medium">${plan.name}</span>
