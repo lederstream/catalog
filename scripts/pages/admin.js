@@ -1,7 +1,7 @@
 // scripts/pages/admin.js
 import { authManager } from '../core/auth.js'
 import { productManager } from '../managers/product-manager.js'
-import { categoryManager } from '../managers/category-manager.js'
+import { CategoryManager } from '../managers/category-manager.js'
 import { modalManager, productModal } from '../components/modals.js'
 import { ProductCard } from '../components/product-card.js'
 import { Utils } from '../core/utils.js'
@@ -27,7 +27,7 @@ class AdminPage {
             await Promise.all([
                 authManager.initialize(),
                 productManager.initialize(),
-                categoryManager.loadCategories()
+                CategoryManager.loadCategories()
             ])
             
             // Configurar UI
@@ -249,7 +249,7 @@ class AdminPage {
         const filterSelect = document.getElementById('filterCategory')
         if (!filterSelect) return
         
-        const categories = categoryManager.getCategories()
+        const categories = CategoryManager.getCategories()
         
         // Mantener valor seleccionado actual
         const currentValue = filterSelect.value
