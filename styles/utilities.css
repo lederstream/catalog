@@ -1,312 +1,237 @@
 /* styles/utilities.css */
-/* Text Utilities */
-.text-gradient {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
+/* Utilidades adicionales de Tailwind */
 
-.truncate-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.truncate-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Layout Utilities */
-.content-container {
-    max-width: 1200px;
-    margin-left: auto;
-    margin-right: auto;
-    padding-left: 1rem;
-    padding-right: 1rem;
-}
-
-.section-padding {
-    padding-top: 3rem;
-    padding-bottom: 3rem;
+/* Espaciado */
+.space-responsive > * + * {
+    margin-top: 1rem;
 }
 
 @media (min-width: 768px) {
-    .section-padding {
-        padding-top: 4rem;
-        padding-bottom: 4rem;
+    .space-responsive > * + * {
+        margin-top: 0;
+        margin-left: 1rem;
     }
 }
 
-/* Glassmorphism Effect */
-.glass {
-    background: rgba(255, 255, 255, 0.25);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.18);
+/* Sombras mejoradas */
+.shadow-hover {
+    transition: box-shadow 0.2s;
 }
 
-.glass-dark {
-    background: rgba(0, 0, 0, 0.25);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* Shadow Utilities */
-.shadow-soft {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.shadow-medium {
+.shadow-hover:hover {
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
-.shadow-large {
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+/* Transiciones */
+.transition-all {
+    transition: all 0.3s;
 }
 
-/* Border Utilities */
-.border-gradient {
-    border: 2px solid transparent;
-    background: linear-gradient(white, white) padding-box,
-                linear-gradient(135deg, #667eea 0%, #764ba2 100%) border-box;
+/* Transformaciones */
+.transform-center {
+    transform: translate(-50%, -50%);
 }
 
-/* Animation Utilities */
-.animate-float {
-    animation: float 3s ease-in-out infinite;
+/* Gradientes personalizados */
+.gradient-blue {
+    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
 }
 
-@keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-10px); }
+.gradient-purple {
+    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
 }
 
+.gradient-green {
+    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+/* Utilidades para imágenes */
+.image-cover {
+    object-fit: cover;
+}
+
+.image-contain {
+    object-fit: contain;
+}
+
+/* Utilidades para texto */
+.text-balance {
+    text-wrap: balance;
+}
+
+/* Utilidades para scroll */
+.scrollbar-thin {
+    scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+}
+
+.scrollbar-thumb-blue::-webkit-scrollbar-thumb {
+    background: #3B82F6;
+    border-radius: 3px;
+}
+
+.scrollbar-thumb-blue:hover::-webkit-scrollbar-thumb {
+    background: #2563EB;
+}
+
+/* Utilidades para elementos interactivos */
+.focus-ring:focus {
+    outline: 2px solid transparent;
+    outline-offset: 2px;
+    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
+    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
+    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
+}
+
+/* Utilidades para animaciones */
 .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+@keyframes pulse-slow {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
 .animate-bounce-slow {
-    animation: bounce 2s infinite;
+    animation: bounce 3s infinite;
 }
 
-/* Gradient Backgrounds */
-.gradient-primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-}
-
-.gradient-secondary {
-    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-}
-
-.gradient-success {
-    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-}
-
-.gradient-warning {
-    background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
-}
-
-/* Custom Scrollbar */
-.custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #c1c1c1 #f1f1f1;
-}
-
-.custom-scrollbar::-webkit-scrollbar {
-    width: 6px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 3px;
-}
-
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
-}
-
-/* Focus Visible Polyfill */
-.js-focus-visible :focus:not(.focus-visible) {
-    outline: none;
-}
-
-/* Reduced Motion Support */
-@media (prefers-reduced-motion: reduce) {
-    *,
-    *::before,
-    *::after {
-        animation-duration: 0.01ms !important;
-        animation-iteration-count: 1 !important;
-        transition-duration: 0.01ms !important;
-        scroll-behavior: auto !important;
+@keyframes bounce-slow {
+    0%, 100% {
+        transform: translateY(0);
+    }
+    50% {
+        transform: translateY(-10px);
     }
 }
 
-/* High Contrast Mode Support */
-@media (prefers-contrast: high) {
-    .product-card {
-        border: 2px solid currentColor;
-    }
-    
-    .btn {
-        border: 2px solid currentColor;
-    }
+/* Utilidades para ocultar/mostrar elementos */
+.visible-hidden {
+    visibility: hidden;
 }
 
-/* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-    .dark-mode-auto {
-        background-color: #1a202c;
-        color: #e2e8f0;
-    }
+.visible-visible {
+    visibility: visible;
 }
 
-/* Print Styles */
-@media print {
-    .no-print {
-        display: none !important;
-    }
-    
-    .print-break-before {
-        page-break-before: always;
-    }
-    
-    .print-break-after {
-        page-break-after: always;
-    }
-    
-    .print-break-inside-avoid {
-        page-break-inside: avoid;
-    }
-}
-
-/* Aspect Ratio Utilities */
-.aspect-ratio-16-9 {
-    aspect-ratio: 16/9;
-}
-
-.aspect-ratio-4-3 {
-    aspect-ratio: 4/3;
-}
-
-.aspect-ratio-1-1 {
-    aspect-ratio: 1/1;
-}
-
-/* Object Fit Utilities */
-.object-cover-center {
-    object-fit: cover;
-    object-position: center;
-}
-
-.object-contain-center {
-    object-fit: contain;
-    object-position: center;
-}
-
-/* Z-index Utilities */
+/* Utilidades para capas (z-index) */
 .z-dropdown {
     z-index: 1000;
 }
 
+.z-sticky {
+    z-index: 1020;
+}
+
 .z-modal {
-    z-index: 2000;
+    z-index: 1050;
+}
+
+.z-popover {
+    z-index: 1070;
 }
 
 .z-tooltip {
-    z-index: 3000;
+    z-index: 1080;
 }
 
-.z-toast {
-    z-index: 4000;
+/* Utilidades para elementos de formulario */
+.input-group {
+    display: flex;
 }
 
-/* Visibility Utilities */
-.visually-hidden {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
+.input-group .form-input:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
-/* Interaction Utilities */
-.pointer-events-all {
-    pointer-events: all;
+.input-group .form-input:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
-.user-select-none {
-    user-select: none;
+.input-group .btn:first-child {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
-.user-select-all {
-    user-select: all;
+.input-group .btn:last-child {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
-/* Filter Utilities */
-.filter-grayscale {
-    filter: grayscale(100%);
+.input-group-append,
+.input-group-prepend {
+    display: flex;
 }
 
-.filter-sepia {
-    filter: sepia(100%);
+.input-group-prepend .btn {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
 }
 
-.filter-invert {
-    filter: invert(100%);
+.input-group-append .btn {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
 }
 
-.backdrop-blur-sm {
-    backdrop-filter: blur(4px);
+/* Utilidades para tablas */
+.table-auto {
+    width: auto;
 }
 
-.backdrop-blur-md {
-    backdrop-filter: blur(8px);
+.table-fixed {
+    table-layout: fixed;
 }
 
-.backdrop-blur-lg {
-    backdrop-filter: blur(16px);
+.table-responsive {
+    overflow-x: auto;
 }
 
-/* Transition Utilities */
-.transition-all {
-    transition: all 0.3s ease;
+/* Utilidades para elementos de lista */
+.list-checkmarks {
+    list-style: none;
+    padding-left: 0;
 }
 
-.transition-colors {
-    transition: color 0.3s ease, background-color 0.3s ease, border-color 0.3s ease;
+.list-checkmarks li {
+    position: relative;
+    padding-left: 1.5rem;
 }
 
-.transition-transform {
-    transition: transform 0.3s ease;
+.list-checkmarks li:before {
+    content: "✓";
+    position: absolute;
+    left: 0;
+    color: #10B981;
+    font-weight: bold;
 }
 
-.transition-opacity {
-    transition: opacity 0.3s ease;
+/* Utilidades para iconos */
+.icon-sm {
+    width: 1rem;
+    height: 1rem;
 }
 
-/* Will-change Utilities */
-.will-change-transform {
-    will-change: transform;
+.icon-md {
+    width: 1.5rem;
+    height: 1.5rem;
 }
 
-.will-change-opacity {
-    will-change: opacity;
+.icon-lg {
+    width: 2rem;
+    height: 2rem;
 }
 
-.will-change-scroll {
-    will-change: scroll-position;
+.icon-xl {
+    width: 2.5rem;
+    height: 2.5rem;
 }
