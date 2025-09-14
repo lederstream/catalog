@@ -1,3 +1,4 @@
+// scripts/pages/admin.js
 import { AuthManager } from '../core/auth.js'
 import { ProductManager } from '../managers/product-manager.js'
 import { CategoryManager } from '../managers/category-manager.js'
