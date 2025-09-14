@@ -3,7 +3,7 @@ import { Utils } from '../core/utils.js';
 
 // Configuración
 const CONFIG = {
-    IMAGE_PLACEHOLDER: 'https://via.placeholder.com/300x200?text=Imagen+no+disponible',
+    IMAGE_PLACEHOLDER: 'https://via.placeholder.com/300x200.png?text=Sin+imagen',
     CURRENCY_SYMBOL: 'S/'
 };
 
@@ -12,13 +12,33 @@ export function createProductCard(product, isListView = false, index = 0) {
     const plans = Utils.safeParseJSON(product.plans);
     const minPrice = getProductMinPrice(product, plans);
     const categoryName = getCategoryName(product);
-    const imageUrl = product.photo_url || CONFIG.IMAGE_PLACEHOLDER;
+    const imageUrl = getSafeImageUrl(product.photo_url);
     const hasMultiplePlans = plans && plans.length > 1;
     
     if (isListView) {
         return createListView(product, plans, minPrice, categoryName, imageUrl, index, hasMultiplePlans);
     } else {
         return createGridView(product, plans, minPrice, categoryName, imageUrl, index, hasMultiplePlans);
+    }
+}
+
+// Función segura para obtener URLs de imagen
+function getSafeImageUrl(photoUrl) {
+    if (!photoUrl) return CONFIG.IMAGE_PLACEHOLDER;
+    
+    // Limpiar URL de caracteres problemáticos
+    let cleanedUrl = photoUrl.toString().trim();
+    
+    // Remover llaves codificadas o caracteres problemáticos
+    cleanedUrl = cleanedUrl.replace(/%7B/g, '').replace(/%7D/g, '');
+    
+    // Verificar si es una URL válida
+    try {
+        new URL(cleanedUrl);
+        return cleanedUrl;
+    } catch (error) {
+        console.warn('URL de imagen inválida:', cleanedUrl);
+        return CONFIG.IMAGE_PLACEHOLDER;
     }
 }
 
@@ -35,15 +55,15 @@ function createGridView(product, plans, minPrice, categoryName, imageUrl, index,
             <div class="relative overflow-hidden h-48 bg-gray-100">
                 <img 
                     src="${imageUrl}" 
-                    alt="${product.name}"
+                    alt="${Utils.escapeHtml(product.name)}"
                     class="w-full h-full object-cover product-image transition-transform duration-500 group-hover:scale-110"
                     loading="lazy"
-                    onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
+                    onerror="handleImageError(this)"
                 />
                 
                 <!-- Badge de categoría -->
                 <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
-                    ${categoryName}
+                    ${Utils.escapeHtml(categoryName)}
                 </div>
                 
                 <!-- Badge de precio o etiqueta especial -->
@@ -69,8 +89,8 @@ function createGridView(product, plans, minPrice, categoryName, imageUrl, index,
             <!-- Contenido de la tarjeta -->
             <div class="p-4">
                 <div class="flex justify-between items-start mb-2">
-                    <h3 class="font-bold text-gray-800 text-lg line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors duration-200" title="${product.name}">
-                        ${product.name}
+                    <h3 class="font-bold text-gray-800 text-lg line-clamp-1 leading-tight group-hover:text-blue-600 transition-colors duration-200" title="${Utils.escapeHtml(product.name)}">
+                        ${Utils.escapeHtml(product.name)}
                     </h3>
                     
                     ${hasMultiplePlans ? `
@@ -80,8 +100,8 @@ function createGridView(product, plans, minPrice, categoryName, imageUrl, index,
                     ` : ''}
                 </div>
                 
-                <p class="text-gray-500 text-sm mb-3 line-clamp-2 leading-relaxed" title="${product.description || 'Sin descripción'}">
-                    ${product.description || 'Sin descripción'}
+                <p class="text-gray-500 text-sm mb-3 line-clamp-2 leading-relaxed" title="${Utils.escapeHtml(product.description || 'Sin descripción')}">
+                    ${Utils.escapeHtml(product.description || 'Sin descripción')}
                 </p>
                 
                 <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
@@ -119,15 +139,15 @@ function createListView(product, plans, minPrice, categoryName, imageUrl, index,
                 <div class="relative flex-shrink-0 w-full md:w-48 h-48 md:h-auto">
                     <img 
                         src="${imageUrl}" 
-                        alt="${product.name}"
+                        alt="${Utils.escapeHtml(product.name)}"
                         class="w-full h-full object-cover product-image"
                         loading="lazy"
-                        onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
+                        onerror="handleImageError(this)"
                     />
                     
                     <!-- Badge de categoría -->
                     <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
-                        ${categoryName}
+                        ${Utils.escapeHtml(categoryName)}
                     </div>
                 </div>
                 
@@ -135,8 +155,8 @@ function createListView(product, plans, minPrice, categoryName, imageUrl, index,
                 <div class="p-5 flex-1 flex flex-col">
                     <div class="flex-1">
                         <div class="flex justify-between items-start mb-2">
-                            <h3 class="font-bold text-gray-800 text-xl line-clamp-1 group-hover:text-blue-600 transition-colors duration-200" title="${product.name}">
-                                ${product.name}
+                            <h3 class="font-bold text-gray-800 text-xl line-clamp-1 group-hover:text-blue-600 transition-colors duration-200" title="${Utils.escapeHtml(product.name)}">
+                                ${Utils.escapeHtml(product.name)}
                             </h3>
                             
                             ${isPriceAvailable ? `
@@ -150,8 +170,8 @@ function createListView(product, plans, minPrice, categoryName, imageUrl, index,
                             `}
                         </div>
                         
-                        <p class="text-gray-500 mb-3 line-clamp-2 leading-relaxed" title="${product.description || 'Sin descripción'}">
-                            ${product.description || 'Sin descripción'}
+                        <p class="text-gray-500 mb-3 line-clamp-2 leading-relaxed" title="${Utils.escapeHtml(product.description || 'Sin descripción')}">
+                            ${Utils.escapeHtml(product.description || 'Sin descripción')}
                         </p>
                     </div>
                     
@@ -187,6 +207,25 @@ function createListView(product, plans, minPrice, categoryName, imageUrl, index,
         </div>
     `;
 }
+
+// Función global para manejar errores de imagen
+window.handleImageError = function(imgElement) {
+    console.log('🖼️ Error cargando imagen, usando placeholder');
+    
+    // Prevenir bucle infinito
+    if (imgElement.src.includes('via.placeholder.com') || 
+        imgElement.src.includes('placeholder.com') ||
+        imgElement.dataset.fallbackApplied === 'true') {
+        return;
+    }
+    
+    // Usar placeholder seguro
+    imgElement.src = CONFIG.IMAGE_PLACEHOLDER;
+    imgElement.dataset.fallbackApplied = 'true';
+    
+    // Limpiar el evento onerror para evitar bucles
+    imgElement.onerror = null;
+};
 
 // Obtener precio mínimo de un producto
 function getProductMinPrice(product, plans = null) {
@@ -278,5 +317,18 @@ if (typeof Utils.formatCurrency === 'undefined') {
     Utils.formatCurrency = (amount) => {
         if (amount === Infinity) return 'Consultar';
         return `S/ ${amount.toFixed(2)}`;
+    };
+}
+
+// Función de escape HTML (si no existe en Utils)
+if (typeof Utils.escapeHtml === 'undefined') {
+    Utils.escapeHtml = (text) => {
+        if (!text) return '';
+        return text.toString()
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
     };
 }
