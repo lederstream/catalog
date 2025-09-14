@@ -1,5 +1,4 @@
 // scripts/core/utils.js
-// scripts/core/utils.js
 class Utils {
   static validateEmail(email) {
     if (!email || typeof email !== 'string') return false;
