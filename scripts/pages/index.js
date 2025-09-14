@@ -16,6 +16,7 @@ class IndexPage {
         // Bind methods for event listeners
         this.handleCategoryFilterChange = this.handleCategoryFilterChange.bind(this);
         this.handleSearchInput = this.handleSearchInput.bind(this);
+        this.debouncedSearch = Utils.debounce(() => this.renderProducts(), 300);
     }
 
     async initialize() {
@@ -137,7 +138,7 @@ class IndexPage {
     }
 
     handleSearchInput() {
-        Utils.debounce(() => this.renderProducts(), 300)();
+        this.debouncedSearch();
     }
 
     setupEventListeners() {
