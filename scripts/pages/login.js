@@ -1,34 +1,25 @@
 // scripts/pages/login.js
-import { getAuthManager, AuthManagerFunctions } from '../core/auth.js';
+import { AuthManagerFunctions } from '../core/auth.js';
 import { Utils } from '../core/utils.js';
 
 class LoginPage {
     constructor() {
         this.isInitialized = false;
-        this.loginForm = null;
-        this.resetForm = null;
-        this.authManager = null;
     }
 
     async initialize() {
         if (this.isInitialized) return;
 
         try {
-            // Obtener instancia del AuthManager
-            this.authManager = await getAuthManager();
-            
             // Verificar si ya está autenticado
-            const isAuthenticated = await this.checkAuthentication();
+            const isAuthenticated = await AuthManagerFunctions.isAuthenticated();
             if (isAuthenticated) {
                 window.location.href = 'admin.html';
                 return;
             }
             
-            // Configurar event listeners
             this.setupEventListeners();
-            
             this.isInitialized = true;
-            console.log('✅ Página de login inicializada');
             
         } catch (error) {
             console.error('❌ Error inicializando página de login:', error);
@@ -36,139 +27,56 @@ class LoginPage {
         }
     }
 
-    async checkAuthentication() {
-        try {
-            // Usar la instancia del AuthManager
-            if (this.authManager) {
-                return this.authManager.isAuthenticated();
-            }
-            
-            // Fallback: usar las funciones globales
-            return await AuthManagerFunctions.isAuthenticated();
-        } catch (error) {
-            console.error('Error verificando autenticación:', error);
-            return false;
-        }
-    }
-
     async handleLogin(e) {
         e.preventDefault();
         
-        const formData = new FormData(this.loginForm);
+        const formData = new FormData(e.target);
         const email = formData.get('email');
         const password = formData.get('password');
         
-        // Validaciones
-        if (!this.validateLoginForm(email, password)) {
-            return;
-        }
+        if (!this.validateLoginForm(email, password)) return;
         
         try {
-            this.setFormLoading(this.loginForm, true);
+            this.setFormLoading(true);
             
-            // Usar la instancia del AuthManager o las funciones globales
-            let success;
-            if (this.authManager) {
-                success = await this.authManager.signIn(email, password);
-            } else {
-                success = await AuthManagerFunctions.signIn(email, password);
-            }
-            
+            const success = await AuthManagerFunctions.signIn(email, password);
             if (success) {
                 Utils.showSuccess('✅ Inicio de sesión exitoso');
-                setTimeout(() => {
-                    window.location.href = 'admin.html';
-                }, 1000);
+                setTimeout(() => window.location.href = 'admin.html', 1000);
             } else {
-                this.setFormLoading(this.loginForm, false);
+                this.setFormLoading(false);
             }
             
         } catch (error) {
             console.error('Error en login:', error);
-            this.setFormLoading(this.loginForm, false);
-        }
-    }
-    
-    async handleResetPassword(e) {
-        e.preventDefault();
-        
-        const formData = new FormData(this.resetForm);
-        const email = formData.get('resetEmail');
-        
-        // Validaciones
-        if (!this.validateResetForm(email)) {
-            return;
-        }
-        
-        try {
-            this.setFormLoading(this.resetForm, true);
-            
-            // Usar la instancia del AuthManager o las funciones globales
-            if (this.authManager) {
-                await this.authManager.resetPassword(email);
-            } else {
-                await AuthManagerFunctions.resetPassword(email);
-            }
-            
-            this.setFormLoading(this.resetForm, false);
-            this.showLoginForm();
-            
-        } catch (error) {
-            console.error('Error en reset password:', error);
-            this.setFormLoading(this.resetForm, false);
+            this.setFormLoading(false);
         }
     }
 
     validateLoginForm(email, password) {
         let isValid = true;
+        this.clearFormErrors();
         
-        // Resetear errores
-        this.clearFormErrors(this.loginForm);
-        
-        // Validar email
         if (!email) {
-            this.showError(this.loginForm, 'email', 'El email es requerido');
+            this.showError('email', 'El email es requerido');
             isValid = false;
         } else if (!Utils.validateEmail(email)) {
-            this.showError(this.loginForm, 'email', 'Por favor ingresa un email válido');
+            this.showError('email', 'Por favor ingresa un email válido');
             isValid = false;
         }
         
-        // Validar contraseña
         if (!password) {
-            this.showError(this.loginForm, 'password', 'La contraseña es requerida');
-            isValid = false;
-        } else if (password.length < 6) {
-            this.showError(this.loginForm, 'password', 'La contraseña debe tener al menos 6 caracteres');
-            isValid = false;
-        }
-        
-        return isValid;
-    }
-    
-    validateResetForm(email) {
-        let isValid = true;
-        
-        // Resetear errores
-        this.clearFormErrors(this.resetForm);
-        
-        // Validar email
-        if (!email) {
-            this.showError(this.resetForm, 'resetEmail', 'El email es requerido');
-            isValid = false;
-        } else if (!Utils.validateEmail(email)) {
-            this.showError(this.resetForm, 'resetEmail', 'Por favor ingresa un email válido');
+            this.showError('password', 'La contraseña es requerida');
             isValid = false;
         }
         
         return isValid;
     }
 
-    showError(form, fieldName, message) {
-        const field = form.querySelector(`[name="${fieldName}"]`);
+    showError(fieldName, message) {
+        const field = document.querySelector(`[name="${fieldName}"]`);
         if (!field) return;
         
-        // Crear elemento de error
         let errorElement = field.parentNode.querySelector('.error-message');
         if (!errorElement) {
             errorElement = document.createElement('p');
@@ -177,114 +85,40 @@ class LoginPage {
         }
         
         errorElement.textContent = message;
-        field.classList.add('border-red-500', 'focus:ring-red-500');
-        field.classList.remove('focus:ring-blue-500');
+        field.classList.add('border-red-500');
     }
 
-    clearFormErrors(form) {
-        const errorElements = form.querySelectorAll('.error-message');
+    clearFormErrors() {
+        const errorElements = document.querySelectorAll('.error-message');
         errorElements.forEach(element => element.remove());
         
-        const fields = form.querySelectorAll('input');
-        fields.forEach(field => {
-            field.classList.remove('border-red-500', 'focus:ring-red-500');
-            field.classList.add('focus:ring-blue-500');
-        });
+        const fields = document.querySelectorAll('input');
+        fields.forEach(field => field.classList.remove('border-red-500'));
     }
 
-    setFormLoading(form, loading) {
-        const submitButton = form.querySelector('button[type="submit"]');
+    setFormLoading(loading) {
+        const submitButton = document.querySelector('#loginForm button[type="submit"]');
         if (!submitButton) return;
         
         if (loading) {
             submitButton.disabled = true;
             submitButton.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i> Procesando...';
-            submitButton.classList.add('opacity-75', 'cursor-not-allowed');
         } else {
             submitButton.disabled = false;
-            
-            if (form.id === 'loginForm') {
-                submitButton.innerHTML = 'Iniciar Sesión';
-            } else {
-                submitButton.innerHTML = 'Enviar Enlace de Recuperación';
-            }
-            
-            submitButton.classList.remove('opacity-75', 'cursor-not-allowed');
+            submitButton.innerHTML = 'Iniciar Sesión';
         }
-    }
-
-    togglePasswordVisibility() {
-        const passwordInput = this.loginForm.querySelector('[name="password"]');
-        const toggleButton = document.getElementById('togglePassword');
-        if (!passwordInput || !toggleButton) return;
-        
-        const icon = toggleButton.querySelector('i');
-        
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
-        } else {
-            passwordInput.type = 'password';
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
-        }
-    }
-    
-    showResetForm() {
-        if (this.loginForm) this.loginForm.classList.add('hidden');
-        if (this.resetForm) this.resetForm.classList.remove('hidden');
-        this.clearFormErrors(this.loginForm);
-    }
-    
-    showLoginForm() {
-        if (this.resetForm) this.resetForm.classList.add('hidden');
-        if (this.loginForm) this.loginForm.classList.remove('hidden');
-        this.clearFormErrors(this.resetForm);
     }
 
     setupEventListeners() {
-        this.loginForm = document.getElementById('loginForm');
-        this.resetForm = document.getElementById('resetForm');
-        
-        if (this.loginForm) {
-            this.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
-            
-            // Mostrar/ocultar contraseña
-            const togglePassword = document.getElementById('togglePassword');
-            if (togglePassword) {
-                togglePassword.addEventListener('click', () => this.togglePasswordVisibility());
-            }
-        }
-        
-        if (this.resetForm) {
-            this.resetForm.addEventListener('submit', (e) => this.handleResetPassword(e));
-        }
-        
-        // Manejar navegación entre formularios
-        const showResetLink = document.getElementById('showReset');
-        const showLoginLink = document.getElementById('showLoginFromReset');
-        
-        if (showResetLink) {
-            showResetLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showResetForm();
-            });
-        }
-        
-        if (showLoginLink) {
-            showLoginLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                this.showLoginForm();
-            });
+        const loginForm = document.getElementById('loginForm');
+        if (loginForm) {
+            loginForm.addEventListener('submit', (e) => this.handleLogin(e));
         }
     }
 }
 
-// Inicializar la página cuando el DOM esté listo
+// Inicializar la página
 document.addEventListener('DOMContentLoaded', async () => {
     const loginPage = new LoginPage();
     await loginPage.initialize();
 });
-
-export { LoginPage };
