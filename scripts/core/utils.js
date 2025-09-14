@@ -1,5 +1,18 @@
 // scripts/core/utils.js
 class Utils {
+  // Parse seguro de JSON
+  static safeParseJSON(str, defaultValue = []) {
+    if (!str || typeof str !== 'string') return defaultValue;
+    
+    try {
+      const parsed = JSON.parse(str);
+      return parsed || defaultValue;
+    } catch (error) {
+      console.warn('Error parsing JSON:', error, 'String:', str);
+      return defaultValue;
+    }
+  }
+
   static enableDebugMode(enable = true) {
     window.DEBUG_MODE = enable;
     console.log(`🔧 Debug mode ${enable ? 'enabled' : 'disabled'}`);
@@ -43,7 +56,7 @@ class Utils {
   }
 
   static formatCurrency(amount, currency = 'PEN') {
-    if (amount === null || amount === undefined) return 'S/ 0.00';
+    if (amount === null || amount === undefined || amount === Infinity) return 'Precio no disponible';
     return new Intl.NumberFormat('es-PE', {
       style: 'currency',
       currency: currency,
@@ -231,7 +244,7 @@ class Utils {
   }
 }
 
-// Exportar solo Utils - ELIMINADO CONFIG
+// Exportar solo Utils
 export { Utils };
 
 // Global único
