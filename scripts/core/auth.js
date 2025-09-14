@@ -44,6 +44,9 @@ class AuthManager {
             this.currentUser = session.user
             this._notifyAuthStateChange('user_updated', this.currentUser)
             break
+          case 'PASSWORD_RECOVERY':
+            this._notifyAuthStateChange('password_recovery', session.user)
+            break
         }
       })
 
@@ -111,6 +114,33 @@ class AuthManager {
     }
   }
 
+  async resetPassword(email) {
+    try {
+      this._notifyAuthStateChange('resetting_password')
+      
+      const { error } = await window.supabaseClient.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password.html`
+      })
+
+      if (error) throw error
+
+      Utils.showSuccess('Email de recuperación enviado')
+      return { success: true }
+
+    } catch (error) {
+      console.error('❌ Error resetting password:', error)
+      this._notifyAuthStateChange('reset_password_error', error)
+      
+      let errorMessage = 'Error al enviar email de recuperación'
+      if (error.message.includes('user not found')) {
+        errorMessage = 'No existe una cuenta con este email'
+      }
+
+      Utils.showError(errorMessage)
+      return { success: false, error: errorMessage }
+    }
+  }
+  
   getCurrentUser() {
     return this.currentUser
   }
