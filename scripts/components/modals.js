@@ -1,7 +1,7 @@
 // scripts/components/modals.js
 import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
-import { categoryManager } from '../managers/category-manager.js';
+import { CategoryManager } from '../managers/category-manager.js';
 
 export class ModalManager {
     constructor() {
@@ -356,7 +356,7 @@ export class ProductModal {
         if (!categorySelect) return;
         
         try {
-            const { success, categories } = await categoryManager.loadCategories();
+            const { success, categories } = await CategoryManager.loadCategories();
             
             if (!success) {
                 throw new Error('Error loading categories');
@@ -454,7 +454,7 @@ export class ProductModal {
         }
         
         try {
-            const result = await categoryManager.createCategory(name);
+            const result = await CategoryManager.createCategory(name);
             
             if (!result.success) {
                 throw new Error(result.error);
