@@ -409,7 +409,7 @@ class AdminPage {
                              alt="${product.name}" 
                              class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                              loading="lazy"
-                             onerror="this.src='https://via.placeholder.com/300x200?text=Error+imagen'">
+                             onerror="window.handleImageError(this)">
                         <span class="absolute top-3 left-3 ${statusClass} text-xs font-medium px-2 py-1 rounded-full">
                             ${statusText}
                         </span>
@@ -930,14 +930,14 @@ class AdminPage {
 
 function getSafeImageUrl(photoUrl) {
     const placeholder = 'https://via.placeholder.com/300x200.png?text=Sin+imagen';
-    if (!photoUrl) return placeholder;
     
-    let cleanedUrl = photoUrl.toString().trim();
-    cleanedUrl = cleanedUrl.replace(/%7B/g, '').replace(/%7D/g, '');
+    if (!photoUrl || photoUrl.includes('%7B') || photoUrl.includes('%7D')) {
+        return placeholder;
+    }
     
     try {
-        new URL(cleanedUrl);
-        return cleanedUrl;
+        new URL(photoUrl);
+        return photoUrl;
     } catch (error) {
         return placeholder;
     }
