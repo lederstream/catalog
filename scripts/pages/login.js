@@ -1,5 +1,5 @@
 // scripts/pages/login.js
-import { AuthManager } from '../core/auth.js'
+import { authManager } from '../core/auth.js'
 import { Utils } from '../core/utils.js'
 
 class LoginPage {
@@ -9,7 +9,7 @@ class LoginPage {
 
     init() {
         // Si ya está autenticado, redirigir al panel de administración
-        if (AuthManager.isAuthenticated()) {
+        if (authManager.isAuthenticated()) {
             window.location.href = 'admin.html'
             return
         }
@@ -104,7 +104,7 @@ class LoginPage {
         loginBtn.disabled = true
         
         try {
-            const { success, error } = await AuthManager.login(email, password)
+            const { success, error } = await authManager.signIn(email, password)
             
             if (success) {
                 Utils.showNotification('Inicio de sesión exitoso', 'success')
@@ -142,7 +142,7 @@ class LoginPage {
         resetBtn.disabled = true
         
         try {
-            const { success, error } = await AuthManager.resetPassword(email)
+            const { success, error } = await authManager.resetPassword(email)
             
             if (success) {
                 Utils.showNotification('Se ha enviado un enlace de recuperación a tu email', 'success')
