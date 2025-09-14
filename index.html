@@ -11,10 +11,11 @@
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
+    <!-- Supabase desde CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
     <!-- Estilos propios -->
     <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/components.css">
-    <link rel="stylesheet" href="styles/utilities.css">
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
     <!-- Header -->
@@ -64,7 +65,6 @@
             
             <!-- Grid de Productos -->
             <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <!-- Los productos se cargarán dinámicamente aquí -->
                 <div class="text-center py-12 col-span-full">
                     <div class="loading-spinner"></div>
                     <p class="mt-4">Cargando productos...</p>
@@ -83,12 +83,10 @@
     </footer>
 
     <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script type="module" src="scripts/supabase.js"></script>
     <script type="module" src="scripts/core/utils.js"></script>
     <script type="module" src="scripts/managers/product-manager.js"></script>
     <script type="module" src="scripts/managers/category-manager.js"></script>
-    <script type="module" src="scripts/components/product-card.js"></script>
     <script type="module" src="scripts/pages/index.js"></script>
 </body>
 </html>
