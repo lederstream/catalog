@@ -7,3 +7,37 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 // Crear y exportar el cliente de Supabase
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
+// Cargar Supabase desde CDN
+let supabase;
+
+// Función para inicializar Supabase
+export async function initSupabase() {
+    if (window.supabase) {
+        supabase = window.supabase;
+        return supabase;
+    }
+    
+    // Esperar a que se cargue la biblioteca desde el CDN
+    await new Promise((resolve) => {
+        const checkSupabase = () => {
+            if (window.supabase) {
+                resolve();
+            } else {
+                setTimeout(checkSupabase, 100);
+            }
+        };
+        checkSupabase();
+    });
+    
+    supabase = window.supabase;
+    return supabase;
+}
+
+// Obtener el cliente de Supabase
+export async function getSupabase() {
+    if (!supabase) {
+        await initSupabase();
+    }
+    return supabase;
+}
