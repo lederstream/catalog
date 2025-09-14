@@ -242,6 +242,36 @@ class Utils {
       }
     });
   }
+
+  static formatCurrency(amount, currency = 'PEN') {
+    if (amount === null || amount === undefined || isNaN(amount) || amount === Infinity) {
+        return 'Precio no disponible';
+    }
+    
+    try {
+        return new Intl.NumberFormat('es-PE', {
+            style: 'currency',
+            currency: currency,
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(amount);
+    } catch (error) {
+        return `S/ ${amount.toFixed(2)}`;
+    }
+    }
+
+    static escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    static validateEmail(email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    }
+
 }
 
 // Exportar solo Utils
