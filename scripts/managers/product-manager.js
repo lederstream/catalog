@@ -1,303 +1,93 @@
 // scripts/managers/product-manager.js
-import { Utils } from '../core/utils.js';
 import { supabaseClient } from '../supabase.js';
+import { Utils } from '../core/utils.js';
 
 class ProductManager {
-    constructor() {
-        this.products = [];
-        this.isLoading = false;
-        this.listeners = new Set();
+  constructor() {
+    this.products = [];
+  }
+
+  async loadProducts() {
+    try {
+      this.products = await supabaseClient.getProducts();
+      return this.products;
+    } catch (error) {
+      console.error('Error loading products:', error);
+      return [];
     }
+  }
+
+  getProducts() {
+    return this.products;
+  }
+
+  getProductById(id) {
+    return this.products.find(product => product.id == id);
+  }
+
+  getProductMinPrice(product) {
+    const plans = Utils.safeParseJSON(product.plans);
+    if (!plans || !plans.length) return Infinity;
     
-    static async init() {
-        const instance = new ProductManager();
-        await instance.loadProducts();
-        return instance;
+    const validPrices = plans.flatMap(plan => [
+      plan.price_soles || Infinity,
+      plan.price_dollars ? plan.price_dollars * 3.7 : Infinity
+    ]).filter(price => price > 0 && price !== Infinity);
+    
+    return validPrices.length ? Math.min(...validPrices) : Infinity;
+  }
+
+  async addProduct(productData) {
+    try {
+      const newProduct = await supabaseClient.addProduct(productData);
+      if (newProduct) {
+        this.products.unshift(newProduct);
+        return newProduct;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error adding product:', error);
+      throw error;
     }
-    
-    async loadProducts() {
-        if (this.isLoading) return this.products;
-        
-        this.isLoading = true;
-        this.notifyListeners('loadingStart');
-        
-        try {
-            const data = await supabaseClient.getProducts();
-            this.products = this.processProducts(data);
-            this.notifyListeners('productsLoaded', this.products);
-            return this.products;
-            
-        } catch (error) {
-            console.error('❌ Error cargando productos:', error);
-            Utils.showError('Error al cargar productos');
-            this.notifyListeners('loadError', error);
-            return [];
-        } finally {
-            this.isLoading = false;
-            this.notifyListeners('loadingEnd');
+  }
+
+  async updateProduct(id, productData) {
+    try {
+      const updatedProduct = await supabaseClient.updateProduct(id, productData);
+      if (updatedProduct) {
+        const index = this.products.findIndex(p => p.id === id);
+        if (index !== -1) {
+          this.products[index] = updatedProduct;
         }
+        return updatedProduct;
+      }
+      return null;
+    } catch (error) {
+      console.error('Error updating product:', error);
+      throw error;
     }
-    
-    processProducts(products) {
-        if (!products) return [];
-        
-        return products.map(product => ({
-            ...product,
-            plans: this.parsePlans(product.plans),
-            category_name: product.categories?.name || 'Sin categoría',
-            min_price: this.calculateMinPrice(product.plans),
-            formatted_min_price: this.formatMinPrice(product.plans)
-        }));
+  }
+
+  async deleteProduct(id) {
+    try {
+      const success = await supabaseClient.deleteProduct(id);
+      if (success) {
+        this.products = this.products.filter(p => p.id !== id);
+      }
+      return success;
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      throw error;
     }
-    
-    parsePlans(plans) {
-        if (!plans) return [];
-        
-        try {
-            if (Array.isArray(plans)) return plans;
-            if (typeof plans === 'string') {
-                // Intentar parsear como JSON
-                try {
-                    return JSON.parse(plans);
-                } catch (parseError) {
-                    console.warn('No se pudo parsear plans como JSON:', plans);
-                    return [];
-                }
-            }
-            if (typeof plans === 'object') return [plans];
-            return [];
-        } catch (error) {
-            console.warn('Error parseando planes:', error);
-            return [];
-        }
-    }
-    
-    calculateMinPrice(plans) {
-        if (!plans?.length) return 0;
-        
-        const prices = plans.flatMap(plan => [
-            plan.price_soles || Infinity,
-            plan.price_dollars || Infinity
-        ]).filter(price => price > 0 && price !== Infinity);
-        
-        return prices.length ? Math.min(...prices) : 0;
-    }
-    
-    formatMinPrice(plans) {
-        const minPrice = this.calculateMinPrice(plans);
-        return Utils.formatCurrency(minPrice);
-    }
-    
-    getProducts() {
-        return this.products;
-    }
-    
-    getProductById(id) {
-        return this.products.find(product => product.id == id);
-    }
-    
-    getProductsByCategory(categoryId) {
-        return this.products.filter(product => product.category_id == categoryId);
-    }
-    
-    async addProduct(productData) {
-        try {
-            const result = await supabaseClient.addProduct(productData);
-            
-            if (result) {
-                const newProduct = this.processProducts([result])[0];
-                this.products.unshift(newProduct);
-                this.notifyListeners('productAdded', newProduct);
-                Utils.showSuccess('✅ Producto agregado correctamente');
-                return newProduct;
-            }
-            
-            return null;
-        } catch (error) {
-            console.error('Error al agregar producto:', error);
-            Utils.showError('Error al agregar producto');
-            throw error;
-        }
-    }
-    
-    async updateProduct(id, productData) {
-        try {
-            const result = await supabaseClient.updateProduct(id, productData);
-            
-            if (result) {
-                const updatedProduct = this.processProducts([result])[0];
-                const index = this.products.findIndex(p => p.id === id);
-                if (index !== -1) {
-                    this.products[index] = updatedProduct;
-                    this.notifyListeners('productUpdated', updatedProduct);
-                    Utils.showSuccess('✅ Producto actualizado correctamente');
-                    return updatedProduct;
-                }
-            }
-            
-            return null;
-        } catch (error) {
-            console.error('Error al actualizar producto:', error);
-            Utils.showError('Error al actualizar producto');
-            throw error;
-        }
-    }
-    
-    async deleteProduct(id) {
-        try {
-            await supabaseClient.deleteProduct(id);
-            this.products = this.products.filter(p => p.id !== id);
-            this.notifyListeners('productDeleted', id);
-            Utils.showSuccess('✅ Producto eliminado correctamente');
-            return true;
-        } catch (error) {
-            console.error('Error al eliminar producto:', error);
-            Utils.showError('Error al eliminar producto');
-            throw error;
-        }
-    }
-    
-    filterProducts(category = 'all', search = '') {
-        let filtered = [...this.products];
-        
-        // Filtrar por categoría
-        if (category !== 'all') {
-            filtered = filtered.filter(product => product.category_id == category);
-        }
-        
-        // Filtrar por búsqueda
-        if (search) {
-            const searchTerm = search.toLowerCase();
-            filtered = filtered.filter(product => 
-                product.name.toLowerCase().includes(searchTerm) ||
-                (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-                (product.category_name && product.category_name.toLowerCase().includes(searchTerm))
-            );
-        }
-        
-        return filtered;
-    }
-    
-    searchProducts(query) {
-        if (!query) return this.products;
-        
-        const searchTerm = query.toLowerCase();
-        return this.products.filter(product => 
-            product.name.toLowerCase().includes(searchTerm) ||
-            (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-            (product.category_name && product.category_name.toLowerCase().includes(searchTerm)) ||
-            (product.plans && product.plans.some(plan => 
-                plan.name.toLowerCase().includes(searchTerm)
-            ))
-        );
-    }
-    
-    // Sistema de eventos
-    addListener(event, callback) {
-        this.listeners.add({ event, callback });
-    }
-    
-    removeListener(event, callback) {
-        for (const listener of this.listeners) {
-            if (listener.event === event && listener.callback === callback) {
-                this.listeners.delete(listener);
-                break;
-            }
-        }
-    }
-    
-    notifyListeners(event, data) {
-        for (const listener of this.listeners) {
-            if (listener.event === event) {
-                try {
-                    listener.callback(data);
-                } catch (error) {
-                    console.error(`Error en listener para evento ${event}:`, error);
-                }
-            }
-        }
-    }
+  }
 }
 
-// Singleton instance
 let productManagerInstance = null;
 
 export async function getProductManager() {
-    if (!productManagerInstance) {
-        productManagerInstance = await ProductManager.init();
-    }
-    return productManagerInstance;
+  if (!productManagerInstance) {
+    productManagerInstance = new ProductManager();
+    await productManagerInstance.loadProducts();
+  }
+  return productManagerInstance;
 }
-
-// Exportar la clase también
-export { ProductManager };
-
-// Funciones de compatibilidad
-export const productManager = {
-    async loadProducts() {
-        const manager = await getProductManager();
-        return manager.loadProducts();
-    },
-
-    getProducts() {
-        return productManagerInstance ? productManagerInstance.getProducts() : [];
-    },
-
-    getProductById(id) {
-        return productManagerInstance ? productManagerInstance.getProductById(id) : null;
-    },
-    
-    getProductsByCategory(categoryId) {
-        return productManagerInstance ? productManagerInstance.getProductsByCategory(categoryId) : [];
-    },
-    
-    searchProducts(query) {
-        return productManagerInstance ? productManagerInstance.searchProducts(query) : [];
-    },
-
-    async addProduct(productData) {
-        const manager = await getProductManager();
-        return manager.addProduct(productData);
-    },
-
-    async updateProduct(id, productData) {
-        const manager = await getProductManager();
-        return manager.updateProduct(id, productData);
-    },
-
-    async deleteProduct(id) {
-        const manager = await getProductManager();
-        return manager.deleteProduct(id);
-    },
-    
-    filterProducts(category, search) {
-        return productManagerInstance ? productManagerInstance.filterProducts(category, search) : [];
-    },
-    
-    addListener(event, callback) {
-        if (productManagerInstance) {
-            productManagerInstance.addListener(event, callback);
-        }
-    },
-    
-    removeListener(event, callback) {
-        if (productManagerInstance) {
-            productManagerInstance.removeListener(event, callback);
-        }
-    }
-};
-
-// Hacer disponible globalmente
-if (typeof window.productManager === 'undefined') {
-    window.productManager = productManager;
-}
-
-// Inicializar automáticamente
-document.addEventListener('DOMContentLoaded', async () => {
-    try {
-        await getProductManager();
-        console.log('✅ ProductManager inicializado');
-    } catch (error) {
-        console.error('Error inicializando ProductManager:', error);
-    }
-});
