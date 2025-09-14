@@ -12,6 +12,10 @@ class IndexPage {
             categories: [],
             currentFilter: { category: 'all', search: '' }
         };
+        
+        // Bind methods for event listeners
+        this.handleCategoryFilterChange = this.handleCategoryFilterChange.bind(this);
+        this.handleSearchInput = this.handleSearchInput.bind(this);
     }
 
     async initialize() {
@@ -35,13 +39,14 @@ class IndexPage {
         } catch (error) {
             console.error('❌ Error inicializando página de inicio:', error);
             Utils.showError('Error al cargar la página');
-            await this.hideLoadingState();
+            this.showErrorState();
         }
     }
 
     async initializeManagers() {
-        await getCategoryManager();
-        await getProductManager();
+        // Asegurar que los managers estén disponibles globalmente
+        window.categoryManager = await getCategoryManager();
+        window.productManager = await getProductManager();
     }
 
     async loadData() {
@@ -49,8 +54,8 @@ class IndexPage {
             Utils.showInfo('🔄 Cargando catálogo...');
             
             const [categories, products] = await Promise.all([
-                categoryManager.loadCategories(),
-                productManager.loadProducts()
+                window.categoryManager.loadCategories(),
+                window.productManager.loadProducts()
             ]);
             
             this.state.categories = categories;
@@ -120,23 +125,35 @@ class IndexPage {
             filtered = filtered.filter(product => 
                 product.name.toLowerCase().includes(searchTerm) ||
                 (product.description && product.description.toLowerCase().includes(searchTerm)) ||
-                (product.categories?.name.toLowerCase().includes(searchTerm))
+                (product.categories?.name && product.categories.name.toLowerCase().includes(searchTerm))
             );
         }
         
         return filtered;
     }
 
+    handleCategoryFilterChange() {
+        this.renderProducts();
+    }
+
+    handleSearchInput() {
+        Utils.debounce(() => this.renderProducts(), 300)();
+    }
+
     setupEventListeners() {
         // Filtro de categoría
-        document.getElementById('categoryFilter')?.addEventListener('change', 
-            () => this.renderProducts()
-        );
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.removeEventListener('change', this.handleCategoryFilterChange);
+            categoryFilter.addEventListener('change', this.handleCategoryFilterChange);
+        }
         
         // Búsqueda
-        document.getElementById('searchInput')?.addEventListener('input', 
-            Utils.debounce(() => this.renderProducts(), 300)
-        );
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.removeEventListener('input', this.handleSearchInput);
+            searchInput.addEventListener('input', this.handleSearchInput);
+        }
         
         // Smooth scrolling para enlaces internos
         document.addEventListener('click', (e) => {
@@ -199,10 +216,6 @@ class IndexPage {
             </div>
         `;
     }
-
-    async hideLoadingState() {
-        // Ocultar cualquier estado de carga si es necesario
-    }
 }
 
 // Función global para resetear filtros
@@ -213,8 +226,7 @@ window.resetFilters = function() {
     if (categoryFilter) categoryFilter.value = 'all';
     if (searchInput) searchInput.value = '';
     
-    const indexPage = window.indexPage;
-    if (indexPage) indexPage.renderProducts();
+    if (window.indexPage) window.indexPage.renderProducts();
 };
 
 // Inicializar la página cuando el DOM esté listo
