@@ -1,5 +1,12 @@
 // scripts/core/utils.js
+// scripts/core/utils.js
 class Utils {
+  static validateEmail(email) {
+    if (!email || typeof email !== 'string') return false;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email.trim());
+  }
+
   static safeParseJSON(str, defaultValue = []) {
     if (!str || typeof str !== 'string') return defaultValue
     
@@ -233,6 +240,69 @@ class Utils {
     const spinner = document.createElement('div')
     spinner.className = `loading-spinner inline-block ${sizes[size]} border-2 border-blue-500 border-t-transparent rounded-full animate-spin`
     return spinner
+  }
+
+  static showConfirm(title, message, type = 'warning') {
+    return new Promise((resolve) => {
+      // Crear modal de confirmación
+      const modal = document.createElement('div')
+      modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'
+      modal.innerHTML = `
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full p-6 transform transition-all duration-300 scale-95 opacity-0">
+          <div class="text-center mb-4">
+            <div class="w-12 h-12 rounded-full ${type === 'warning' ? 'bg-yellow-100 text-yellow-600' : type === 'danger' ? 'bg-red-100 text-red-600' : 'bg-blue-100 text-blue-600'} flex items-center justify-center mx-auto mb-3">
+              <i class="fas ${type === 'warning' ? 'fa-exclamation-triangle' : type === 'danger' ? 'fa-times-circle' : 'fa-question-circle'}"></i>
+            </div>
+            <h3 class="text-lg font-semibold text-gray-800">${title}</h3>
+            <p class="text-gray-600 mt-2">${message}</p>
+          </div>
+          <div class="flex gap-3 justify-center">
+            <button class="cancel-btn px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+              Cancelar
+            </button>
+            <button class="confirm-btn px-4 py-2 rounded-lg text-white ${type === 'warning' ? 'bg-yellow-500 hover:bg-yellow-600' : type === 'danger' ? 'bg-red-500 hover:bg-red-600' : 'bg-blue-500 hover:bg-blue-600'} transition-colors">
+              Confirmar
+            </button>
+          </div>
+        </div>
+      `
+
+      document.body.appendChild(modal)
+
+      // Animación de entrada
+      requestAnimationFrame(() => {
+        modal.querySelector('div').classList.remove('scale-95', 'opacity-0')
+        modal.querySelector('div').classList.add('scale-100', 'opacity-100')
+      })
+
+      // Event listeners
+      const confirmBtn = modal.querySelector('.confirm-btn')
+      const cancelBtn = modal.querySelector('.cancel-btn')
+
+      const cleanup = () => {
+        modal.querySelector('div').classList.remove('scale-100', 'opacity-100')
+        modal.querySelector('div').classList.add('scale-95', 'opacity-0')
+        setTimeout(() => modal.remove(), 300)
+      }
+
+      confirmBtn.addEventListener('click', () => {
+        cleanup()
+        resolve(true)
+      })
+
+      cancelBtn.addEventListener('click', () => {
+        cleanup()
+        resolve(false)
+      })
+
+      // Cerrar al hacer clic fuera
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+          cleanup()
+          resolve(false)
+        }
+      })
+    })
   }
 }
 
