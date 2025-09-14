@@ -4,249 +4,183 @@ import { Utils } from '../core/utils.js';
 // Configuración
 const CONFIG = {
     IMAGE_PLACEHOLDER: 'https://via.placeholder.com/300x200?text=Imagen+no+disponible',
-    CURRENCY: 'PEN',
-    ANIMATION_DELAY: 0.05,
-    LAZY_LOAD_THRESHOLD: '100px'
+    CURRENCY_SYMBOL: 'S/'
 };
 
 // Crear tarjeta de producto
 export function createProductCard(product, isListView = false, index = 0) {
     const plans = Utils.safeParseJSON(product.plans);
     const minPrice = getProductMinPrice(product, plans);
-    const maxPrice = getProductMaxPrice(product, plans);
     const categoryName = getCategoryName(product);
     const imageUrl = product.photo_url || CONFIG.IMAGE_PLACEHOLDER;
-    const hasMultiplePrices = minPrice !== maxPrice && maxPrice !== Infinity;
-    const rating = product.rating || Math.random() * 2 + 3; // Random rating entre 3-5 si no existe
-    const isNew = isProductNew(product.created_at);
+    const hasMultiplePlans = plans && plans.length > 1;
     
     if (isListView) {
-        return createListView(product, plans, minPrice, maxPrice, categoryName, imageUrl, rating, isNew, index);
+        return createListView(product, plans, minPrice, categoryName, imageUrl, index, hasMultiplePlans);
     } else {
-        return createGridView(product, plans, minPrice, maxPrice, categoryName, imageUrl, rating, isNew, index);
+        return createGridView(product, plans, minPrice, categoryName, imageUrl, index, hasMultiplePlans);
     }
 }
 
-function createGridView(product, plans, minPrice, maxPrice, categoryName, imageUrl, rating, isNew, index) {
-    const hasMultiplePlans = plans.length > 1;
-    const priceRange = hasMultiplePrices ? `${Utils.formatCurrency(minPrice)} - ${Utils.formatCurrency(maxPrice)}` : Utils.formatCurrency(minPrice);
+function createGridView(product, plans, minPrice, categoryName, imageUrl, index, hasMultiplePlans) {
+    const isPriceAvailable = minPrice !== Infinity;
+    const animationDelay = index * 0.05;
     
     return `
-        <div class="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 product-card fade-in-up will-change-transform" 
-             style="animation-delay: ${index * CONFIG.ANIMATION_DELAY}s" 
-             data-id="${product.id}"
-             data-category="${product.category_id}">
+        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 fade-in-up will-change-transform product-card group" 
+             style="animation-delay: ${animationDelay}s" 
+             data-id="${product.id}">
             
-            <!-- Image Container -->
-            <div class="relative overflow-hidden aspect-w-16 aspect-h-10 bg-gray-100">
+            <!-- Imagen del producto -->
+            <div class="relative overflow-hidden h-48 bg-gray-100">
                 <img 
                     src="${imageUrl}" 
                     alt="${product.name}"
-                    class="w-full h-48 object-cover transition-transform duration-500 group-hover:scale-110"
+                    class="w-full h-full object-cover product-image transition-transform duration-500 group-hover:scale-110"
                     loading="lazy"
                     onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
                 />
                 
-                <!-- Overlay Effects -->
-                <div class="absolute inset-0 bg-black opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
-                
-                <!-- Badges Container -->
-                <div class="absolute top-3 left-3 flex flex-col items-start gap-2">
-                    ${isNew ? `
-                        <span class="bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                            Nuevo
-                        </span>
-                    ` : ''}
-                    
-                    ${product.featured ? `
-                        <span class="bg-purple-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                            Destacado
-                        </span>
-                    ` : ''}
+                <!-- Badge de categoría -->
+                <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
+                    ${categoryName}
                 </div>
                 
-                <!-- Price Badge -->
-                ${minPrice !== Infinity ? `
-                    <div class="absolute top-3 right-3 bg-white/95 backdrop-blur-sm text-blue-600 text-sm font-bold px-3 py-2 rounded-xl shadow-lg">
-                        ${priceRange}
+                <!-- Badge de precio o etiqueta especial -->
+                ${isPriceAvailable ? `
+                    <div class="absolute top-3 right-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white text-sm font-bold px-3 py-1.5 rounded-lg shadow-md">
+                        ${Utils.formatCurrency(minPrice)}
                     </div>
-                ` : ''}
+                ` : `
+                    <div class="absolute top-3 right-3 bg-gray-800 text-white text-sm font-bold px-3 py-1.5 rounded-lg shadow-md">
+                        Consultar precio
+                    </div>
+                `}
                 
-                <!-- Quick Actions Overlay -->
-                <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-black/30">
-                    <button class="view-details-btn bg-white text-blue-600 font-semibold px-6 py-3 rounded-full shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:bg-blue-50" 
+                <!-- Overlay de hover -->
+                <div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+                    <button class="view-details-btn bg-white text-blue-600 font-semibold py-2 px-4 rounded-lg shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-transform duration-300 hover:bg-blue-50" 
                             data-product-id="${product.id}">
-                        Ver Detalles
+                        Ver detalles
                     </button>
                 </div>
             </div>
             
-            <!-- Content Container -->
-            <div class="p-5">
-                <!-- Category and Rating -->
-                <div class="flex items-center justify-between mb-3">
-                    <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                        ${categoryName}
-                    </span>
-                    
-                    <div class="flex items-center gap-1">
-                        <i class="fas fa-star text-yellow-400 text-xs"></i>
-                        <span class="text-xs text-gray-600 font-medium">${rating.toFixed(1)}</span>
-                    </div>
-                </div>
-                
-                <!-- Product Name -->
-                <h3 class="font-semibold text-lg text-gray-900 mb-2 line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors duration-200">
-                    ${product.name}
-                </h3>
-                
-                <!-- Description -->
-                <p class="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">
-                    ${product.description || 'Descripción no disponible'}
-                </p>
-                
-                <!-- Features/Highlights -->
-                ${product.highlights ? `
-                    <div class="mb-4">
-                        <ul class="text-xs text-gray-500 space-y-1">
-                            ${product.highlights.slice(0, 2).map(highlight => `
-                                <li class="flex items-center">
-                                    <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
-                                    ${highlight}
-                                </li>
-                            `).join('')}
-                        </ul>
-                    </div>
-                ` : ''}
-                
-                <!-- Footer -->
-                <div class="flex items-center justify-between pt-3 border-t border-gray-100">
-                    <button class="view-details-btn text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center group/details" 
-                            data-product-id="${product.id}">
-                        <span>Más información</span>
-                        <i class="fas fa-arrow-right ml-2 text-xs transform group-hover/details:translate-x-1 transition-transform duration-200"></i>
-                    </button>
+            <!-- Contenido de la tarjeta -->
+            <div class="p-4">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-gray-800 text-lg line-clamp-2 leading-tight group-hover:text-blue-600 transition-colors duration-200" title="${product.name}">
+                        ${product.name}
+                    </h3>
                     
                     ${hasMultiplePlans ? `
-                        <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+                        <span class="bg-blue-100 text-blue-700 text-xs font-medium px-2 py-1 rounded-full whitespace-nowrap ml-2">
                             ${plans.length} planes
                         </span>
                     ` : ''}
+                </div>
+                
+                <p class="text-gray-500 text-sm mb-3 line-clamp-2 leading-relaxed" title="${product.description || 'Sin descripción'}">
+                    ${product.description || 'Sin descripción'}
+                </p>
+                
+                <div class="flex justify-between items-center mt-4 pt-3 border-t border-gray-100">
+                    <div class="flex items-center text-sm text-gray-500">
+                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        ${hasMultiplePlans ? 'Múltiples planes' : 'Plan único'}
+                    </div>
+                    
+                    <button class="view-details-btn text-blue-600 hover:text-blue-800 font-medium text-sm flex items-center group/btn" 
+                            data-product-id="${product.id}">
+                        Detalles
+                        <svg class="w-4 h-4 ml-1 transform group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                        </svg>
+                    </button>
                 </div>
             </div>
         </div>
     `;
 }
 
-function createListView(product, plans, minPrice, maxPrice, categoryName, imageUrl, rating, isNew, index) {
-    const hasMultiplePrices = minPrice !== maxPrice && maxPrice !== Infinity;
-    const priceRange = hasMultiplePrices ? `${Utils.formatCurrency(minPrice)} - ${Utils.formatCurrency(maxPrice)}` : Utils.formatCurrency(minPrice);
+function createListView(product, plans, minPrice, categoryName, imageUrl, index, hasMultiplePlans) {
+    const isPriceAvailable = minPrice !== Infinity;
+    const animationDelay = index * 0.05;
     
     return `
-        <div class="group bg-white rounded-2xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300 product-card fade-in-up will-change-transform" 
-             style="animation-delay: ${index * CONFIG.ANIMATION_DELAY}s" 
-             data-id="${product.id}"
-             data-category="${product.category_id}">
+        <div class="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition-all duration-300 fade-in-up will-change-transform product-card group" 
+             style="animation-delay: ${animationDelay}s" 
+             data-id="${product.id}">
             
             <div class="flex flex-col md:flex-row">
-                <!-- Image Section -->
-                <div class="md:w-1/3 lg:w-1/4 relative">
-                    <div class="relative aspect-w-16 aspect-h-9 bg-gray-100">
-                        <img 
-                            src="${imageUrl}" 
-                            alt="${product.name}"
-                            class="w-full h-full object-cover"
-                            loading="lazy"
-                            onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
-                        />
-                        
-                        <!-- Badges -->
-                        <div class="absolute top-3 left-3 flex flex-col items-start gap-2">
-                            ${isNew ? `
-                                <span class="bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-full shadow-md">
-                                    Nuevo
-                                </span>
-                            ` : ''}
-                        </div>
+                <!-- Imagen -->
+                <div class="relative flex-shrink-0 w-full md:w-48 h-48 md:h-auto">
+                    <img 
+                        src="${imageUrl}" 
+                        alt="${product.name}"
+                        class="w-full h-full object-cover product-image"
+                        loading="lazy"
+                        onerror="this.src='${CONFIG.IMAGE_PLACEHOLDER}';this.onerror=null;"
+                    />
+                    
+                    <!-- Badge de categoría -->
+                    <div class="absolute top-3 left-3 bg-white/90 backdrop-blur-sm text-gray-800 text-xs font-semibold px-2.5 py-1 rounded-full shadow-sm">
+                        ${categoryName}
                     </div>
                 </div>
                 
-                <!-- Content Section -->
-                <div class="flex-1 p-6">
-                    <div class="flex flex-col h-full">
-                        <!-- Header -->
-                        <div class="flex items-start justify-between mb-4">
-                            <div class="flex-1">
-                                <span class="text-xs font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full mb-2 inline-block">
-                                    ${categoryName}
+                <!-- Contenido -->
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-gray-800 text-xl line-clamp-1 group-hover:text-blue-600 transition-colors duration-200" title="${product.name}">
+                                ${product.name}
+                            </h3>
+                            
+                            ${isPriceAvailable ? `
+                                <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white text-lg font-bold px-4 py-2 rounded-lg shadow-md ml-4 whitespace-nowrap">
+                                    ${Utils.formatCurrency(minPrice)}
+                                </div>
+                            ` : `
+                                <div class="bg-gray-800 text-white text-sm font-bold px-3 py-1.5 rounded-lg shadow-md ml-4 whitespace-nowrap">
+                                    Consultar precio
+                                </div>
+                            `}
+                        </div>
+                        
+                        <p class="text-gray-500 mb-3 line-clamp-2 leading-relaxed" title="${product.description || 'Sin descripción'}">
+                            ${product.description || 'Sin descripción'}
+                        </p>
+                    </div>
+                    
+                    <div class="flex justify-between items-center pt-4 border-t border-gray-100">
+                        <div class="flex items-center space-x-4">
+                            ${hasMultiplePlans ? `
+                                <span class="bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1.5 rounded-full flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+                                    </svg>
+                                    ${plans.length} planes disponibles
                                 </span>
-                                
-                                <h3 class="font-semibold text-xl text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-200">
-                                    ${product.name}
-                                </h3>
-                                
-                                <p class="text-gray-600 text-sm mb-4 line-clamp-2">
-                                    ${product.description || 'Descripción no disponible'}
-                                </p>
-                            </div>
-                            
-                            <!-- Price Desktop -->
-                            ${minPrice !== Infinity ? `
-                                <div class="hidden md:block text-right ml-6">
-                                    <div class="text-2xl font-bold text-blue-600">${priceRange}</div>
-                                    ${plans.length > 1 ? `
-                                        <span class="text-xs text-gray-500">Desde</span>
-                                    ` : ''}
-                                </div>
-                            ` : ''}
+                            ` : `
+                                <span class="bg-green-100 text-green-700 text-xs font-medium px-2.5 py-1.5 rounded-full flex items-center">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                    </svg>
+                                    Plan único
+                                </span>
+                            `}
                         </div>
                         
-                        <!-- Features -->
-                        ${product.highlights ? `
-                            <div class="mb-4">
-                                <ul class="text-sm text-gray-600 grid grid-cols-2 gap-2">
-                                    ${product.highlights.slice(0, 4).map(highlight => `
-                                        <li class="flex items-center">
-                                            <i class="fas fa-check-circle text-green-500 mr-2 text-xs"></i>
-                                            ${highlight}
-                                        </li>
-                                    `).join('')}
-                                </ul>
-                            </div>
-                        ` : ''}
-                        
-                        <!-- Footer -->
-                        <div class="flex items-center justify-between mt-auto pt-4 border-t border-gray-100">
-                            <div class="flex items-center gap-4">
-                                <!-- Rating -->
-                                <div class="flex items-center gap-1">
-                                    <i class="fas fa-star text-yellow-400"></i>
-                                    <span class="text-sm text-gray-600 font-medium">${rating.toFixed(1)}</span>
-                                </div>
-                                
-                                <!-- Plans Count -->
-                                ${plans.length > 1 ? `
-                                    <span class="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-                                        ${plans.length} planes disponibles
-                                    </span>
-                                ` : ''}
-                            </div>
-                            
-                            <div class="flex items-center gap-3">
-                                <!-- Price Mobile -->
-                                ${minPrice !== Infinity ? `
-                                    <div class="md:hidden text-right">
-                                        <div class="text-lg font-bold text-blue-600">${priceRange}</div>
-                                    </div>
-                                ` : ''}
-                                
-                                <button class="view-details-btn bg-blue-600 text-white font-semibold px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center group/details" 
-                                        data-product-id="${product.id}">
-                                    <span>Ver planes</span>
-                                    <i class="fas fa-arrow-right ml-2 text-xs transform group-hover/details:translate-x-1 transition-transform duration-200"></i>
-                                </button>
-                            </div>
-                        </div>
+                        <button class="view-details-btn bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 flex items-center group/btn" 
+                                data-product-id="${product.id}">
+                            Ver detalles
+                            <svg class="w-4 h-4 ml-2 transform group-hover/btn:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
             </div>
@@ -262,28 +196,13 @@ function getProductMinPrice(product, plans = null) {
     
     if (!plans || !plans.length) return Infinity;
     
-    const prices = plans.flatMap(plan => [
+    // Filtrar precios válidos y encontrar el mínimo
+    const validPrices = plans.flatMap(plan => [
         plan.price_soles || Infinity,
-        plan.price_dollars || Infinity
+        plan.price_dollars ? plan.price_dollars * 3.7 : Infinity // Conversión aproximada a soles
     ]).filter(price => price > 0 && price !== Infinity);
     
-    return prices.length ? Math.min(...prices) : Infinity;
-}
-
-// Obtener precio máximo de un producto
-function getProductMaxPrice(product, plans = null) {
-    if (!plans) {
-        plans = Utils.safeParseJSON(product.plans);
-    }
-    
-    if (!plans || !plans.length) return Infinity;
-    
-    const prices = plans.flatMap(plan => [
-        plan.price_soles || 0,
-        plan.price_dollars || 0
-    ]).filter(price => price > 0);
-    
-    return prices.length ? Math.max(...prices) : Infinity;
+    return validPrices.length ? Math.min(...validPrices) : Infinity;
 }
 
 // Obtener nombre de categoría
@@ -300,21 +219,6 @@ function getCategoryName(product) {
     return product.category || 'General';
 }
 
-// Verificar si el producto es nuevo (menos de 30 días)
-function isProductNew(createdAt) {
-    if (!createdAt) return false;
-    
-    try {
-        const createdDate = new Date(createdAt);
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
-        return createdDate > thirtyDaysAgo;
-    } catch (error) {
-        return false;
-    }
-}
-
 // Añadir event listeners a las tarjetas de producto
 export function addProductCardEventListeners() {
     // Event listeners para botones de ver detalles
@@ -322,7 +226,6 @@ export function addProductCardEventListeners() {
         btn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
             const productId = btn.dataset.productId;
             if (productId && typeof window.showProductDetails === 'function') {
                 window.showProductDetails(productId);
@@ -330,11 +233,11 @@ export function addProductCardEventListeners() {
         });
     });
     
-    // Click en toda la tarjeta (excepto en botones)
+    // Event listener para hacer clic en toda la tarjeta (excepto en los botones)
     document.querySelectorAll('.product-card').forEach(card => {
         card.addEventListener('click', (e) => {
-            // No activar si se hizo click en un botón o enlace
-            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button') || e.target.closest('a')) {
+            // No activar si se hizo clic en un botón o enlace
+            if (e.target.tagName === 'BUTTON' || e.target.tagName === 'A' || e.target.closest('button, a')) {
                 return;
             }
             
@@ -348,76 +251,32 @@ export function addProductCardEventListeners() {
 
 // Animar entrada de productos
 export function animateProductsEntry() {
+    if (!('IntersectionObserver' in window)) return;
+    
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                entry.target.classList.add('animate-in');
+                entry.target.style.opacity = '1';
+                entry.target.style.transform = 'translateY(0)';
                 observer.unobserve(entry.target);
             }
         });
-    }, { 
-        threshold: 0.1,
-        rootMargin: CONFIG.LAZY_LOAD_THRESHOLD
-    });
+    }, { threshold: 0.05, rootMargin: '0px 0px -50px 0px' });
     
     document.querySelectorAll('.fade-in-up').forEach(el => {
+        // Estilos iniciales para la animación
+        el.style.opacity = '0';
+        el.style.transform = 'translateY(20px)';
+        el.style.transition = 'opacity 0.5s ease, transform 0.5s ease';
+        
         observer.observe(el);
     });
 }
 
-// Efecto de hover mejorado para tarjetas
-export function enhanceCardHoverEffects() {
-    const cards = document.querySelectorAll('.product-card');
-    
-    cards.forEach(card => {
-        card.addEventListener('mouseenter', () => {
-            card.style.transform = 'translateY(-4px) scale(1.01)';
-        });
-        
-        card.addEventListener('mouseleave', () => {
-            card.style.transform = 'translateY(0) scale(1)';
-        });
-    });
+// Función para formatear precios (si no existe en Utils)
+if (typeof Utils.formatCurrency === 'undefined') {
+    Utils.formatCurrency = (amount) => {
+        if (amount === Infinity) return 'Consultar';
+        return `S/ ${amount.toFixed(2)}`;
+    };
 }
-
-// Lazy loading mejorado para imágenes
-export function initLazyLoading() {
-    const imageObserver = new IntersectionObserver((entries, observer) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                const src = img.getAttribute('data-src') || img.src;
-                
-                if (src && src !== img.src) {
-                    img.src = src;
-                }
-                
-                img.classList.remove('lazy');
-                observer.unobserve(img);
-            }
-        });
-    }, {
-        threshold: 0.1,
-        rootMargin: CONFIG.LAZY_LOAD_THRESHOLD
-    });
-    
-    document.querySelectorAll('img[loading="lazy"]').forEach(img => {
-        imageObserver.observe(img);
-    });
-}
-
-// Inicializar todos los efectos
-export function initProductCards() {
-    addProductCardEventListeners();
-    animateProductsEntry();
-    enhanceCardHoverEffects();
-    initLazyLoading();
-}
-
-// Exportar funciones de utilidad
-export const ProductCardUtils = {
-    getMinPrice: getProductMinPrice,
-    getMaxPrice: getProductMaxPrice,
-    getCategoryName,
-    isProductNew
-};
