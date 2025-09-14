@@ -9,7 +9,7 @@ const CONFIG = {
 // Crear tarjeta de producto
 export function createProductCard(product, isListView = false, index = 0) {
     const plans = Utils.safeParseJSON(product.plans);
-    const minPrice = getProductMinPrice(product);
+    const minPrice = getProductMinPrice(product, plans);
     const categoryName = getCategoryName(product);
     const imageUrl = product.photo_url || CONFIG.IMAGE_PLACEHOLDER;
     
@@ -95,11 +95,12 @@ function createListView(product, plans, minPrice, categoryName, imageUrl, index)
 }
 
 // Obtener precio mínimo de un producto
-export function getProductMinPrice(product) {
-    if (!product.plans || !product.plans.length) return Infinity;
+function getProductMinPrice(product, plans = null) {
+    if (!plans) {
+        plans = Utils.safeParseJSON(product.plans);
+    }
     
-    const plans = Utils.safeParseJSON(product.plans);
-    if (!plans.length) return Infinity;
+    if (!plans || !plans.length) return Infinity;
     
     return Math.min(...plans.map(plan => 
         Math.min(
