@@ -1,6 +1,6 @@
 // scripts/components/modals.js
 import { Utils } from '../core/utils.js';
-import { productManager } from '../managers/product-manager.js';
+import { ProductManager } from '../managers/product-manager.js';
 import { CategoryManager } from '../managers/category-manager.js';
 
 export class ModalManager {
@@ -422,11 +422,11 @@ export class ProductModal {
             let result;
             if (productId) {
                 // Actualizar producto existente
-                result = await productManager.updateProduct(productId, productData);
+                result = await ProductManager.updateProduct(productId, productData);
                 Utils.showNotification('Producto actualizado correctamente', 'success');
             } else {
                 // Crear nuevo producto
-                result = await productManager.addProduct(productData);
+                result = await ProductManager.addProduct(productData);
                 Utils.showNotification('Producto creado correctamente', 'success');
             }
             
