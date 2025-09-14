@@ -1,390 +1,410 @@
-// scripts/pages/admin.js
-import { Utils } from '../core/utils.js';
-import { AuthManagerFunctions } from '../core/auth.js';
-import { getProductManager } from '../managers/product-manager.js';
-import { getCategoryManager } from '../managers/category-manager.js';
-import { openProductModal, showDeleteConfirm, openCategoriesModal, openStatsModal } from '../components/modals.js';
-import { setupAllEventListeners } from '../event-listeners.js';
+import { AuthManager } from '../core/auth.js'
+import { ProductManager } from '../managers/product-manager.js'
+import { CategoryManager } from '../managers/category-manager.js'
+import { ModalManager, ProductModal } from '../components/modals.js'
+import { ProductCard } from '../components/product-card.js'
+import { Utils } from '../core/utils.js'
+
+// Instancias globales para acceso desde otros módulos
+window.productManager = new ProductManager()
+window.categoryManager = new CategoryManager()
+window.modalManager = new ModalManager()
+window.productModal = new ProductModal(window.modalManager)
 
 class AdminPage {
     constructor() {
-        this.currentFilter = {
-            search: '',
-            category: '',
-            sort: 'newest'
-        };
-        this.currentPage = 1;
-        this.itemsPerPage = 10;
-        this.products = [];
-        this.categories = [];
+        this.init()
     }
 
     async init() {
-        try {
-            // Verificar autenticación
-            const isAuthenticated = await AuthManagerFunctions.isAuthenticated();
-            if (!isAuthenticated) {
-                window.location.href = 'login.html';
-                return;
+        // Verificar autenticación
+        AuthManager.requireAuth()
+        
+        // Cargar datos iniciales
+        await this.loadInitialData()
+        
+        // Configurar event listeners
+        this.setupEventListeners()
+        
+        // Cargar productos
+        await window.productManager.loadProducts()
+        this.renderProducts()
+    }
+
+    async loadInitialData() {
+        // Cargar categorías
+        const { success, categories } = await window.categoryManager.loadCategories()
+        
+        if (success) {
+            this.populateCategoryFilters(categories)
+        } else {
+            Utils.showNotification('Error al cargar categorías', 'error')
+        }
+        
+        // Cargar estadísticas
+        await this.loadStats()
+    }
+
+    populateCategoryFilters(categories) {
+        // Filtro de categorías en el panel de administración
+        const filterCategory = document.getElementById('filterCategory')
+        if (filterCategory) {
+            // Limpiar opciones excepto la primera
+            while (filterCategory.options.length > 1) {
+                filterCategory.remove(1)
             }
-
-            // Cargar datos
-            await this.loadData();
-
-            // Configurar event listeners
-            this.setupEventListeners();
-
-            // Configurar listeners globales
-            setupAllEventListeners(this);
-
-            console.log('✅ AdminPage inicializada correctamente');
-        } catch (error) {
-            console.error('Error inicializando AdminPage:', error);
-            Utils.showError('Error al cargar el panel de administración');
+            
+            // Agregar categorías
+            categories.forEach(category => {
+                const option = document.createElement('option')
+                option.value = category.id
+                option.textContent = category.name
+                filterCategory.appendChild(option)
+            })
+        }
+        
+        // Selector de categorías en el modal de producto
+        const categorySelect = document.getElementById('category')
+        if (categorySelect) {
+            // Limpiar opciones excepto la primera
+            while (categorySelect.options.length > 1) {
+                categorySelect.remove(1)
+            }
+            
+            // Agregar categorías
+            categories.forEach(category => {
+                const option = document.createElement('option')
+                option.value = category.id
+                option.textContent = category.name
+                categorySelect.appendChild(option)
+            })
         }
     }
 
-    async loadData() {
-        try {
-            // Mostrar estado de carga
-            document.getElementById('adminProductsList').innerHTML = `
-                <div class="text-center py-12 text-gray-500">
-                    <div class="loading-spinner mx-auto mb-3"></div>
-                    <p>Cargando productos...</p>
-                </div>
-            `;
-
-            // Cargar productos y categorías
-            const [productManager, categoryManager] = await Promise.all([
-                getProductManager(),
-                getCategoryManager()
-            ]);
-
-            this.products = productManager.getProducts();
-            this.categories = categoryManager.getCategories();
-
-            // Actualizar interfaz
-            this.updateCategoriesFilter();
-            this.renderProducts();
-            this.updateStatsSummary();
-            this.updateProductsCount();
-
-        } catch (error) {
-            console.error('Error loading data:', error);
-            document.getElementById('adminProductsList').innerHTML = `
-                <div class="text-center py-12 text-red-500">
-                    <i class="fas fa-exclamation-triangle text-3xl mb-3"></i>
-                    <p>Error al cargar los productos</p>
-                    <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" onclick="window.adminPage.loadData()">
-                        Reintentar
-                    </button>
-                </div>
-            `;
+    async loadStats() {
+        const { success, stats } = await window.productManager.getStats()
+        
+        if (success) {
+            this.renderStats(stats)
+        } else {
+            console.error('Error al cargar estadísticas')
         }
     }
 
-    updateCategoriesFilter() {
-        const filterCategory = document.getElementById('filterCategory');
-        if (!filterCategory) return;
-
-        // Limpiar opciones excepto la primera
-        while (filterCategory.options.length > 1) {
-            filterCategory.remove(1);
-        }
-
-        // Añadir categorías
-        this.categories.forEach(category => {
-            const option = document.createElement('option');
-            option.value = category.id;
-            option.textContent = category.name;
-            filterCategory.appendChild(option);
-        });
-    }
-
-    renderProducts() {
-        const container = document.getElementById('adminProductsList');
-        if (!container) return;
-
-        // Filtrar productos
-        let filteredProducts = [...this.products];
-        
-        // Aplicar filtro de búsqueda
-        if (this.currentFilter.search) {
-            const searchTerm = this.currentFilter.search.toLowerCase();
-            filteredProducts = filteredProducts.filter(product => 
-                product.name.toLowerCase().includes(searchTerm) || 
-                (product.description && product.description.toLowerCase().includes(searchTerm))
-            );
-        }
-        
-        // Aplicar filtro de categoría
-        if (this.currentFilter.category) {
-            filteredProducts = filteredProducts.filter(product => 
-                product.category_id == this.currentFilter.category
-            );
-        }
-        
-        // Aplicar ordenamiento
-        filteredProducts = this.sortProducts(filteredProducts, this.currentFilter.sort);
-
-        // Mostrar mensaje si no hay productos
-        if (filteredProducts.length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-12 text-gray-500">
-                    <i class="fas fa-search text-3xl mb-3"></i>
-                    <p>No se encontraron productos</p>
-                    <p class="text-sm mt-1">Intenta con otros filtros o crea un nuevo producto</p>
-                </div>
-            `;
-            return;
-        }
-
-        // Renderizar productos
-        container.innerHTML = filteredProducts.map(product => this.createProductCard(product)).join('');
-        
-        // Configurar event listeners para los botones
-        this.setupProductCardEventListeners();
-    }
-
-    sortProducts(products, sortBy) {
-        const sorted = [...products];
-        
-        switch (sortBy) {
-            case 'newest':
-                return sorted.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-            case 'oldest':
-                return sorted.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-            case 'name_asc':
-                return sorted.sort((a, b) => a.name.localeCompare(b.name));
-            case 'name_desc':
-                return sorted.sort((a, b) => b.name.localeCompare(a.name));
-            default:
-                return sorted;
-        }
-    }
-
-    createProductCard(product) {
-        const category = this.categories.find(c => c.id === product.category_id);
-        const categoryName = category ? category.name : 'Sin categoría';
-        const plans = Utils.safeParseJSON(product.plans);
-        const minPrice = this.getProductMinPrice(product);
-        
-        return `
-            <div class="bg-white border border-gray-200 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center gap-4" data-id="${product.id}">
-                <div class="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                    <img src="${product.photo_url || 'https://via.placeholder.com/80x80?text=Sin+imagen'}" 
-                         alt="${Utils.escapeHtml(product.name)}" 
-                         class="w-full h-full object-cover"
-                         onerror="this.src='https://via.placeholder.com/80x80?text=Error'">
-                </div>
-                
-                <div class="flex-1 min-w-0">
-                    <h4 class="font-semibold text-gray-800 truncate">${Utils.escapeHtml(product.name)}</h4>
-                    <p class="text-sm text-gray-500 mt-1">${categoryName}</p>
-                    <p class="text-sm text-gray-600 mt-2 line-clamp-2">${Utils.escapeHtml(product.description || 'Sin descripción')}</p>
-                </div>
-                
-                <div class="flex flex-col md:flex-row items-start md:items-center gap-2">
-                    <div class="text-right">
-                        <span class="font-bold text-blue-600">${Utils.formatCurrency(minPrice)}</span>
-                        ${plans && plans.length > 1 ? 
-                            `<span class="text-xs text-gray-500 block mt-1">${plans.length} planes</span>` : ''}
-                    </div>
-                    
-                    <div class="flex gap-2 mt-2 md:mt-0">
-                        <button class="edit-product px-3 py-1 bg-blue-100 text-blue-700 rounded text-sm hover:bg-blue-200" data-id="${product.id}">
-                            <i class="fas fa-edit mr-1"></i>Editar
-                        </button>
-                        <button class="delete-product px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200" data-id="${product.id}">
-                            <i class="fas fa-trash mr-1"></i>Eliminar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-    }
-
-    getProductMinPrice(product) {
-        const plans = Utils.safeParseJSON(product.plans);
-        if (!plans || !plans.length) return Infinity;
-        
-        const validPrices = plans.flatMap(plan => [
-            plan.price_soles || Infinity,
-            plan.price_dollars ? plan.price_dollars * 3.7 : Infinity
-        ]).filter(price => price > 0 && price !== Infinity);
-        
-        return validPrices.length ? Math.min(...validPrices) : Infinity;
-    }
-
-    setupProductCardEventListeners() {
-        // Botones de editar
-        document.querySelectorAll('.edit-product').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const productId = e.currentTarget.dataset.id;
-                const product = this.products.find(p => p.id == productId);
-                if (product) {
-                    openProductModal(product);
-                }
-            });
-        });
-        
-        // Botones de eliminar
-        document.querySelectorAll('.delete-product').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const productId = e.currentTarget.dataset.id;
-                const product = this.products.find(p => p.id == productId);
-                if (product) {
-                    showDeleteConfirm(product);
-                }
-            });
-        });
-    }
-
-    updateStatsSummary() {
-        const statsContainer = document.getElementById('statsSummary');
-        if (!statsContainer) return;
-        
-        const totalProducts = this.products.length;
-        const totalCategories = this.categories.length;
-        
-        // Calcular productos recientes (últimos 7 días)
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const recentProducts = this.products.filter(p => 
-            new Date(p.created_at) >= weekAgo
-        ).length;
-        
-        // Calcular productos con imagen
-        const productsWithImage = this.products.filter(p => 
-            p.photo_url && p.photo_url.startsWith('http')
-        ).length;
+    renderStats(stats) {
+        const statsContainer = document.getElementById('statsSummary')
+        if (!statsContainer) return
         
         statsContainer.innerHTML = `
-            <div class="bg-white rounded-lg shadow p-4">
+            <div class="bg-white p-4 rounded-lg shadow">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
                         <i class="fas fa-box text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold">${totalProducts}</p>
-                        <p class="text-gray-500">Productos totales</p>
+                        <p class="text-gray-500 text-sm">Total Productos</p>
+                        <p class="text-2xl font-bold">${stats.totalProducts}</p>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-4">
+            <div class="bg-white p-4 rounded-lg shadow">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
                         <i class="fas fa-tags text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold">${totalCategories}</p>
-                        <p class="text-gray-500">Categorías</p>
+                        <p class="text-gray-500 text-sm">Total Categorías</p>
+                        <p class="text-2xl font-bold">${stats.categories.length}</p>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-4">
+            <div class="bg-white p-4 rounded-lg shadow">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-                        <i class="fas fa-clock text-xl"></i>
+                        <i class="fas fa-star text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold">${recentProducts}</p>
-                        <p class="text-gray-500">Recientes (7 días)</p>
+                        <p class="text-gray-500 text-sm">Producto Destacado</p>
+                        <p class="text-lg font-bold truncate">${stats.recentProducts[0]?.name || 'Ninguno'}</p>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-white rounded-lg shadow p-4">
+            <div class="bg-white p-4 rounded-lg shadow">
                 <div class="flex items-center">
                     <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
-                        <i class="fas fa-image text-xl"></i>
+                        <i class="fas fa-chart-line text-xl"></i>
                     </div>
                     <div>
-                        <p class="text-2xl font-bold">${productsWithImage}</p>
-                        <p class="text-gray-500">Con imagen</p>
+                        <p class="text-gray-500 text-sm">Categoría Principal</p>
+                        <p class="text-lg font-bold">
+                            ${this.getTopCategory(stats.categories)}
+                        </p>
                     </div>
                 </div>
             </div>
-        `;
+        `
     }
 
-    updateProductsCount() {
-        const countElement = document.getElementById('productsCount');
-        if (countElement) {
-            countElement.textContent = `${this.products.length} producto${this.products.length !== 1 ? 's' : ''}`;
+    getTopCategory(categories) {
+        if (!categories || categories.length === 0) return 'Ninguna'
+        
+        const topCategory = categories.reduce((prev, current) => {
+            return (prev.product_count > current.product_count) ? prev : current
+        })
+        
+        return topCategory.name
+    }
+
+    renderProducts() {
+        const productsList = document.getElementById('adminProductsList')
+        const productsCount = document.getElementById('productsCount')
+        
+        if (!productsList) return
+        
+        if (window.productManager.products.length === 0) {
+            productsList.innerHTML = `
+                <div class="text-center py-12">
+                    <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
+                    <p class="text-gray-500">No se encontraron productos</p>
+                </div>
+            `
+            productsCount.textContent = '0 productos'
+            return
         }
+        
+        // Actualizar contador
+        productsCount.textContent = `${window.productManager.totalProducts} productos`
+        
+        // Renderizar productos
+        productsList.innerHTML = ''
+        window.productManager.products.forEach(product => {
+            const productElement = ProductCard.create(product, true)
+            productsList.appendChild(productElement)
+            
+            // Configurar eventos para botones de editar/eliminar
+            const editBtn = productElement.querySelector('.edit-product')
+            const deleteBtn = productElement.querySelector('.delete-product')
+            
+            if (editBtn) {
+                editBtn.addEventListener('click', () => this.editProduct(product.id))
+            }
+            
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => this.confirmDeleteProduct(product))
+            }
+        })
+        
+        // Renderizar paginación
+        this.renderPagination()
+    }
+
+    renderPagination() {
+        const paginationContainer = document.getElementById('productsPagination')
+        if (!paginationContainer) return
+        
+        const totalPages = window.productManager.getTotalPages()
+        
+        if (totalPages <= 1) {
+            paginationContainer.classList.add('hidden')
+            return
+        }
+        
+        paginationContainer.classList.remove('hidden')
+        
+        let paginationHTML = `
+            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50" 
+                    ${window.productManager.currentPage === 1 ? 'disabled' : ''}
+                    data-page="${window.productManager.currentPage - 1}">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `
+        
+        for (let i = 1; i <= totalPages; i++) {
+            paginationHTML += `
+                <button class="px-3 py-1 rounded border ${
+                    i === window.productManager.currentPage 
+                    ? 'border-blue-500 bg-blue-500 text-white' 
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }" data-page="${i}">
+                    ${i}
+                </button>
+            `
+        }
+        
+        paginationHTML += `
+            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50" 
+                    ${window.productManager.currentPage === totalPages ? 'disabled' : ''}
+                    data-page="${window.productManager.currentPage + 1}">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        `
+        
+        paginationContainer.querySelector('nav').innerHTML = paginationHTML
+        
+        // Configurar eventos de paginación
+        paginationContainer.querySelectorAll('button[data-page]').forEach(button => {
+            button.addEventListener('click', () => {
+                const page = parseInt(button.getAttribute('data-page'))
+                this.changePage(page)
+            })
+        })
+    }
+
+    async changePage(page) {
+        await window.productManager.loadProducts(page)
+        this.renderProducts()
+        
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     setupEventListeners() {
-        // Botón para agregar producto
-        const addProductBtn = document.getElementById('addProductBtn');
+        // Botón de cerrar sesión
+        const logoutBtn = document.getElementById('logoutBtn')
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', this.handleLogout)
+        }
+        
+        // Botón de agregar producto
+        const addProductBtn = document.getElementById('addProductBtn')
         if (addProductBtn) {
-            addProductBtn.addEventListener('click', () => openProductModal());
+            addProductBtn.addEventListener('click', () => window.productModal.open())
         }
         
-        // Botón para gestionar categorías
-        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+        // Filtros y búsqueda
+        const searchInput = document.getElementById('searchProducts')
+        const filterCategory = document.getElementById('filterCategory')
+        const sortSelect = document.getElementById('sortProducts')
+        
+        if (searchInput) {
+            searchInput.addEventListener('input', Utils.debounce(() => {
+                this.applyFilters()
+            }, 500))
+        }
+        
+        if (filterCategory) {
+            filterCategory.addEventListener('change', () => {
+                this.applyFilters()
+            })
+        }
+        
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => {
+                this.applyFilters()
+            })
+        }
+        
+        // Botón de gestionar categorías
+        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn')
         if (manageCategoriesBtn) {
-            manageCategoriesBtn.addEventListener('click', () => openCategoriesModal());
+            manageCategoriesBtn.addEventListener('click', () => {
+                // Implementar gestión de categorías
+                Utils.showNotification('Funcionalidad en desarrollo', 'info')
+            })
         }
         
-        // Botón para ver estadísticas
-        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        // Botón de ver estadísticas
+        const viewStatsBtn = document.getElementById('viewStatsBtn')
         if (viewStatsBtn) {
             viewStatsBtn.addEventListener('click', () => {
-                openStatsModal({
-                    totalProducts: this.products.length,
-                    totalCategories: this.categories.length,
-                    recentProducts: this.products.filter(p => {
-                        const weekAgo = new Date();
-                        weekAgo.setDate(weekAgo.getDate() - 7);
-                        return new Date(p.created_at) >= weekAgo;
-                    }).length,
-                    activeProducts: this.products.length // Asumiendo que todos están activos
-                });
-            });
+                // Implementar vista de estadísticas
+                Utils.showNotification('Funcionalidad en desarrollo', 'info')
+            })
+        }
+        
+        // Botón de cancelar en modal de producto
+        const cancelProductBtn = document.getElementById('cancelProductBtn')
+        if (cancelProductBtn) {
+            cancelProductBtn.addEventListener('click', () => {
+                window.modalManager.hideModal('productModal')
+            })
         }
     }
 
-    // Handlers para event-listeners.js
-    handleSearch(e) {
-        this.currentFilter.search = e.target.value.toLowerCase();
-        this.renderProducts();
+    async applyFilters() {
+        const searchValue = document.getElementById('searchProducts').value
+        const categoryValue = document.getElementById('filterCategory').value
+        const sortValue = document.getElementById('sortProducts').value
+        
+        const filters = {
+            search: searchValue,
+            category: categoryValue,
+            sort: sortValue
+        }
+        
+        await window.productManager.loadProducts(1, filters)
+        this.renderProducts()
     }
 
-    handleFilterChange(e) {
-        this.currentFilter.category = e.target.value;
-        this.renderProducts();
+    async editProduct(productId) {
+        const { success, product } = await window.productManager.getProductById(productId)
+        
+        if (success) {
+            window.productModal.open(product)
+        } else {
+            Utils.showNotification('Error al cargar el producto', 'error')
+        }
     }
 
-    handleSortChange(e) {
-        this.currentFilter.sort = e.target.value;
-        this.renderProducts();
+    async confirmDeleteProduct(product) {
+        const modal = document.getElementById('deleteConfirmModal')
+        const title = document.getElementById('deleteConfirmTitle')
+        const message = document.getElementById('deleteConfirmMessage')
+        
+        if (title && message) {
+            title.textContent = `Eliminar ${product.name}`
+            message.textContent = `¿Estás seguro de que deseas eliminar el producto "${product.name}"? Esta acción no se puede deshacer.`
+        }
+        
+        window.modalManager.showModal('deleteConfirmModal')
+        
+        // Configurar eventos de los botones de confirmación
+        const confirmBtn = document.querySelector('.confirm-delete')
+        const cancelBtn = document.querySelector('.cancel-delete')
+        
+        const handleConfirm = async () => {
+            const { success } = await window.productManager.deleteProduct(product.id)
+            
+            if (success) {
+                // Recargar productos
+                await window.productManager.loadProducts()
+                this.renderProducts()
+            }
+            
+            window.modalManager.hideModal('deleteConfirmModal')
+            
+            // Remover event listeners
+            confirmBtn.removeEventListener('click', handleConfirm)
+            cancelBtn.removeEventListener('click', handleCancel)
+        }
+        
+        const handleCancel = () => {
+            window.modalManager.hideModal('deleteConfirmModal')
+            
+            // Remover event listeners
+            confirmBtn.removeEventListener('click', handleConfirm)
+            cancelBtn.removeEventListener('click', handleCancel)
+        }
+        
+        confirmBtn.addEventListener('click', handleConfirm)
+        cancelBtn.addEventListener('click', handleCancel)
     }
 
     async handleLogout() {
-        try {
-            const success = await AuthManagerFunctions.signOut();
-            if (success) {
-                window.location.href = 'login.html';
-            }
-        } catch (error) {
-            console.error('Error during logout:', error);
-            Utils.showError('Error al cerrar sesión');
-        }
-    }
-
-    handleAuthenticationChange(event, user) {
-        if (event === 'SIGNED_OUT') {
-            window.location.href = 'login.html';
+        const { success } = await AuthManager.logout()
+        
+        if (success) {
+            window.location.href = 'login.html'
+        } else {
+            Utils.showNotification('Error al cerrar sesión', 'error')
         }
     }
 }
 
-// Inicializar la página cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', async () => {
-    window.adminPage = new AdminPage();
-    await window.adminPage.init();
-});
+// Inicializar la página de administración cuando el DOM esté listo
+document.addEventListener('DOMContentLoaded', () => {
+    new AdminPage()
+})
