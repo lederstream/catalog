@@ -63,6 +63,7 @@ function setupImageSearch() {
 }
 
 // Realizar búsqueda de imágenes
+// Realizar búsqueda de imágenes
 async function performImageSearch() {
     const query = document.getElementById('imageSearchQuery').value.trim();
     const resultsContainer = document.getElementById('imageSearchResults');
@@ -80,49 +81,29 @@ async function performImageSearch() {
             </div>
         `;
         
-        // BUSCAR IMÁGENES EN SUPABASE STORAGE
-        const { data: files, error } = await supabase
-            .storage
-            .from('products') // nombre de tu bucket
-            .list('', {
-                search: query,
-                limit: 20,
-                offset: 0
-            });
+        // SIMULAR RESULTADOS (reemplazar con tu lógica real)
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        if (error) {
-            throw error;
-        }
-        
-        if (!files || files.length === 0) {
-            displayImageResults([]);
-            return;
-        }
-        
-        // Obtener URLs públicas de las imágenes
-        const imageResults = await Promise.all(
-            files.map(async (file) => {
-                const { data: { publicUrl } } = supabase
-                    .storage
-                    .from('products')
-                    .getPublicUrl(file.name);
-                
-                return {
-                    url: publicUrl,
-                    title: file.name,
-                    filename: file.name
-                };
-            })
-        );
-        
-        displayImageResults(imageResults);
+        // Mostrar mensaje informativo en lugar de mock data
+        resultsContainer.innerHTML = `
+            <div class="col-span-full text-center py-8">
+                <i class="fas fa-info-circle text-2xl text-blue-400 mb-2"></i>
+                <p class="text-gray-600">Sistema de búsqueda de imágenes</p>
+                <p class="text-sm text-gray-500 mt-1">Ingresa la URL completa de la imagen manualmente</p>
+                <div class="mt-4 p-4 bg-blue-50 rounded-lg">
+                    <p class="text-sm text-blue-700">
+                        Ejemplo: https://ejemplo.com/imagen.jpg
+                    </p>
+                </div>
+            </div>
+        `;
         
     } catch (error) {
         console.error('Error buscando imágenes:', error);
         resultsContainer.innerHTML = `
             <div class="col-span-full text-center py-8">
                 <i class="fas fa-exclamation-triangle text-2xl text-yellow-400 mb-2"></i>
-                <p class="text-gray-600">Error al buscar imágenes: ${error.message}</p>
+                <p class="text-gray-600">Error al buscar imágenes</p>
             </div>
         `;
     }
