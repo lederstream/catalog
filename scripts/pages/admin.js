@@ -1,411 +1,481 @@
 // scripts/pages/admin.js
-import { AuthManager } from '../core/auth.js'
-import { ProductManager } from '../managers/product-manager.js'
-import { CategoryManager } from '../managers/category-manager.js'
-import { ModalManager, ProductModal } from '../components/modals.js'
+import { authManager } from '../core/auth.js'
+import { productManager } from '../managers/product-manager.js'
+import { categoryManager } from '../managers/category-manager.js'
+import { modalManager, productModal } from '../components/modals.js'
 import { ProductCard } from '../components/product-card.js'
 import { Utils } from '../core/utils.js'
-
-// Instancias globales para acceso desde otros módulos
-window.productManager = new ProductManager()
-window.categoryManager = new CategoryManager()
-window.modalManager = new ModalManager()
-window.productModal = new ProductModal(window.modalManager)
+import { setupAllEventListeners } from '../event-listeners.js'
 
 class AdminPage {
     constructor() {
+        this.currentFilters = {
+            search: '',
+            category: '',
+            sort: 'newest'
+        }
+        
         this.init()
     }
 
     async init() {
         // Verificar autenticación
-        AuthManager.requireAuth()
+        if (!authManager.requireAuth()) return
         
-        // Cargar datos iniciales
-        await this.loadInitialData()
-        
-        // Configurar event listeners
-        this.setupEventListeners()
-        
-        // Cargar productos
-        await window.productManager.loadProducts()
-        this.renderProducts()
+        try {
+            // Inicializar managers
+            await Promise.all([
+                authManager.initialize(),
+                productManager.initialize(),
+                categoryManager.loadCategories()
+            ])
+            
+            // Configurar UI
+            this.setupUI()
+            this.setupEventListeners()
+            
+            // Cargar datos iniciales
+            await this.loadData()
+            
+            console.log('✅ AdminPage inicializada correctamente')
+            
+        } catch (error) {
+            console.error('Error inicializando AdminPage:', error)
+            Utils.showError('Error al inicializar la aplicación')
+        }
     }
 
-    async loadInitialData() {
-        // Cargar categorías
-        const { success, categories } = await window.categoryManager.loadCategories()
+    setupUI() {
+        // Configurar tema oscuro/claro según preferencia
+        this.setupTheme()
         
-        if (success) {
-            this.populateCategoryFilters(categories)
-        } else {
-            Utils.showNotification('Error al cargar categorías', 'error')
-        }
-        
-        // Cargar estadísticas
-        await this.loadStats()
+        // Configurar tooltips
+        this.setupTooltips()
     }
 
-    populateCategoryFilters(categories) {
-        // Filtro de categorías en el panel de administración
-        const filterCategory = document.getElementById('filterCategory')
-        if (filterCategory) {
-            // Limpiar opciones excepto la primera
-            while (filterCategory.options.length > 1) {
-                filterCategory.remove(1)
-            }
-            
-            // Agregar categorías
-            categories.forEach(category => {
-                const option = document.createElement('option')
-                option.value = category.id
-                option.textContent = category.name
-                filterCategory.appendChild(option)
-            })
+    setupTheme() {
+        const themeToggle = document.getElementById('themeToggle')
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        const savedTheme = localStorage.getItem('theme')
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add('dark')
         }
         
-        // Selector de categorías en el modal de producto
-        const categorySelect = document.getElementById('category')
-        if (categorySelect) {
-            // Limpiar opciones excepto la primera
-            while (categorySelect.options.length > 1) {
-                categorySelect.remove(1)
-            }
-            
-            // Agregar categorías
-            categories.forEach(category => {
-                const option = document.createElement('option')
-                option.value = category.id
-                option.textContent = category.name
-                categorySelect.appendChild(option)
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark')
+                localStorage.setItem('theme', 
+                    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+                )
             })
+        }
+    }
+
+    setupTooltips() {
+        // Implementar tooltips con Tippy.js o similar
+        const elements = document.querySelectorAll('[data-tooltip]')
+        elements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                const tooltip = document.createElement('div')
+                tooltip.className = 'tooltip'
+                tooltip.textContent = el.dataset.tooltip
+                document.body.appendChild(tooltip)
+                
+                // Posicionamiento básico (mejorar con librería)
+                const rect = el.getBoundingClientRect()
+                tooltip.style.top = `${rect.bottom + 5}px`
+                tooltip.style.left = `${rect.left}px`
+                
+                el._tooltip = tooltip
+            })
+            
+            el.addEventListener('mouseleave', () => {
+                if (el._tooltip) {
+                    el._tooltip.remove()
+                    delete el._tooltip
+                }
+            })
+        })
+    }
+
+    async loadData() {
+        try {
+            Utils.showLoading('Cargando productos...')
+            
+            await Promise.all([
+                productManager.loadProducts(1, this.currentFilters),
+                this.loadStats()
+            ])
+            
+            this.renderProducts()
+            this.renderStats()
+            this.renderCategoryFilters()
+            
+            Utils.hideLoading()
+            
+        } catch (error) {
+            console.error('Error loading data:', error)
+            Utils.showError('Error al cargar los datos')
+            Utils.hideLoading()
         }
     }
 
     async loadStats() {
-        const { success, stats } = await window.productManager.getStats()
-        
+        const { success, stats } = await productManager.getStats()
         if (success) {
-            this.renderStats(stats)
-        } else {
-            console.error('Error al cargar estadísticas')
+            this.stats = stats
         }
-    }
-
-    renderStats(stats) {
-        const statsContainer = document.getElementById('statsSummary')
-        if (!statsContainer) return
-        
-        statsContainer.innerHTML = `
-            <div class="bg-white p-4 rounded-lg shadow">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-                        <i class="fas fa-box text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 text-sm">Total Productos</p>
-                        <p class="text-2xl font-bold">${stats.totalProducts}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white p-4 rounded-lg shadow">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-green-100 text-green-600 mr-4">
-                        <i class="fas fa-tags text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 text-sm">Total Categorías</p>
-                        <p class="text-2xl font-bold">${stats.categories.length}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white p-4 rounded-lg shadow">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-purple-100 text-purple-600 mr-4">
-                        <i class="fas fa-star text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 text-sm">Producto Destacado</p>
-                        <p class="text-lg font-bold truncate">${stats.recentProducts[0]?.name || 'Ninguno'}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="bg-white p-4 rounded-lg shadow">
-                <div class="flex items-center">
-                    <div class="p-3 rounded-full bg-yellow-100 text-yellow-600 mr-4">
-                        <i class="fas fa-chart-line text-xl"></i>
-                    </div>
-                    <div>
-                        <p class="text-gray-500 text-sm">Categoría Principal</p>
-                        <p class="text-lg font-bold">
-                            ${this.getTopCategory(stats.categories)}
-                        </p>
-                    </div>
-                </div>
-            </div>
-        `
-    }
-
-    getTopCategory(categories) {
-        if (!categories || categories.length === 0) return 'Ninguna'
-        
-        const topCategory = categories.reduce((prev, current) => {
-            return (prev.product_count > current.product_count) ? prev : current
-        })
-        
-        return topCategory.name
     }
 
     renderProducts() {
         const productsList = document.getElementById('adminProductsList')
         const productsCount = document.getElementById('productsCount')
+        const emptyState = document.getElementById('emptyState')
         
         if (!productsList) return
         
-        if (window.productManager.products.length === 0) {
-            productsList.innerHTML = `
-                <div class="text-center py-12">
-                    <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-gray-500">No se encontraron productos</p>
-                </div>
-            `
-            productsCount.textContent = '0 productos'
+        const products = productManager.getProducts()
+        
+        if (products.length === 0) {
+            productsList.innerHTML = ''
+            if (emptyState) emptyState.classList.remove('hidden')
+            if (productsCount) productsCount.textContent = '0 productos'
             return
         }
         
+        if (emptyState) emptyState.classList.add('hidden')
+        
         // Actualizar contador
-        productsCount.textContent = `${window.productManager.totalProducts} productos`
+        if (productsCount) {
+            productsCount.textContent = `${productManager.getTotalProducts()} productos`
+        }
         
         // Renderizar productos
-        productsList.innerHTML = ''
-        window.productManager.products.forEach(product => {
-            const productElement = ProductCard.create(product, true)
-            productsList.appendChild(productElement)
-            
-            // Configurar eventos para botones de editar/eliminar
-            const editBtn = productElement.querySelector('.edit-product')
-            const deleteBtn = productElement.querySelector('.delete-product')
-            
-            if (editBtn) {
-                editBtn.addEventListener('click', () => this.editProduct(product.id))
-            }
-            
-            if (deleteBtn) {
-                deleteBtn.addEventListener('click', () => this.confirmDeleteProduct(product))
-            }
-        })
+        productsList.innerHTML = products.map(product => 
+            ProductCard.create(product, true)
+        ).join('')
+        
+        // Configurar eventos
+        this.setupProductEvents()
         
         // Renderizar paginación
         this.renderPagination()
     }
 
-    renderPagination() {
-        const paginationContainer = document.getElementById('productsPagination')
-        if (!paginationContainer) return
+    setupProductEvents() {
+        document.querySelectorAll('.edit-product').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const productId = e.currentTarget.dataset.productId
+                this.editProduct(productId)
+            })
+        })
         
-        const totalPages = window.productManager.getTotalPages()
+        document.querySelectorAll('.delete-product').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const productId = e.currentTarget.dataset.productId
+                const product = productManager.getProductById(productId)
+                if (product) this.confirmDeleteProduct(product)
+            })
+        })
+    }
+
+    renderPagination() {
+        const pagination = document.getElementById('productsPagination')
+        if (!pagination) return
+        
+        const totalPages = productManager.getTotalPages()
+        const currentPage = productManager.getCurrentPage()
         
         if (totalPages <= 1) {
-            paginationContainer.classList.add('hidden')
+            pagination.classList.add('hidden')
             return
         }
         
-        paginationContainer.classList.remove('hidden')
-        
-        let paginationHTML = `
-            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50" 
-                    ${window.productManager.currentPage === 1 ? 'disabled' : ''}
-                    data-page="${window.productManager.currentPage - 1}">
-                <i class="fas fa-chevron-left"></i>
-            </button>
-        `
-        
-        for (let i = 1; i <= totalPages; i++) {
-            paginationHTML += `
-                <button class="px-3 py-1 rounded border ${
-                    i === window.productManager.currentPage 
-                    ? 'border-blue-500 bg-blue-500 text-white' 
-                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
-                }" data-page="${i}">
-                    ${i}
-                </button>
-            `
-        }
-        
-        paginationHTML += `
-            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50" 
-                    ${window.productManager.currentPage === totalPages ? 'disabled' : ''}
-                    data-page="${window.productManager.currentPage + 1}">
-                <i class="fas fa-chevron-right"></i>
-            </button>
-        `
-        
-        paginationContainer.querySelector('nav').innerHTML = paginationHTML
+        pagination.classList.remove('hidden')
+        pagination.innerHTML = this.createPaginationHTML(currentPage, totalPages)
         
         // Configurar eventos de paginación
-        paginationContainer.querySelectorAll('button[data-page]').forEach(button => {
-            button.addEventListener('click', () => {
-                const page = parseInt(button.getAttribute('data-page'))
+        pagination.querySelectorAll('[data-page]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = parseInt(btn.dataset.page)
                 this.changePage(page)
             })
         })
     }
 
-    async changePage(page) {
-        await window.productManager.loadProducts(page)
-        this.renderProducts()
+    createPaginationHTML(currentPage, totalPages) {
+        let html = `
+            <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
+                    ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        `
         
-        // Scroll to top
+        // Mostrar máximo 5 páginas alrededor de la actual
+        const startPage = Math.max(1, currentPage - 2)
+        const endPage = Math.min(totalPages, startPage + 4)
+        
+        for (let i = startPage; i <= endPage; i++) {
+            html += `
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
+                        data-page="${i}">
+                    ${i}
+                </button>
+            `
+        }
+        
+        html += `
+            <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
+                    ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
+                <i class="fas fa-chevron-right"></i>
+            </button>
+        `
+        
+        return html
+    }
+
+    async changePage(page) {
+        Utils.showLoading(`Cargando página ${page}...`)
+        await productManager.loadProducts(page, this.currentFilters)
+        this.renderProducts()
+        Utils.hideLoading()
+        
+        // Scroll suave al principio
         window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
-    setupEventListeners() {
-        // Botón de cerrar sesión
-        const logoutBtn = document.getElementById('logoutBtn')
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', this.handleLogout)
-        }
+    renderCategoryFilters() {
+        const filterSelect = document.getElementById('filterCategory')
+        if (!filterSelect) return
         
-        // Botón de agregar producto
+        const categories = categoryManager.getCategories()
+        
+        // Mantener valor seleccionado actual
+        const currentValue = filterSelect.value
+        
+        filterSelect.innerHTML = `
+            <option value="">Todas las categorías</option>
+            ${categories.map(cat => `
+                <option value="${cat.id}" ${currentValue === cat.id ? 'selected' : ''}>
+                    ${cat.name}
+                </option>
+            `).join('')}
+        `
+    }
+
+    renderStats() {
+        const statsContainer = document.getElementById('statsSummary')
+        if (!statsContainer || !this.stats) return
+        
+        statsContainer.innerHTML = `
+            <div class="stats-card bg-gradient-to-br from-blue-50 to-blue-100">
+                <div class="stats-icon bg-blue-500">
+                    <i class="fas fa-box"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>${this.stats.totalProducts}</h3>
+                    <p>Total Productos</p>
+                </div>
+            </div>
+            
+            <div class="stats-card bg-gradient-to-br from-green-50 to-green-100">
+                <div class="stats-icon bg-green-500">
+                    <i class="fas fa-tags"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>${this.stats.categories?.length || 0}</h3>
+                    <p>Categorías</p>
+                </div>
+            </div>
+            
+            <div class="stats-card bg-gradient-to-br from-purple-50 to-purple-100">
+                <div class="stats-icon bg-purple-500">
+                    <i class="fas fa-star"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>${this.stats.activeProducts || 0}</h3>
+                    <p>Activos</p>
+                </div>
+            </div>
+            
+            <div class="stats-card bg-gradient-to-br from-orange-50 to-orange-100">
+                <div class="stats-icon bg-orange-500">
+                    <i class="fas fa-chart-line"></i>
+                </div>
+                <div class="stats-content">
+                    <h3>${this.getTopCategory()}</h3>
+                    <p>Categoría Principal</p>
+                </div>
+            </div>
+        `
+    }
+
+    getTopCategory() {
+        if (!this.stats?.categories) return 'N/A'
+        
+        const topCategory = this.stats.categories.reduce((prev, current) => 
+            (prev.product_count > current.product_count) ? prev : current, 
+        { product_count: 0 })
+        
+        return topCategory.product_count > 0 ? topCategory.name : 'N/A'
+    }
+
+    setupEventListeners() {
+        // Configurar listeners básicos
+        setupAllEventListeners(this)
+        
+        // Listeners adicionales
+        this.setupAdditionalListeners()
+    }
+
+    setupAdditionalListeners() {
+        // Botón agregar producto
         const addProductBtn = document.getElementById('addProductBtn')
         if (addProductBtn) {
-            addProductBtn.addEventListener('click', () => window.productModal.open())
-        }
-        
-        // Filtros y búsqueda
-        const searchInput = document.getElementById('searchProducts')
-        const filterCategory = document.getElementById('filterCategory')
-        const sortSelect = document.getElementById('sortProducts')
-        
-        if (searchInput) {
-            searchInput.addEventListener('input', Utils.debounce(() => {
-                this.applyFilters()
-            }, 500))
-        }
-        
-        if (filterCategory) {
-            filterCategory.addEventListener('change', () => {
-                this.applyFilters()
+            addProductBtn.addEventListener('click', () => {
+                productModal.open()
             })
         }
         
-        if (sortSelect) {
-            sortSelect.addEventListener('change', () => {
-                this.applyFilters()
+        // Botón recargar
+        const reloadBtn = document.getElementById('reloadBtn')
+        if (reloadBtn) {
+            reloadBtn.addEventListener('click', () => {
+                this.loadData()
             })
         }
         
-        // Botón de gestionar categorías
-        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn')
-        if (manageCategoriesBtn) {
-            manageCategoriesBtn.addEventListener('click', () => {
-                // Implementar gestión de categorías
-                Utils.showNotification('Funcionalidad en desarrollo', 'info')
+        // Botón exportar
+        const exportBtn = document.getElementById('exportBtn')
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportData()
             })
         }
-        
-        // Botón de ver estadísticas
-        const viewStatsBtn = document.getElementById('viewStatsBtn')
-        if (viewStatsBtn) {
-            viewStatsBtn.addEventListener('click', () => {
-                // Implementar vista de estadísticas
-                Utils.showNotification('Funcionalidad en desarrollo', 'info')
-            })
-        }
-        
-        // Botón de cancelar en modal de producto
-        const cancelProductBtn = document.getElementById('cancelProductBtn')
-        if (cancelProductBtn) {
-            cancelProductBtn.addEventListener('click', () => {
-                window.modalManager.hideModal('productModal')
-            })
-        }
+    }
+
+    async handleSearch(e) {
+        this.currentFilters.search = e.target.value
+        await this.applyFilters()
+    }
+
+    async handleFilterChange(e) {
+        this.currentFilters.category = e.target.value
+        await this.applyFilters()
+    }
+
+    async handleSortChange(e) {
+        this.currentFilters.sort = e.target.value
+        await this.applyFilters()
     }
 
     async applyFilters() {
-        const searchValue = document.getElementById('searchProducts').value
-        const categoryValue = document.getElementById('filterCategory').value
-        const sortValue = document.getElementById('sortProducts').value
-        
-        const filters = {
-            search: searchValue,
-            category: categoryValue,
-            sort: sortValue
-        }
-        
-        await window.productManager.loadProducts(1, filters)
+        Utils.showLoading('Aplicando filtros...')
+        await productManager.loadProducts(1, this.currentFilters)
         this.renderProducts()
+        Utils.hideLoading()
     }
 
     async editProduct(productId) {
-        const { success, product } = await window.productManager.getProductById(productId)
-        
-        if (success) {
-            window.productModal.open(product)
-        } else {
-            Utils.showNotification('Error al cargar el producto', 'error')
+        try {
+            const product = productManager.getProductById(productId)
+            if (product) {
+                productModal.open(product)
+            }
+        } catch (error) {
+            console.error('Error editing product:', error)
+            Utils.showError('Error al cargar el producto')
         }
     }
 
     async confirmDeleteProduct(product) {
-        const modal = document.getElementById('deleteConfirmModal')
-        const title = document.getElementById('deleteConfirmTitle')
-        const message = document.getElementById('deleteConfirmMessage')
+        const confirmed = await Utils.showConfirm(
+            `Eliminar "${product.name}"`,
+            `¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.`,
+            'warning'
+        )
         
-        if (title && message) {
-            title.textContent = `Eliminar ${product.name}`
-            message.textContent = `¿Estás seguro de que deseas eliminar el producto "${product.name}"? Esta acción no se puede deshacer.`
-        }
-        
-        window.modalManager.showModal('deleteConfirmModal')
-        
-        // Configurar eventos de los botones de confirmación
-        const confirmBtn = document.querySelector('.confirm-delete')
-        const cancelBtn = document.querySelector('.cancel-delete')
-        
-        const handleConfirm = async () => {
-            const { success } = await window.productManager.deleteProduct(product.id)
-            
-            if (success) {
-                // Recargar productos
-                await window.productManager.loadProducts()
-                this.renderProducts()
+        if (confirmed) {
+            try {
+                Utils.showLoading('Eliminando producto...')
+                await productManager.deleteProduct(product.id)
+                await this.loadData()
+                Utils.showSuccess('Producto eliminado correctamente')
+            } catch (error) {
+                console.error('Error deleting product:', error)
+                Utils.showError('Error al eliminar el producto')
             }
-            
-            window.modalManager.hideModal('deleteConfirmModal')
-            
-            // Remover event listeners
-            confirmBtn.removeEventListener('click', handleConfirm)
-            cancelBtn.removeEventListener('click', handleCancel)
         }
-        
-        const handleCancel = () => {
-            window.modalManager.hideModal('deleteConfirmModal')
-            
-            // Remover event listeners
-            confirmBtn.removeEventListener('click', handleConfirm)
-            cancelBtn.removeEventListener('click', handleCancel)
-        }
-        
-        confirmBtn.addEventListener('click', handleConfirm)
-        cancelBtn.addEventListener('click', handleCancel)
     }
 
     async handleLogout() {
-        const { success } = await AuthManager.logout()
+        const confirmed = await Utils.showConfirm(
+            'Cerrar sesión',
+            '¿Estás seguro de que deseas cerrar sesión?',
+            'question'
+        )
         
-        if (success) {
+        if (confirmed) {
+            await authManager.logout()
             window.location.href = 'login.html'
-        } else {
-            Utils.showNotification('Error al cerrar sesión', 'error')
         }
+    }
+
+    handleAuthenticationChange(event, user) {
+        console.log('Auth change:', event, user)
+        // Actualizar UI según estado de autenticación
+    }
+
+    async exportData() {
+        try {
+            Utils.showLoading('Exportando datos...')
+            
+            const products = productManager.getProducts()
+            const csvContent = this.convertToCSV(products)
+            
+            this.downloadCSV(csvContent, 'productos.csv')
+            
+            Utils.showSuccess('Datos exportados correctamente')
+            
+        } catch (error) {
+            console.error('Error exporting data:', error)
+            Utils.showError('Error al exportar datos')
+        }
+    }
+
+    convertToCSV(products) {
+        const headers = ['Nombre', 'Categoría', 'Descripción', 'Estado', 'Fecha Creación']
+        const rows = products.map(product => [
+            `"${product.name}"`,
+            `"${product.category_name}"`,
+            `"${product.description}"`,
+            `"${product.status}"`,
+            `"${new Date(product.created_at).toLocaleDateString()}"`
+        ])
+        
+        return [headers, ...rows].map(row => row.join(',')).join('\n')
+    }
+
+    downloadCSV(content, filename) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        
+        link.setAttribute('href', url)
+        link.setAttribute('download', filename)
+        link.style.visibility = 'hidden'
+        
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
     }
 }
 
-// Inicializar la página de administración cuando el DOM esté listo
+// Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     new AdminPage()
 })
+
+// Hacer disponible globalmente para acceso desde otros módulos
+window.adminPage = new AdminPage()
