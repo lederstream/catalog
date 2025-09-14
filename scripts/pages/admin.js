@@ -364,32 +364,43 @@ class AdminPage {
             return;
         }
         
-        productsList.innerHTML = paginatedProducts.map(product => `
-            <div class="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                <div class="flex items-start gap-4 flex-1">
-                    <img src="${product.photo_url || 'https://via.placeholder.com/80?text=Sin+imagen'}" 
-                         alt="${product.name}" 
-                         class="w-16 h-16 object-cover rounded-lg"
-                         onerror="this.src='https://via.placeholder.com/80?text=Error+imagen'">
-                    <div class="flex-1">
-                        <h4 class="font-semibold text-gray-800">${product.name}</h4>
-                        <p class="text-sm text-gray-600 mt-1">${product.description || 'Sin descripción'}</p>
-                        <div class="flex flex-wrap gap-2 mt-2">
-                            <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${this.getCategoryName(product.category_id)}</span>
-                            <span class="${product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs px-2 py-1 rounded">${product.status === 'active' ? 'Activo' : 'Inactivo'}</span>
+        productsList.innerHTML = paginatedProducts.map(product => {
+            // Validar y corregir URL de imagen
+            let imageUrl = product.photo_url || 'https://via.placeholder.com/80?text=Sin+imagen';
+            
+            // Si la URL contiene caracteres inválidos, usar placeholder
+            if (imageUrl.includes('%7B') || imageUrl.includes('%7D') || 
+                imageUrl.includes('undefined') || !this.isValidImageUrl(imageUrl)) {
+                imageUrl = 'https://via.placeholder.com/80?text=Error+imagen';
+            }
+            
+            return `
+                <div class="bg-gray-50 rounded-lg p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="flex items-start gap-4 flex-1">
+                        <img src="${imageUrl}" 
+                            alt="${Utils.escapeHtml(product.name)}" 
+                            class="w-16 h-16 object-cover rounded-lg"
+                            onerror="this.onerror=null;this.src='https://via.placeholder.com/80?text=Error+imagen'">
+                        <div class="flex-1">
+                            <h4 class="font-semibold text-gray-800">${Utils.escapeHtml(product.name)}</h4>
+                            <p class="text-sm text-gray-600 mt-1">${Utils.escapeHtml(product.description || 'Sin descripción')}</p>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${this.getCategoryName(product.category_id)}</span>
+                                <span class="${product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'} text-xs px-2 py-1 rounded">${product.status === 'active' ? 'Activo' : 'Inactivo'}</span>
+                            </div>
                         </div>
                     </div>
+                    <div class="flex gap-2">
+                        <button class="edit-product px-3 py-2 bg-blue-500 text-white rounded-lg text-sm" data-id="${product.id}">
+                            <i class="fas fa-edit mr-1"></i> Editar
+                        </button>
+                        <button class="delete-product px-3 py-2 bg-red-500 text-white rounded-lg text-sm" data-id="${product.id}">
+                            <i class="fas fa-trash mr-1"></i> Eliminar
+                        </button>
+                    </div>
                 </div>
-                <div class="flex gap-2">
-                    <button class="edit-product px-3 py-2 bg-blue-500 text-white rounded-lg text-sm" data-id="${product.id}">
-                        <i class="fas fa-edit mr-1"></i> Editar
-                    </button>
-                    <button class="delete-product px-3 py-2 bg-red-500 text-white rounded-lg text-sm" data-id="${product.id}">
-                        <i class="fas fa-trash mr-1"></i> Eliminar
-                    </button>
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
         
         // Añadir event listeners a los botones
         productsList.querySelectorAll('.edit-product').forEach(btn => {
@@ -411,6 +422,26 @@ class AdminPage {
                 }
             });
         });
+    }
+
+    // Añadir esta función auxiliar para validar URLs de imágenes
+    isValidImageUrl(url) {
+        if (!url) return false;
+        
+        // Verificar que sea una URL válida
+        try {
+            new URL(url);
+            
+            // Verificar que no contenga caracteres problemáticos
+            if (url.includes('%7B') || url.includes('%7D') || 
+                url.includes('undefined') || url.includes('null')) {
+                return false;
+            }
+            
+            return true;
+        } catch (error) {
+            return false;
+        }
     }
 
     getCategoryName(categoryId) {
