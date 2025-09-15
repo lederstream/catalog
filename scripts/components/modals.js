@@ -77,6 +77,7 @@ export class ModalManager {
 export class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
+        this.currentProduct = null;
         this.setupEventListeners();
     }
 
