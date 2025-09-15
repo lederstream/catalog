@@ -101,25 +101,31 @@ class AdminPage {
 
     async loadData() {
         try {
+            console.log('🔄 Cargando datos...');
             Utils.showLoading('Loading products...');
             
             // Cargar categorías primero y esperar a que terminen
-            await categoryManager.loadCategories();
+            console.log('🔄 Cargando categorías...');
+            const categoriesResult = await categoryManager.loadCategories();
+            console.log('✅ Categorías cargadas:', categoriesResult.success ? categoryManager.getCategories().length : 'Error');
             
             // Ahora cargar productos y estadísticas
-            await Promise.all([
-                productManager.loadProducts(1, this.currentFilters),
-                this.loadStats()
-            ]);
+            console.log('🔄 Cargando productos...');
+            const productsResult = await productManager.loadProducts(1, this.currentFilters);
+            console.log('✅ Productos cargados:', productsResult.success ? productManager.getProducts().length : 'Error');
+            
+            console.log('🔄 Cargando estadísticas...');
+            await this.loadStats();
             
             this.renderProducts();
             this.renderStats();
             this.renderCategoryFilters();
             
+            console.log('✅ Datos cargados correctamente');
             Utils.hideLoading();
             
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('❌ Error loading data:', error);
             Utils.showError('Error loading data');
             Utils.hideLoading();
         }
@@ -533,6 +539,22 @@ class AdminPage {
 }
 
 // Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-    window.adminPage = new AdminPage();
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        console.log('🟡 Inicializando AdminPage...');
+        window.adminPage = new AdminPage();
+        
+        // ESPERAR a que la inicialización se complete
+        const success = await window.adminPage.init();
+        
+        if (success) {
+            console.log('✅ AdminPage inicializada correctamente');
+        } else {
+            console.error('❌ Falló la inicialización de AdminPage');
+            Utils.showError('Error al inicializar el panel de administración');
+        }
+    } catch (error) {
+        console.error('❌ Error crítico al inicializar AdminPage:', error);
+        Utils.showError('Error crítico al cargar la aplicación');
+    }
 });
