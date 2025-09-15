@@ -1,4 +1,3 @@
-// scripts/core/auth.js
 import { Utils } from './utils.js';
 
 export class AuthManager {
@@ -15,7 +14,10 @@ export class AuthManager {
       // Verificar sesión existente
       const { data: { session }, error } = await window.supabaseClient.auth.getSession();
       
-      if (error) throw error;
+      if (error) {
+        console.error('Error getting session:', error);
+        throw error;
+      }
 
       if (session?.user) {
         this.currentUser = session.user;
@@ -23,6 +25,7 @@ export class AuthManager {
         console.log('✅ Usuario autenticado:', this.currentUser.email);
       } else {
         this._setAuthState('unauthenticated');
+        console.log('⚠️ Usuario no autenticado');
       }
 
       // Escuchar cambios de autenticación
@@ -56,7 +59,8 @@ export class AuthManager {
     } catch (error) {
       console.error('❌ Error inicializando auth:', error);
       this._setAuthState('error');
-      throw error;
+      // No redirigir automáticamente, dejar que la página decida
+      return false;
     }
   }
 
@@ -183,4 +187,6 @@ export class AuthManager {
 export const authManager = new AuthManager();
 
 // Inicialización automática
-authManager.initialize().catch(console.error);
+document.addEventListener('DOMContentLoaded', () => {
+  authManager.initialize().catch(console.error);
+});
