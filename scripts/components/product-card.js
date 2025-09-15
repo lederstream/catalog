@@ -1,304 +1,75 @@
 // scripts/components/product-card.js
-import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class ProductManager {
-    constructor() {
-        this.products = [];
-        this.currentPage = 1;
-        this.itemsPerPage = 12;
-        this.totalProducts = 0;
-        this.currentFilters = {
-            category: '',
-            search: '',
-            sort: 'newest'
-        };
-        this.isInitialized = false;
+export class ProductCard {
+    static create(product, isAdmin = false) {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300';
+        
+        // Get category color if available
+        const categoryColor = product.categories ? product.categories.color : '#3B82F6';
+        
+        card.innerHTML = `
+            <div class="relative">
+                <img src="${product.photo_url}" alt="${product.name}" 
+                     class="w-full h-48 object-cover">
+                <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded-full" 
+                      style="background-color: ${categoryColor}">
+                    ${product.categories ? product.categories.name : 'No category'}
+                </span>
+            </div>
+            <div class="p-4">
+                <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
+                <p class="text-gray-600 text-sm mb-4 line-clamp-3">${product.description}</p>
+                
+                <div class="mb-4">
+                    ${this.renderPlans(product.plans)}
+                </div>
+                
+                ${isAdmin ? this.renderAdminActions(product) : ''}
+            </div>
+        `;
+        
+        return card;
     }
 
-    async loadProducts(page = 1, filters = {}) {
-        try {
-            this.currentPage = page;
-            this.currentFilters = { ...this.currentFilters, ...filters };
-            
-            // Build query
-            let query = supabase
-                .from('products')
-                .select('*, categories(name, color)', { count: 'exact' });
-            
-            // Apply filters
-            if (this.currentFilters.category) {
-                query = query.eq('category_id', this.currentFilters.category);
-            }
-            
-            if (this.currentFilters.search) {
-                query = query.ilike('name', `%${this.currentFilters.search}%`);
-            }
-            
-            // Apply sorting
-            switch (this.currentFilters.sort) {
-                case 'newest':
-                    query = query.order('created_at', { ascending: false });
-                    break;
-                case 'oldest':
-                    query = query.order('created_at', { ascending: true });
-                    break;
-                case 'name_asc':
-                    query = query.order('name', { ascending: true });
-                    break;
-                case 'name_desc':
-                    query = query.order('name', { ascending: false });
-                    break;
-                default:
-                    query = query.order('created_at', { ascending: false });
-            }
-            
-            // Apply pagination
-            const from = (page - 1) * this.itemsPerPage;
-            const to = from + this.itemsPerPage - 1;
-            query = query.range(from, to);
-            
-            // Execute query
-            const { data, error, count } = await query;
-            
-            if (error) throw error;
-            
-            this.products = data || [];
-            this.totalProducts = count || 0;
-            
-            return { success: true, products: this.products, total: this.totalProducts };
-        } catch (error) {
-            console.error('Error loading products:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async initialize() {
-        try {
-            await this.loadProducts(1, this.currentFilters);
-            this.isInitialized = true;
-            return { success: true };
-        } catch (error) {
-            console.error('Error initializing ProductManager:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    getProducts() {
-        return this.products;
-    }
-
-    getTotalProducts() {
-        return this.totalProducts;
-    }
-
-    getTotalPages() {
-        return Math.ceil(this.totalProducts / this.itemsPerPage);
-    }
-
-    getCurrentPage() {
-        return this.currentPage;
-    }
-    
-    async getProductById(id) {
-        try {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*, categories(name, color)')
-                .eq('id', id)
-                .single();
-            
-            if (error) throw error;
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error getting product:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async createProduct(productData) {
-        try {
-            // Validate product data
-            if (!this.validateProduct(productData)) {
-                return { success: false, error: 'Invalid product data' };
-            }
-            
-            const { data, error } = await supabase
-                .from('products')
-                .insert([productData])
-                .select()
-                .single();
-            
-            if (error) throw error;
-            
-            // Reload products to maintain synchronization
-            await this.loadProducts(this.currentPage, this.currentFilters);
-            
-            Utils.showNotification('Product created successfully', 'success');
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error creating product:', error.message);
-            Utils.showNotification('Error creating product: ' + error.message, 'error');
-            return { success: false, error: error.message };
-        }
-    }
-
-    async updateProduct(id, productData) {
-        try {
-            // Validate product data
-            if (!this.validateProduct(productData)) {
-                return { success: false, error: 'Invalid product data' };
-            }
-            
-            const { data, error } = await supabase
-                .from('products')
-                .update(productData)
-                .eq('id', id)
-                .select()
-                .single();
-            
-            if (error) throw error;
-            
-            // Reload products to maintain synchronization
-            await this.loadProducts(this.currentPage, this.currentFilters);
-            
-            Utils.showNotification('Product updated successfully', 'success');
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error updating product:', error.message);
-            Utils.showNotification('Error updating product: ' + error.message, 'error');
-            return { success: false, error: error.message };
-        }
-    }
-
-    async deleteProduct(id) {
-        try {
-            const { error } = await supabase
-                .from('products')
-                .delete()
-                .eq('id', id);
-            
-            if (error) throw error;
-            
-            // Reload products to maintain synchronization
-            await this.loadProducts(
-                this.currentPage > 1 && this.products.length === 1 ? 
-                this.currentPage - 1 : this.currentPage, 
-                this.currentFilters
-            );
-            
-            Utils.showNotification('Product deleted successfully', 'success');
-            return { success: true };
-        } catch (error) {
-            console.error('Error deleting product:', error.message);
-            Utils.showNotification('Error deleting product: ' + error.message, 'error');
-            return { success: false, error: error.message };
-        }
-    }
-
-    validateProduct(productData) {
-        // Basic validations
-        if (!productData.name || productData.name.trim().length < 2) {
-            Utils.showNotification('Name must be at least 2 characters long', 'error');
-            return false;
+    static renderPlans(plans) {
+        if (!plans || !Array.isArray(plans) || plans.length === 0) {
+            return '<p class="text-gray-500 text-sm">No plans available</p>';
         }
         
-        if (!productData.description || productData.description.trim().length < 10) {
-            Utils.showNotification('Description must be at least 10 characters long', 'error');
-            return false;
-        }
+        let html = '<div class="space-y-2">';
         
-        if (!productData.category_id) {
-            Utils.showNotification('Please select a category', 'error');
-            return false;
-        }
+        plans.forEach(plan => {
+            // Ensure prices are numbers
+            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+            
+            html += `
+                <div class="flex justify-between items-center text-sm">
+                    <span class="font-medium">${plan.name}</span>
+                    <div class="text-right">
+                        <div class="font-semibold">${Utils.formatCurrency(priceSoles, 'PEN')}</div>
+                        <div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>
+                    </div>
+                </div>
+            `;
+        });
         
-        if (!productData.photo_url) {
-            Utils.showNotification('Please provide an image URL', 'error');
-            return false;
-        }
-        
-        // Validate plans and prices
-        if (!productData.plans || !Array.isArray(productData.plans) || productData.plans.length === 0) {
-            Utils.showNotification('Please add at least one plan', 'error');
-            return false;
-        }
-        
-        for (const plan of productData.plans) {
-            if (!plan.name || !plan.price_soles || !plan.price_dollars) {
-                Utils.showNotification('All plans must have a name and prices', 'error');
-                return false;
-            }
-        }
-        
-        return true;
+        html += '</div>';
+        return html;
     }
 
-    // Methods for statistics
-    async getStats() {
-        try {
-            // Get total product count
-            const { count: totalProducts, error: productsError } = await supabase
-                .from('products')
-                .select('*', { count: 'exact' });
-            
-            if (productsError) throw productsError;
-            
-            // Get count by category
-            const { data: categoriesData, error: categoriesError } = await supabase
-                .from('categories')
-                .select('id, name, color');
-            
-            if (categoriesError) throw categoriesError;
-            
-            const categoriesWithCount = await Promise.all(
-                categoriesData.map(async category => {
-                    const { count, error } = await supabase
-                        .from('products')
-                        .select('*', { count: 'exact' })
-                        .eq('category_id', category.id);
-                    
-                    if (error) throw error;
-                    
-                    return {
-                        ...category,
-                        product_count: count || 0
-                    };
-                })
-            );
-            
-            // Get recent products
-            const { data: recentProducts, error: recentError } = await supabase
-                .from('products')
-                .select('*, categories(name)')
-                .order('created_at', { ascending: false })
-                .limit(5);
-            
-            if (recentError) throw recentError;
-            
-            // Get active products
-            const { count: activeProducts, error: activeError } = await supabase
-                .from('products')
-                .select('*', { count: 'exact' })
-                .eq('status', 'active');
-            
-            if (activeError) throw activeError;
-            
-            return {
-                success: true,
-                stats: {
-                    totalProducts,
-                    activeProducts,
-                    categories: categoriesWithCount,
-                    recentProducts
-                }
-            };
-        } catch (error) {
-            console.error('Error getting statistics:', error.message);
-            return { success: false, error: error.message };
-        }
+    static renderAdminActions(product) {
+        return `
+            <div class="flex justify-between pt-3 border-t">
+                <button class="edit-product text-blue-600 hover:text-blue-800" data-id="${product.id}">
+                    <i class="fas fa-edit mr-1"></i> Edit
+                </button>
+                <button class="delete-product text-red-600 hover:text-red-800" data-id="${product.id}">
+                    <i class="fas fa-trash mr-1"></i> Delete
+                </button>
+            </div>
+        `;
     }
 }
-
-// Global instance for use throughout the application
-export const productManager = new ProductManager();
