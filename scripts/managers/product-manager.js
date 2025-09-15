@@ -299,3 +299,6 @@ export class ProductManager {
         }
     }
 }
+
+// Instancia global para usar en toda la aplicación
+export const productManager = new ProductManager();
