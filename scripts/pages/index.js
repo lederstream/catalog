@@ -1,12 +1,12 @@
 // scripts/pages/index.js
-import { ProductManager } from '../managers/product-manager.js';
-import { CategoryManager } from '../managers/category-manager.js';
+import { productManager } from '../managers/product-manager.js';
+import { categoryManager } from '../managers/category-manager.js';
 import { Utils } from '../core/utils.js';
 
 class IndexPage {
     constructor() {
-        this.productManager = new ProductManager();
-        this.categoryManager = new CategoryManager();
+        this.productManager = new productManager();
+        this.categoryManager = new categoryManager();
         this.init();
     }
 
