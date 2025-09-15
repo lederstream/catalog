@@ -3,7 +3,6 @@ import { authManager } from '../core/auth.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
 import { modalManager, productModal } from '../components/modals.js';
-import { ProductCard } from '../components/product-card.js';
 import { Utils } from '../core/utils.js';
 
 class AdminPage {
@@ -13,6 +12,7 @@ class AdminPage {
             category: '',
             sort: 'newest'
         };
+        this.stats = null;
     }
 
     async init() {
@@ -20,10 +20,7 @@ class AdminPage {
             console.log('🔄 Inicializando AdminPage...');
             
             // Check authentication
-            if (!authManager.requireAuth()) {
-                console.error('❌ Authentication required');
-                return false;
-            }
+            authManager.requireAuth();
             
             // Initialize managers
             await this.initializeManagers();
@@ -51,7 +48,7 @@ class AdminPage {
             
             // Initialize auth first
             const authResult = await authManager.initialize();
-            if (!authResult.success) {
+            if (!authResult) {
                 throw new Error('Auth initialization failed');
             }
             
@@ -180,15 +177,61 @@ class AdminPage {
         }
         
         // Render products
-        productsList.innerHTML = products.map(product => 
-            ProductCard.create(product, true)
-        ).join('');
+        productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
         
         // Setup events
         this.setupProductEvents();
         
         // Render pagination
         this.renderPagination();
+    }
+
+    createProductCard(product) {
+        const category = product.categories || {};
+        const plans = typeof product.plans === 'string' ? JSON.parse(product.plans) : (product.plans || []);
+        
+        return `
+            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <div class="w-full md:w-48 h-32 flex-shrink-0">
+                        <img src="${product.photo_url}" alt="${product.name}" 
+                             class="w-full h-full object-cover rounded-lg">
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="text-lg font-semibold">${product.name}</h3>
+                            <span class="px-2 py-1 text-xs font-semibold rounded-full text-white" 
+                                  style="background-color: ${category.color || '#3B82F6'}">
+                                ${category.name || 'Sin categoría'}
+                            </span>
+                        </div>
+                        <p class="text-gray-600 text-sm mb-3 line-clamp-2">${product.description}</p>
+                        
+                        <div class="mb-3">
+                            <h4 class="text-sm font-medium mb-1">Planes:</h4>
+                            <div class="space-y-1">
+                                ${plans.slice(0, 2).map(plan => `
+                                    <div class="flex justify-between text-xs">
+                                        <span>${plan.name}</span>
+                                        <span>${Utils.formatCurrency(plan.price_soles || 0, 'PEN')}</span>
+                                    </div>
+                                `).join('')}
+                                ${plans.length > 2 ? `<div class="text-xs text-gray-500">+${plans.length - 2} más</div>` : ''}
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-2">
+                            <button class="edit-product px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600" data-id="${product.id}">
+                                <i class="fas fa-edit mr-1"></i> Editar
+                            </button>
+                            <button class="delete-product px-3 py-1 bg-red-500 text-white text-xs rounded hover:bg-red-600" data-id="${product.id}">
+                                <i class="fas fa-trash mr-1"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     setupProductEvents() {
@@ -233,7 +276,7 @@ class AdminPage {
 
     createPaginationHTML(currentPage, totalPages) {
         let html = `
-            <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
+            <button class="pagination-btn px-3 py-1 rounded border ${currentPage === 1 ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}" 
                     ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
                 <i class="fas fa-chevron-left"></i>
             </button>
@@ -245,7 +288,7 @@ class AdminPage {
         
         for (let i = startPage; i <= endPage; i++) {
             html += `
-                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
+                <button class="pagination-btn px-3 py-1 rounded border ${i === currentPage ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}" 
                         data-page="${i}">
                     ${i}
                 </button>
@@ -253,7 +296,7 @@ class AdminPage {
         }
         
         html += `
-            <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
+            <button class="pagination-btn px-3 py-1 rounded border ${currentPage === totalPages ? 'bg-gray-200 text-gray-400 cursor-not-allowed' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}" 
                     ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
                 <i class="fas fa-chevron-right"></i>
             </button>
@@ -296,43 +339,51 @@ class AdminPage {
         if (!statsContainer || !this.stats) return;
         
         statsContainer.innerHTML = `
-            <div class="stats-card bg-gradient-to-br from-blue-50 to-blue-100">
-                <div class="stats-icon bg-blue-500">
-                    <i class="fas fa-box"></i>
-                </div>
-                <div class="stats-content">
-                    <h3>${this.stats.totalProducts}</h3>
-                    <p>Total Products</p>
-                </div>
-            </div>
-            
-            <div class="stats-card bg-gradient-to-br from-green-50 to-green-100">
-                <div class="stats-icon bg-green-500">
-                    <i class="fas fa-tags"></i>
-                </div>
-                <div class="stats-content">
-                    <h3>${this.stats.categories?.length || 0}</h3>
-                    <p>Categories</p>
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white mr-3">
+                        <i class="fas fa-box"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold">${this.stats.totalProducts || 0}</h3>
+                        <p class="text-sm text-gray-600">Total Products</p>
+                    </div>
                 </div>
             </div>
             
-            <div class="stats-card bg-gradient-to-br from-purple-50 to-purple-100">
-                <div class="stats-icon bg-purple-500">
-                    <i class="fas fa-star"></i>
-                </div>
-                <div class="stats-content">
-                    <h3>${this.stats.activeProducts || 0}</h3>
-                    <p>Active</p>
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white mr-3">
+                        <i class="fas fa-tags"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold">${this.stats.categories?.length || 0}</h3>
+                        <p class="text-sm text-gray-600">Categories</p>
+                    </div>
                 </div>
             </div>
             
-            <div class="stats-card bg-gradient-to-br from-orange-50 to-orange-100">
-                <div class="stats-icon bg-orange-500">
-                    <i class="fas fa-chart-line"></i>
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white mr-3">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-bold">${this.stats.activeProducts || 0}</h3>
+                        <p class="text-sm text-gray-600">Active</p>
+                    </div>
                 </div>
-                <div class="stats-content">
-                    <h3>${this.getTopCategory()}</h3>
-                    <p>Top Category</p>
+            </div>
+            
+            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+                <div class="flex items-center">
+                    <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white mr-3">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-bold">${this.getTopCategory()}</h3>
+                        <p class="text-sm text-gray-600">Top Category</p>
+                    </div>
                 </div>
             </div>
         `;
@@ -343,7 +394,7 @@ class AdminPage {
         
         const topCategory = this.stats.categories.reduce((prev, current) => 
             (prev.product_count > current.product_count) ? prev : current, 
-        { product_count: 0 });
+        { product_count: 0, name: 'N/A' });
         
         return topCategory.product_count > 0 ? topCategory.name : 'N/A';
     }
@@ -405,6 +456,22 @@ class AdminPage {
                 this.handleLogout();
             });
         }
+
+        // Manage categories button
+        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+        if (manageCategoriesBtn) {
+            manageCategoriesBtn.addEventListener('click', () => {
+                this.openCategoriesModal();
+            });
+        }
+
+        // View stats button
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        if (viewStatsBtn) {
+            viewStatsBtn.addEventListener('click', () => {
+                this.openStatsModal();
+            });
+        }
     }
 
     async applyFilters() {
@@ -462,7 +529,7 @@ class AdminPage {
         );
         
         if (confirmed) {
-            await authManager.logout();
+            await authManager.signOut();
             window.location.href = 'login.html';
         }
     }
@@ -509,6 +576,137 @@ class AdminPage {
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+    }
+
+    openCategoriesModal() {
+        modalManager.showModal('categoriesModal');
+        this.renderCategoriesList();
+    }
+
+    renderCategoriesList() {
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList) return;
+        
+        const categories = categoryManager.getCategories();
+        
+        if (categories.length === 0) {
+            categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No categories found</p>';
+            return;
+        }
+        
+        categoriesList.innerHTML = categories.map(category => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
+                    <span>${category.name}</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="edit-category text-blue-600 hover:text-blue-800" data-id="${category.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete-category text-red-600 hover:text-red-800" data-id="${category.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Add event listeners
+        categoriesList.querySelectorAll('.delete-category').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const categoryId = e.currentTarget.dataset.id;
+                this.confirmDeleteCategory(categoryId);
+            });
+        });
+    }
+
+    async confirmDeleteCategory(categoryId) {
+        const category = categoryManager.getCategoryById(categoryId);
+        if (!category) return;
+        
+        const confirmed = await Utils.showConfirm(
+            `Delete "${category.name}"`,
+            `Are you sure you want to delete this category? Products in this category will not be deleted but will lose their category association.`,
+            'warning'
+        );
+        
+        if (confirmed) {
+            Utils.showLoading('Deleting category...');
+            const result = await categoryManager.deleteCategory(categoryId);
+            
+            if (result.success) {
+                this.renderCategoriesList();
+                this.renderCategoryFilters();
+                Utils.showSuccess('Category deleted successfully');
+            } else {
+                Utils.showError(result.error);
+            }
+        }
+    }
+
+    openStatsModal() {
+        modalManager.showModal('statsModal');
+        this.renderStatsModal();
+    }
+
+    renderStatsModal() {
+        const statsContent = document.getElementById('statsContent');
+        if (!statsContent || !this.stats) return;
+        
+        statsContent.innerHTML = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h4 class="font-semibold mb-3">Products by Category</h4>
+                    <div class="space-y-3">
+                        ${this.stats.categories.map(category => `
+                            <div class="flex justify-between items-center">
+                                <div class="flex items-center">
+                                    <span class="w-3 h-3 rounded-full mr-2" style="background-color: ${category.color || '#3B82F6'}"></span>
+                                    <span>${category.name}</span>
+                                </div>
+                                <span class="font-semibold">${category.product_count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <div class="bg-white p-4 rounded-lg shadow">
+                    <h4 class="font-semibold mb-3">Quick Stats</h4>
+                    <div class="space-y-3">
+                        <div class="flex justify-between">
+                            <span>Total Products</span>
+                            <span class="font-semibold">${this.stats.totalProducts}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Active Products</span>
+                            <span class="font-semibold">${this.stats.activeProducts}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span>Categories</span>
+                            <span class="font-semibold">${this.stats.categories.length}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-white p-4 rounded-lg shadow">
+                <h4 class="font-semibold mb-3">Recent Products</h4>
+                <div class="space-y-3">
+                    ${this.stats.recentProducts.map(product => `
+                        <div class="flex items-center justify-between py-2 border-b border-gray-100">
+                            <div class="flex items-center">
+                                <img src="${product.photo_url}" alt="${product.name}" class="w-10 h-10 object-cover rounded mr-3">
+                                <div>
+                                    <div class="font-medium">${product.name}</div>
+                                    <div class="text-sm text-gray-500">${product.categories?.name || 'No category'}</div>
+                                </div>
+                            </div>
+                            <span class="text-sm text-gray-500">${new Date(product.created_at).toLocaleDateString()}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
     }
 }
 
