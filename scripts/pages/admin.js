@@ -5,7 +5,6 @@ import { categoryManager } from '../managers/category-manager.js';
 import { modalManager, productModal } from '../components/modals.js';
 import { ProductCard } from '../components/product-card.js';
 import { Utils } from '../core/utils.js';
-import { setupAllEventListeners } from '../event-listeners.js';
 
 class AdminPage {
     constructor() {
@@ -322,9 +321,6 @@ class AdminPage {
 
     setupEventListeners() {
         // Configurar listeners básicos
-        setupAllEventListeners(this);
-        
-        // Listeners adicionales
         this.setupAdditionalListeners();
     }
 
@@ -354,41 +350,53 @@ class AdminPage {
         }
         
         // Filtros
-        const searchInput = document.getElementById('searchInput');
+        const searchInput = document.getElementById('searchProducts');
         if (searchInput) {
             searchInput.addEventListener('input', Utils.debounce(() => {
-                this.handleSearch(searchInput);
+                this.currentFilters.search = searchInput.value;
+                this.applyFilters();
             }, 300));
         }
         
         const filterCategory = document.getElementById('filterCategory');
         if (filterCategory) {
             filterCategory.addEventListener('change', () => {
-                this.handleFilterChange(filterCategory);
+                this.currentFilters.category = filterCategory.value;
+                this.applyFilters();
             });
         }
         
-        const sortSelect = document.getElementById('sortSelect');
+        const sortSelect = document.getElementById('sortProducts');
         if (sortSelect) {
             sortSelect.addEventListener('change', () => {
-                this.handleSortChange(sortSelect);
+                this.currentFilters.sort = sortSelect.value;
+                this.applyFilters();
             });
         }
-    }
-
-    async handleSearch(input) {
-        this.currentFilters.search = input.value;
-        await this.applyFilters();
-    }
-
-    async handleFilterChange(select) {
-        this.currentFilters.category = select.value;
-        await this.applyFilters();
-    }
-
-    async handleSortChange(select) {
-        this.currentFilters.sort = select.value;
-        await this.applyFilters();
+        
+        // Botón de logout
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
+        
+        // Botón de gestión de categorías
+        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+        if (manageCategoriesBtn) {
+            manageCategoriesBtn.addEventListener('click', () => {
+                modalManager.openCategoriesModal();
+            });
+        }
+        
+        // Botón de ver estadísticas
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        if (viewStatsBtn) {
+            viewStatsBtn.addEventListener('click', () => {
+                modalManager.openStatsModal(this.stats);
+            });
+        }
     }
 
     async applyFilters() {
