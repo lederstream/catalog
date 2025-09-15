@@ -426,7 +426,7 @@ export class ProductModal {
                 Utils.showNotification('Producto actualizado correctamente', 'success');
             } else {
                 // Crear nuevo producto
-                result = await productManager.addProduct(productData);
+                result = await productManager.productManager(productData);
                 Utils.showNotification('Producto creado correctamente', 'success');
             }
             
