@@ -5,7 +5,6 @@ import { categoryManager } from '../managers/category-manager.js';
 import { modalManager, productModal } from '../components/modals.js';
 import { ProductCard } from '../components/product-card.js';
 import { Utils } from '../core/utils.js';
-import { setupAllEventListeners } from '../event-listeners.js';
 
 class AdminPage {
     constructor() {
@@ -14,22 +13,22 @@ class AdminPage {
             category: '',
             sort: 'newest'
         };
-        
     }
 
     async init() {
-        // Check authentication
-        if (!authManager.requireAuth()) return false;
-        
         try {
-            // Initialize managers
-            await Promise.all([
-                authManager.initialize(),
-                productManager.initialize(),
-                categoryManager.initialize()
-            ]);
+            console.log('🔄 Inicializando AdminPage...');
             
-            // Setup UI
+            // Check authentication
+            if (!authManager.requireAuth()) {
+                console.error('❌ Authentication required');
+                return false;
+            }
+            
+            // Initialize managers
+            await this.initializeManagers();
+            
+            // Setup UI and event listeners
             this.setupUI();
             this.setupEventListeners();
             
@@ -37,24 +36,51 @@ class AdminPage {
             await this.loadData();
             
             console.log('✅ AdminPage initialized successfully');
+            return true;
             
         } catch (error) {
-            console.error('Error initializing AdminPage:', error);
+            console.error('❌ Error initializing AdminPage:', error);
             Utils.showError('Error initializing application');
-            return false
+            return false;
+        }
+    }
+
+    async initializeManagers() {
+        try {
+            console.log('🔄 Initializing managers...');
+            
+            // Initialize auth first
+            const authResult = await authManager.initialize();
+            if (!authResult.success) {
+                throw new Error('Auth initialization failed');
+            }
+            
+            // Initialize category and product managers
+            const [categoryResult, productResult] = await Promise.all([
+                categoryManager.initialize(),
+                productManager.initialize()
+            ]);
+            
+            if (!categoryResult.success || !productResult.success) {
+                throw new Error('Managers initialization failed');
+            }
+            
+            console.log('✅ Managers initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing managers:', error);
+            throw error;
         }
     }
 
     setupUI() {
-        // Setup dark/light theme based on preference
         this.setupTheme();
-        
-        // Setup tooltips
         this.setupTooltips();
     }
 
     setupTheme() {
         const themeToggle = document.getElementById('themeToggle');
+        if (!themeToggle) return;
+        
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         const savedTheme = localStorage.getItem('theme');
         
@@ -62,71 +88,63 @@ class AdminPage {
             document.documentElement.classList.add('dark');
         }
         
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
-                localStorage.setItem('theme', 
-                    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-                );
-            });
-        }
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', 
+                document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+            );
+        });
     }
 
     setupTooltips() {
-        // Implement tooltips with Tippy.js or similar
+        // Simple tooltip implementation
         const elements = document.querySelectorAll('[data-tooltip]');
         elements.forEach(el => {
-            el.addEventListener('mouseenter', () => {
+            el.addEventListener('mouseenter', (e) => {
                 const tooltip = document.createElement('div');
-                tooltip.className = 'tooltip';
+                tooltip.className = 'fixed z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg';
                 tooltip.textContent = el.dataset.tooltip;
+                tooltip.style.top = `${e.clientY + 15}px`;
+                tooltip.style.left = `${e.clientX}px`;
+                tooltip.id = 'current-tooltip';
+                
                 document.body.appendChild(tooltip);
-                
-                // Basic positioning (improve with library)
-                const rect = el.getBoundingClientRect();
-                tooltip.style.top = `${rect.bottom + 5}px`;
-                tooltip.style.left = `${rect.left}px`;
-                
-                el._tooltip = tooltip;
             });
             
             el.addEventListener('mouseleave', () => {
-                if (el._tooltip) {
-                    el._tooltip.remove();
-                    delete el._tooltip;
-                }
+                const tooltip = document.getElementById('current-tooltip');
+                if (tooltip) tooltip.remove();
             });
         });
     }
 
     async loadData() {
         try {
-            console.log('🔄 Cargando datos...');
+            console.log('🔄 Loading data...');
             Utils.showLoading('Loading products...');
             
-            // Cargar categorías primero y esperar a que terminen
-            console.log('🔄 Cargando categorías...');
-            const categoriesResult = await categoryManager.loadCategories();
-            console.log('✅ Categorías cargadas:', categoriesResult.success ? categoryManager.getCategories().length : 'Error');
+            // Load categories and products
+            const [categoriesResult, productsResult] = await Promise.all([
+                categoryManager.loadCategories(),
+                productManager.loadProducts(1, this.currentFilters)
+            ]);
             
-            // Ahora cargar productos y estadísticas
-            console.log('🔄 Cargando productos...');
-            const productsResult = await productManager.loadProducts(1, this.currentFilters);
-            console.log('✅ Productos cargados:', productsResult.success ? productManager.getProducts().length : 'Error');
+            if (!categoriesResult.success || !productsResult.success) {
+                throw new Error('Failed to load data');
+            }
             
-            console.log('🔄 Cargando estadísticas...');
+            // Load stats and render everything
             await this.loadStats();
-            
             this.renderProducts();
             this.renderStats();
             this.renderCategoryFilters();
             
-            console.log('✅ Datos cargados correctamente');
-            Utils.hideLoading();
+            console.log('✅ Data loaded successfully');
             
         } catch (error) {
             console.error('❌ Error loading data:', error);
             Utils.showError('Error loading data');
+        } finally {
             Utils.hideLoading();
         }
     }
@@ -331,19 +349,11 @@ class AdminPage {
     }
 
     setupEventListeners() {
-        // Setup basic listeners
-        setupAllEventListeners(this);
-        
-        // Additional listeners
-        this.setupAdditionalListeners();
-    }
-
-    setupAdditionalListeners() {
         // Add product button
         const addProductBtn = document.getElementById('addProductBtn');
         if (addProductBtn) {
             addProductBtn.addEventListener('click', () => {
-                ProductModal.open();
+                productModal.open();
             });
         }
         
@@ -395,37 +405,6 @@ class AdminPage {
                 this.handleLogout();
             });
         }
-
-        // Category management button
-        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
-        if (manageCategoriesBtn) {
-            manageCategoriesBtn.addEventListener('click', () => {
-                modalManager.showModal('categoriesModal');
-            });
-        }
-        
-        // View statistics button
-        const viewStatsBtn = document.getElementById('viewStatsBtn');
-        if (viewStatsBtn) {
-            viewStatsBtn.addEventListener('click', () => {
-                modalManager.showModal('statsModal');
-            });
-        }
-    }
-
-    async handleSearch(input) {
-        this.currentFilters.search = input.value;
-        await this.applyFilters();
-    }
-
-    async handleFilterChange(select) {
-        this.currentFilters.category = select.value;
-        await this.applyFilters();
-    }
-
-    async handleSortChange(select) {
-        this.currentFilters.sort = select.value;
-        await this.applyFilters();
     }
 
     async applyFilters() {
@@ -488,11 +467,6 @@ class AdminPage {
         }
     }
 
-    handleAuthenticationChange(event, user) {
-        console.log('Auth change:', event, user);
-        // Update UI based on authentication status
-    }
-
     async exportData() {
         try {
             Utils.showLoading('Exporting data...');
@@ -541,20 +515,19 @@ class AdminPage {
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        console.log('🟡 Inicializando AdminPage...');
+        console.log('🟡 Initializing AdminPage...');
         window.adminPage = new AdminPage();
         
-        // ESPERAR a que la inicialización se complete
         const success = await window.adminPage.init();
         
         if (success) {
-            console.log('✅ AdminPage inicializada correctamente');
+            console.log('✅ AdminPage initialized successfully');
         } else {
-            console.error('❌ Falló la inicialización de AdminPage');
-            Utils.showError('Error al inicializar el panel de administración');
+            console.error('❌ Failed to initialize AdminPage');
+            Utils.showError('Error initializing admin panel');
         }
     } catch (error) {
-        console.error('❌ Error crítico al inicializar AdminPage:', error);
-        Utils.showError('Error crítico al cargar la aplicación');
+        console.error('❌ Critical error initializing AdminPage:', error);
+        Utils.showError('Critical error loading application');
     }
 });
