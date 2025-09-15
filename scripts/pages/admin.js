@@ -5,6 +5,7 @@ import { categoryManager } from '../managers/category-manager.js';
 import { modalManager, productModal } from '../components/modals.js';
 import { ProductCard } from '../components/product-card.js';
 import { Utils } from '../core/utils.js';
+import { setupAllEventListeners } from '../event-listeners.js';
 
 class AdminPage {
     constructor() {
@@ -321,6 +322,9 @@ class AdminPage {
 
     setupEventListeners() {
         // Configurar listeners básicos
+        setupAllEventListeners(this);
+        
+        // Listeners adicionales
         this.setupAdditionalListeners();
     }
 
@@ -373,7 +377,7 @@ class AdminPage {
                 this.applyFilters();
             });
         }
-        
+
         // Botón de logout
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
@@ -381,7 +385,7 @@ class AdminPage {
                 this.handleLogout();
             });
         }
-        
+
         // Botón de gestión de categorías
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
@@ -397,6 +401,21 @@ class AdminPage {
                 modalManager.openStatsModal(this.stats);
             });
         }
+    }
+
+    async handleSearch(input) {
+        this.currentFilters.search = input.value;
+        await this.applyFilters();
+    }
+
+    async handleFilterChange(select) {
+        this.currentFilters.category = select.value;
+        await this.applyFilters();
+    }
+
+    async handleSortChange(select) {
+        this.currentFilters.sort = select.value;
+        await this.applyFilters();
     }
 
     async applyFilters() {
