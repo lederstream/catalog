@@ -27,7 +27,7 @@ class AdminPage {
             await Promise.all([
                 authManager.initialize(),
                 productManager.initialize(),
-                categoryManager.loadCategories()
+                categoryManager.initialize()
             ]);
             
             // Configurar UI
