@@ -343,7 +343,7 @@ class AdminPage {
         const addProductBtn = document.getElementById('addProductBtn');
         if (addProductBtn) {
             addProductBtn.addEventListener('click', () => {
-                productModal.open();
+                ProductModal.open();
             });
         }
         
