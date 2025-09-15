@@ -1,13 +1,14 @@
-import { authManager } from '../core/auth.js'
-import { ProductManager } from '../managers/product-manager.js'
-import { categoryManager } from '../managers/category-manager.js'
-import { modalManager, productModal } from '../components/modals.js'
-import { ProductCard } from '../components/product-card.js'
-import { Utils } from '../core/utils.js'
+// scripts/pages/admin.js
+import { authManager } from '../core/auth.js';
+import { productManager } from '../managers/product-manager.js';
+import { categoryManager } from '../managers/category-manager.js';
+import { modalManager, productModal } from '../components/modals.js';
+import { ProductCard } from '../components/product-card.js';
+import { Utils } from '../core/utils.js';
+import { setupAllEventListeners } from '../event-listeners.js';
 
 class AdminPage {
     constructor() {
-        this.productManager = new ProductManager();
         this.currentFilters = {
             search: '',
             category: '',
@@ -23,9 +24,11 @@ class AdminPage {
         
         try {
             // Inicializar managers
-            await authManager.initialize();
-            await categoryManager.loadCategories();
-            await this.productManager.initialize();
+            await Promise.all([
+                authManager.initialize(),
+                productManager.initialize(),
+                categoryManager.loadCategories()
+            ]);
             
             // Configurar UI
             this.setupUI();
@@ -48,10 +51,6 @@ class AdminPage {
         
         // Configurar tooltips
         this.setupTooltips();
-        
-        // Configurar selects
-        this.renderCategoryFilters();
-        this.setupSortSelect();
     }
 
     setupTheme() {
@@ -77,23 +76,16 @@ class AdminPage {
         // Implementar tooltips con Tippy.js o similar
         const elements = document.querySelectorAll('[data-tooltip]');
         elements.forEach(el => {
-            const tooltipText = el.dataset.tooltip;
-            
-            el.addEventListener('mouseenter', (e) => {
-                // Eliminar tooltip existente si hay uno
-                const existingTooltip = document.querySelector('.custom-tooltip');
-                if (existingTooltip) existingTooltip.remove();
-                
-                // Crear nuevo tooltip
+            el.addEventListener('mouseenter', () => {
                 const tooltip = document.createElement('div');
-                tooltip.className = 'custom-tooltip fixed z-50 px-2 py-1 text-xs text-white bg-gray-900 rounded shadow-lg';
-                tooltip.textContent = tooltipText;
+                tooltip.className = 'tooltip';
+                tooltip.textContent = el.dataset.tooltip;
                 document.body.appendChild(tooltip);
                 
-                // Posicionamiento
-                const rect = e.target.getBoundingClientRect();
-                tooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
-                tooltip.style.left = `${rect.left + window.scrollX}px`;
+                // Posicionamiento básico (mejorar con librería)
+                const rect = el.getBoundingClientRect();
+                tooltip.style.top = `${rect.bottom + 5}px`;
+                tooltip.style.left = `${rect.left}px`;
                 
                 el._tooltip = tooltip;
             });
@@ -107,25 +99,18 @@ class AdminPage {
         });
     }
 
-    setupSortSelect() {
-        const sortSelect = document.getElementById('filterSort');
-        if (!sortSelect) return;
-        
-        // Establecer valor actual
-        sortSelect.value = this.currentFilters.sort;
-    }
-
     async loadData() {
         try {
             Utils.showLoading('Cargando productos...');
             
             await Promise.all([
-                this.productManager.loadProducts(1, this.currentFilters),
+                productManager.loadProducts(1, this.currentFilters),
                 this.loadStats()
             ]);
             
             this.renderProducts();
             this.renderStats();
+            this.renderCategoryFilters();
             
             Utils.hideLoading();
             
@@ -137,7 +122,7 @@ class AdminPage {
     }
 
     async loadStats() {
-        const { success, stats } = await this.productManager.getStats();
+        const { success, stats } = await productManager.getStats();
         if (success) {
             this.stats = stats;
         }
@@ -150,7 +135,7 @@ class AdminPage {
         
         if (!productsList) return;
         
-        const products = this.productManager.getProducts();
+        const products = productManager.getProducts();
         
         if (products.length === 0) {
             productsList.innerHTML = '';
@@ -163,7 +148,7 @@ class AdminPage {
         
         // Actualizar contador
         if (productsCount) {
-            productsCount.textContent = `${this.productManager.getTotalProducts()} productos`;
+            productsCount.textContent = `${productManager.getTotalProducts()} productos`;
         }
         
         // Renderizar productos
@@ -198,8 +183,8 @@ class AdminPage {
         const pagination = document.getElementById('productsPagination');
         if (!pagination) return;
         
-        const totalPages = this.productManager.getTotalPages();
-        const currentPage = this.productManager.getCurrentPage();
+        const totalPages = productManager.getTotalPages();
+        const currentPage = productManager.getCurrentPage();
         
         if (totalPages <= 1) {
             pagination.classList.add('hidden');
@@ -220,7 +205,7 @@ class AdminPage {
 
     createPaginationHTML(currentPage, totalPages) {
         let html = `
-            <button class="pagination-btn ${currentPage === 1 ? 'disabled opacity-50 cursor-not-allowed' : ''}" 
+            <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
                     ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
                 <i class="fas fa-chevron-left"></i>
             </button>
@@ -232,7 +217,7 @@ class AdminPage {
         
         for (let i = startPage; i <= endPage; i++) {
             html += `
-                <button class="pagination-btn ${i === currentPage ? 'active bg-blue-500 text-white' : ''}" 
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
                         data-page="${i}">
                     ${i}
                 </button>
@@ -240,7 +225,7 @@ class AdminPage {
         }
         
         html += `
-            <button class="pagination-btn ${currentPage === totalPages ? 'disabled opacity-50 cursor-not-allowed' : ''}" 
+            <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
                     ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
                 <i class="fas fa-chevron-right"></i>
             </button>
@@ -250,10 +235,8 @@ class AdminPage {
     }
 
     async changePage(page) {
-        if (page < 1 || page > this.productManager.getTotalPages()) return;
-        
         Utils.showLoading(`Cargando página ${page}...`);
-        await this.productManager.loadProducts(page, this.currentFilters);
+        await productManager.loadProducts(page, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
         
@@ -268,7 +251,7 @@ class AdminPage {
         const categories = categoryManager.getCategories();
         
         // Mantener valor seleccionado actual
-        const currentValue = this.currentFilters.category;
+        const currentValue = filterSelect.value;
         
         filterSelect.innerHTML = `
             <option value="">Todas las categorías</option>
@@ -285,7 +268,7 @@ class AdminPage {
         if (!statsContainer || !this.stats) return;
         
         statsContainer.innerHTML = `
-            <div class="stats-card bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800">
+            <div class="stats-card bg-gradient-to-br from-blue-50 to-blue-100">
                 <div class="stats-icon bg-blue-500">
                     <i class="fas fa-box"></i>
                 </div>
@@ -295,7 +278,7 @@ class AdminPage {
                 </div>
             </div>
             
-            <div class="stats-card bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800">
+            <div class="stats-card bg-gradient-to-br from-green-50 to-green-100">
                 <div class="stats-icon bg-green-500">
                     <i class="fas fa-tags"></i>
                 </div>
@@ -305,7 +288,7 @@ class AdminPage {
                 </div>
             </div>
             
-            <div class="stats-card bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800">
+            <div class="stats-card bg-gradient-to-br from-purple-50 to-purple-100">
                 <div class="stats-icon bg-purple-500">
                     <i class="fas fa-star"></i>
                 </div>
@@ -315,7 +298,7 @@ class AdminPage {
                 </div>
             </div>
             
-            <div class="stats-card bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900 dark:to-orange-800">
+            <div class="stats-card bg-gradient-to-br from-orange-50 to-orange-100">
                 <div class="stats-icon bg-orange-500">
                     <i class="fas fa-chart-line"></i>
                 </div>
@@ -328,45 +311,24 @@ class AdminPage {
     }
 
     getTopCategory() {
-        if (!this.stats?.categories || this.stats.categories.length === 0) return 'N/A';
+        if (!this.stats?.categories) return 'N/A';
         
         const topCategory = this.stats.categories.reduce((prev, current) => 
-            (prev.product_count > current.product_count) ? prev : current
-        );
+            (prev.product_count > current.product_count) ? prev : current, 
+        { product_count: 0 });
         
         return topCategory.product_count > 0 ? topCategory.name : 'N/A';
     }
 
     setupEventListeners() {
-        // Búsqueda
-        const searchInput = document.getElementById('searchProducts');
-        if (searchInput) {
-            // Usar debounce para evitar demasiadas solicitudes
-            let searchTimeout;
-            searchInput.addEventListener('input', (e) => {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(() => {
-                    this.handleSearch(e);
-                }, 500);
-            });
-        }
+        // Configurar listeners básicos
+        setupAllEventListeners(this);
         
-        // Filtros
-        const categoryFilter = document.getElementById('filterCategory');
-        if (categoryFilter) {
-            categoryFilter.addEventListener('change', (e) => {
-                this.handleFilterChange(e);
-            });
-        }
-        
-        // Ordenamiento
-        const sortFilter = document.getElementById('filterSort');
-        if (sortFilter) {
-            sortFilter.addEventListener('change', (e) => {
-                this.handleSortChange(e);
-            });
-        }
-        
+        // Listeners adicionales
+        this.setupAdditionalListeners();
+    }
+
+    setupAdditionalListeners() {
         // Botón agregar producto
         const addProductBtn = document.getElementById('addProductBtn');
         if (addProductBtn) {
@@ -391,44 +353,58 @@ class AdminPage {
             });
         }
         
-        // Botón logout
-        const logoutBtn = document.getElementById('logoutBtn');
-        if (logoutBtn) {
-            logoutBtn.addEventListener('click', () => {
-                this.handleLogout();
+        // Filtros
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', Utils.debounce(() => {
+                this.handleSearch(searchInput);
+            }, 300));
+        }
+        
+        const filterCategory = document.getElementById('filterCategory');
+        if (filterCategory) {
+            filterCategory.addEventListener('change', () => {
+                this.handleFilterChange(filterCategory);
+            });
+        }
+        
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => {
+                this.handleSortChange(sortSelect);
             });
         }
     }
 
-    async handleSearch(e) {
-        this.currentFilters.search = e.target.value;
+    async handleSearch(input) {
+        this.currentFilters.search = input.value;
         await this.applyFilters();
     }
 
-    async handleFilterChange(e) {
-        this.currentFilters.category = e.target.value;
+    async handleFilterChange(select) {
+        this.currentFilters.category = select.value;
         await this.applyFilters();
     }
 
-    async handleSortChange(e) {
-        this.currentFilters.sort = e.target.value;
+    async handleSortChange(select) {
+        this.currentFilters.sort = select.value;
         await this.applyFilters();
     }
 
     async applyFilters() {
         Utils.showLoading('Aplicando filtros...');
-        await this.productManager.loadProducts(1, this.currentFilters);
+        await productManager.loadProducts(1, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
     }
 
     async editProduct(productId) {
         try {
-            const { success, product, error } = await this.productManager.getProductById(productId);
-            if (success && product) {
+            const { success, product } = await productManager.getProductById(productId);
+            if (success) {
                 productModal.open(product);
             } else {
-                Utils.showError(error || 'Error al cargar el producto');
+                Utils.showError('Error al cargar el producto');
             }
         } catch (error) {
             console.error('Error editing product:', error);
@@ -437,29 +413,28 @@ class AdminPage {
     }
 
     async confirmDeleteProduct(productId) {
-        const { success, product } = await this.productManager.getProductById(productId);
-        
-        if (!success || !product) {
-            Utils.showError('No se pudo encontrar el producto');
-            return;
-        }
-        
-        const confirmed = await Utils.showConfirm(
-            `Eliminar "${product.name}"`,
-            `¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.`,
-            'warning'
-        );
-        
-        if (confirmed) {
-            try {
+        try {
+            const { success, product } = await productManager.getProductById(productId);
+            if (!success) {
+                Utils.showError('Producto no encontrado');
+                return;
+            }
+            
+            const confirmed = await Utils.showConfirm(
+                `Eliminar "${product.name}"`,
+                `¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.`,
+                'warning'
+            );
+            
+            if (confirmed) {
                 Utils.showLoading('Eliminando producto...');
-                await this.productManager.deleteProduct(product.id);
+                await productManager.deleteProduct(productId);
                 await this.loadData();
                 Utils.showSuccess('Producto eliminado correctamente');
-            } catch (error) {
-                console.error('Error deleting product:', error);
-                Utils.showError('Error al eliminar el producto');
             }
+        } catch (error) {
+            console.error('Error deleting product:', error);
+            Utils.showError('Error al eliminar el producto');
         }
     }
 
@@ -476,12 +451,16 @@ class AdminPage {
         }
     }
 
+    handleAuthenticationChange(event, user) {
+        console.log('Auth change:', event, user);
+        // Actualizar UI según estado de autenticación
+    }
+
     async exportData() {
         try {
             Utils.showLoading('Exportando datos...');
             
-            // Cargar todos los productos sin paginación
-            const products = await this.loadAllProducts();
+            const products = productManager.getProducts();
             const csvContent = this.convertToCSV(products);
             
             this.downloadCSV(csvContent, 'productos.csv');
@@ -494,54 +473,12 @@ class AdminPage {
         }
     }
 
-    async loadAllProducts() {
-        try {
-            // Obtener todos los productos sin paginación
-            let query = supabase
-                .from('products')
-                .select('*, categories(name)');
-            
-            // Aplicar filtros actuales
-            if (this.currentFilters.category) {
-                query = query.eq('category_id', this.currentFilters.category);
-            }
-            
-            if (this.currentFilters.search) {
-                query = query.ilike('name', `%${this.currentFilters.search}%`);
-            }
-            
-            // Aplicar ordenamiento
-            switch (this.currentFilters.sort) {
-                case 'newest':
-                    query = query.order('created_at', { ascending: false });
-                    break;
-                case 'oldest':
-                    query = query.order('created_at', { ascending: true });
-                    break;
-                case 'name_asc':
-                    query = query.order('name', { ascending: true });
-                    break;
-                case 'name_desc':
-                    query = query.order('name', { ascending: false });
-                    break;
-            }
-            
-            const { data, error } = await query;
-            
-            if (error) throw error;
-            return data || [];
-        } catch (error) {
-            console.error('Error loading all products:', error);
-            return [];
-        }
-    }
-
     convertToCSV(products) {
         const headers = ['Nombre', 'Categoría', 'Descripción', 'Estado', 'Fecha Creación'];
         const rows = products.map(product => [
-            `"${product.name?.replace(/"/g, '""')}"`,
-            `"${product.categories?.name?.replace(/"/g, '""')}"`,
-            `"${product.description?.replace(/"/g, '""')}"`,
+            `"${product.name}"`,
+            `"${product.categories?.name || 'Sin categoría'}"`,
+            `"${product.description}"`,
             `"${product.status}"`,
             `"${new Date(product.created_at).toLocaleDateString()}"`
         ]);
@@ -566,5 +503,5 @@ class AdminPage {
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    new AdminPage();
+    window.adminPage = new AdminPage();
 });
