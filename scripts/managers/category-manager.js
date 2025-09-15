@@ -5,35 +5,22 @@ import { Utils } from '../core/utils.js';
 export class CategoryManager {
     constructor() {
         this.categories = [];
+        this.isInitialized = false;
     }
 
     async loadCategories() {
         try {
-            console.log('🔄 Cargando categorías...');
             const { data, error } = await supabase
                 .from('categories')
                 .select('*')
                 .order('name');
             
-            if (error) {
-                console.error('❌ Error cargando categorías:', error);
-                // Intentar carga básica
-                const { data: basicData, error: basicError } = await supabase
-                    .from('categories')
-                    .select('id, name')
-                    .order('name');
-                
-                if (basicError) throw basicError;
-                
-                this.categories = basicData || [];
-                return { success: true, categories: this.categories };
-            }
+            if (error) throw error;
             
             this.categories = data || [];
-            console.log('✅ Categorías cargadas:', this.categories.length);
             return { success: true, categories: this.categories };
         } catch (error) {
-            console.error('❌ Error loading categories:', error.message);
+            console.error('Error loading categories:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -154,4 +141,4 @@ export class CategoryManager {
 }
 
 // Global instance for use throughout the application
-export const categoryManager = new CategoryManager();
+export const categoryManager = new categoryManager();
