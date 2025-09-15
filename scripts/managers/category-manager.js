@@ -19,7 +19,7 @@ export class CategoryManager {
             this.categories = data || [];
             return { success: true, categories: this.categories };
         } catch (error) {
-            console.error('Error al cargar categorías:', error.message);
+            console.error('Error loading categories:', error.message);
             return { success: false, error: error.message };
         }
     }
@@ -27,7 +27,7 @@ export class CategoryManager {
     async createCategory(name, color = '#3B82F6') {
         try {
             if (!name || name.trim().length < 2) {
-                return { success: false, error: 'El nombre de la categoría debe tener al menos 2 caracteres' };
+                return { success: false, error: 'Category name must be at least 2 characters long' };
             }
             
             const { data, error } = await supabase
@@ -38,15 +38,15 @@ export class CategoryManager {
             
             if (error) throw error;
             
-            // Actualizar la lista local
+            // Update local list
             this.categories.push(data);
             this.categories.sort((a, b) => a.name.localeCompare(b.name));
             
-            Utils.showNotification('Categoría creada exitosamente', 'success');
+            Utils.showNotification('Category created successfully', 'success');
             return { success: true, category: data };
         } catch (error) {
-            console.error('Error al crear categoría:', error.message);
-            Utils.showNotification('Error al crear categoría: ' + error.message, 'error');
+            console.error('Error creating category:', error.message);
+            Utils.showNotification('Error creating category: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
@@ -62,24 +62,24 @@ export class CategoryManager {
             
             if (error) throw error;
             
-            // Actualizar la lista local
+            // Update local list
             const index = this.categories.findIndex(cat => cat.id === id);
             if (index !== -1) {
                 this.categories[index] = { ...this.categories[index], ...updates };
             }
             
-            Utils.showNotification('Categoría actualizada exitosamente', 'success');
+            Utils.showNotification('Category updated successfully', 'success');
             return { success: true, category: data };
         } catch (error) {
-            console.error('Error al actualizar categoría:', error.message);
-            Utils.showNotification('Error al actualizar categoría: ' + error.message, 'error');
+            console.error('Error updating category:', error.message);
+            Utils.showNotification('Error updating category: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
 
     async deleteCategory(id) {
         try {
-            // Verificar si hay productos asociados a esta categoría
+            // Check if there are products associated with this category
             const { count, error: checkError } = await supabase
                 .from('products')
                 .select('*', { count: 'exact' })
@@ -90,7 +90,7 @@ export class CategoryManager {
             if (count > 0) {
                 return { 
                     success: false, 
-                    error: 'No se puede eliminar la categoría porque tiene productos asociados' 
+                    error: 'Cannot delete category because it has associated products' 
                 };
             }
             
@@ -101,14 +101,14 @@ export class CategoryManager {
             
             if (error) throw error;
             
-            // Eliminar de la lista local
+            // Remove from local list
             this.categories = this.categories.filter(cat => cat.id !== id);
             
-            Utils.showNotification('Categoría eliminada exitosamente', 'success');
+            Utils.showNotification('Category deleted successfully', 'success');
             return { success: true };
         } catch (error) {
-            console.error('Error al eliminar categoría:', error.message);
-            Utils.showNotification('Error al eliminar categoría: ' + error.message, 'error');
+            console.error('Error deleting category:', error.message);
+            Utils.showNotification('Error deleting category: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
@@ -119,7 +119,7 @@ export class CategoryManager {
 
     getCategoryColor(id) {
         const category = this.getCategoryById(id);
-        return category ? category.color : '#3B82F6'; // Color por defecto
+        return category ? category.color : '#3B82F6'; // Default color
     }
 
     getCategories() {
@@ -127,16 +127,15 @@ export class CategoryManager {
     }
     
     async initialize() {
-    try {
-        await this.loadCategories();
-        return { success: true };
-    } catch (error) {
-        console.error('Error initializing CategoryManager:', error);
-        return { success: false, error: error.message };
+        try {
+            await this.loadCategories();
+            return { success: true };
+        } catch (error) {
+            console.error('Error initializing CategoryManager:', error);
+            return { success: false, error: error.message };
+        }
     }
 }
-}
 
-
-// Instancia global para usar en toda la aplicación
+// Global instance for use throughout the application
 export const categoryManager = new CategoryManager();
