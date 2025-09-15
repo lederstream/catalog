@@ -141,4 +141,4 @@ export class CategoryManager {
 }
 
 // Global instance for use throughout the application
-export const CategoryManager = new CategoryManager();
+export const categoryManager = new CategoryManager();
