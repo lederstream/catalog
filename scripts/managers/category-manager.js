@@ -2,7 +2,7 @@
 import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class CategoryManager {
+export class categoryManager {
     constructor() {
         this.categories = [];
         this.isInitialized = false;
