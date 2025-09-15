@@ -5,15 +5,24 @@ import { Utils } from '../core/utils.js';
 
 class IndexPage {
     constructor() {
-        this.productManager = new productManager();
-        this.categoryManager = new categoryManager();
+        this.currentFilters = {
+            category: '',
+            search: '',
+            sort: 'newest'
+        };
         this.init();
     }
 
     async init() {
         try {
             // Cargar categorías y productos
-            await Promise.all([this.loadCategories(), this.loadProducts()]);
+            await Promise.all([
+                categoryManager.loadCategories(),
+                productManager.loadProducts(1, this.currentFilters)
+            ]);
+            
+            this.renderProducts();
+            this.populateCategoryFilter();
             this.setupEventListeners();
         } catch (error) {
             console.error('Error inicializando la página:', error);
@@ -21,41 +30,12 @@ class IndexPage {
         }
     }
 
-    async loadCategories() {
-        try {
-            const { success, error } = await this.categoryManager.loadCategories();
-            
-            if (!success) {
-                console.error('Error loading categories:', error);
-                return;
-            }
-            
-            this.populateCategoryFilter();
-        } catch (error) {
-            console.error('Error loading categories:', error);
-        }
-    }
-
-    async loadProducts() {
-        try {
-            const { success, products, error } = await this.productManager.loadProducts();
-            
-            if (!success) {
-                console.error('Error loading products:', error);
-                this.showError();
-                return;
-            }
-            
-            this.renderProducts(products);
-        } catch (error) {
-            console.error('Error loading products:', error);
-            this.showError();
-        }
-    }
-
     populateCategoryFilter() {
         const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter || !this.categoryManager.categories.length) return;
+        if (!categoryFilter) return;
+        
+        const categories = categoryManager.getCategories();
+        if (!categories || categories.length === 0) return;
         
         // Limpiar opciones excepto "Todas"
         while (categoryFilter.options.length > 1) {
@@ -63,7 +43,7 @@ class IndexPage {
         }
         
         // Agregar categorías
-        this.categoryManager.categories.forEach(category => {
+        categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category.id;
             option.textContent = category.name;
@@ -71,9 +51,11 @@ class IndexPage {
         });
     }
 
-    renderProducts(products) {
+    renderProducts() {
         const productsGrid = document.getElementById('productsGrid');
         if (!productsGrid) return;
+        
+        const products = productManager.getProducts();
         
         if (!products || products.length === 0) {
             productsGrid.innerHTML = `
@@ -153,26 +135,34 @@ class IndexPage {
                 this.applyFilters();
             }, 300));
         }
+        
+        // Ordenamiento
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => this.applyFilters());
+        }
     }
 
     async applyFilters() {
-        const categoryValue = document.getElementById('categoryFilter')?.value || 'all';
+        const categoryValue = document.getElementById('categoryFilter')?.value || '';
         const searchValue = document.getElementById('searchInput')?.value || '';
+        const sortValue = document.getElementById('sortSelect')?.value || 'newest';
         
         const filters = {
-            category: categoryValue === 'all' ? '' : categoryValue,
-            search: searchValue
+            category: categoryValue,
+            search: searchValue,
+            sort: sortValue
         };
         
         try {
-            const { success, products, error } = await this.productManager.loadProducts(1, filters);
+            const { success, products, error } = await productManager.loadProducts(1, filters);
             
             if (!success) {
                 console.error('Error applying filters:', error);
                 return;
             }
             
-            this.renderProducts(products);
+            this.renderProducts();
         } catch (error) {
             console.error('Error applying filters:', error);
         }
