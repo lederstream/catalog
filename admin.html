@@ -19,13 +19,6 @@
             overflow: hidden;
         }
         
-        .line-clamp-3 {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        
         .loading-spinner {
             border: 4px solid #f3f3f3;
             border-top: 4px solid #3498db;
@@ -45,20 +38,6 @@
             color: #e53e3e;
             font-size: 0.875rem;
             margin-top: 0.25rem;
-        }
-        
-        .modal-container {
-            transition: all 0.3s ease;
-        }
-        
-        .modal-container:not(.flex) {
-            opacity: 0;
-            transform: scale(0.95);
-        }
-        
-        .modal-container.flex {
-            opacity: 1;
-            transform: scale(1);
         }
     </style>
 </head>
@@ -96,9 +75,6 @@
                 </button>
                 <button id="viewStatsBtn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 flex items-center">
                     <i class="fas fa-chart-bar mr-2"></i> Ver Estadísticas
-                </button>
-                <button id="reloadBtn" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 flex items-center">
-                    <i class="fas fa-sync-alt mr-2"></i> Recargar
                 </button>
             </div>
         </div>
@@ -154,7 +130,17 @@
             
             <!-- Paginación -->
             <div id="productsPagination" class="mt-8 flex justify-center hidden">
-                <!-- La paginación se cargará dinámicamente -->
+                <nav class="flex items-center space-x-2">
+                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <span class="px-3 py-1 rounded border border-blue-500 bg-blue-500 text-white">1</span>
+                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">2</button>
+                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">3</button>
+                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </nav>
             </div>
         </div>
     </main>
@@ -171,7 +157,7 @@
                     <h4 class="text-lg font-semibold mb-4">Enlaces Rápidos</h4>
                     <ul class="space-y-2">
                         <li><a href="index.html" class="text-gray-400 hover:text-white">Ver Catálogo Público</a></li>
-                        <li><a href="#" class="text-gray-400 hover:text-white">Contacto</a></li>
+                        <li><a href="contact.html" class="text-gray-400 hover:text-white">Contacto</a></li>
                     </ul>
                 </div>
             </div>
@@ -182,7 +168,7 @@
     </footer>
 
     <!-- Modal de Producto (Para agregar/editar) -->
-    <div id="productModal" class="modal-container fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+    <div id="productModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
         <div class="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
             <div class="p-4 border-b flex justify-between items-center">
                 <h3 class="text-lg font-semibold" id="productModalTitle">Agregar Nuevo Producto</h3>
@@ -247,7 +233,7 @@
                 </form>
             </div>
             <div class="p-4 border-t flex justify-end space-x-3">
-                <button class="px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cancel-btn">
+                <button class="px-5 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50" id="cancelProductBtn">
                     Cancelar
                 </button>
                 <button type="submit" form="productForm" class="px-5 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
@@ -258,7 +244,7 @@
     </div>
 
     <!-- Modal de confirmación de eliminación -->
-    <div id="deleteConfirmModal" class="modal-container fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div id="deleteConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
             <div class="text-center">
                 <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
@@ -270,7 +256,7 @@
                 </div>
             </div>
             <div class="mt-4 flex space-x-3 justify-end">
-                <button type="button" class="cancel-btn px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
+                <button type="button" class="cancel-delete px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300">
                     Cancelar
                 </button>
                 <button type="button" class="confirm-delete px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
@@ -281,7 +267,7 @@
     </div>
 
     <!-- Modal de búsqueda de imágenes -->
-    <div id="imageSearchModal" class="modal-container fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div id="imageSearchModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 h-3/4 overflow-hidden flex flex-col">
             <div class="p-4 border-b flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Buscar Imágenes</h3>
@@ -306,7 +292,7 @@
     </div>
 
     <!-- Modal de Gestión de Categorías -->
-    <div id="categoriesModal" class="modal-container fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div id="categoriesModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-2/3 max-h-screen overflow-hidden flex flex-col">
             <div class="p-4 border-b flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Gestionar Categorías</h3>
@@ -332,7 +318,7 @@
     </div>
 
     <!-- Modal de Estadísticas -->
-    <div id="statsModal" class="modal-container fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div id="statsModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
         <div class="bg-white rounded-lg shadow-xl w-11/12 md:w-3/4 lg:w-4/5 max-h-screen overflow-hidden flex flex-col">
             <div class="p-4 border-b flex justify-between items-center">
                 <h3 class="text-lg font-semibold">Estadísticas del Catálogo</h3>
@@ -352,10 +338,10 @@
     <script type="module" src="scripts/supabase.js"></script>
     <script type="module" src="scripts/core/utils.js"></script>
     <script type="module" src="scripts/core/auth.js"></script>
-    <script type="module" src="scripts/core/app.js"></script>
     <script type="module" src="scripts/managers/product-manager.js"></script>
     <script type="module" src="scripts/managers/category-manager.js"></script>
     <script type="module" src="scripts/components/modals.js"></script>
+    <script type="module" src="scripts/event-listeners.js"></script>
     <script type="module" src="scripts/pages/admin.js"></script>
 </body>
 </html>
