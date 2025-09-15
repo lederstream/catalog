@@ -15,7 +15,7 @@ export class ModalManager {
     }
 
     setupEventListeners() {
-        // Cerrar modales
+        // Close modals
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('close-modal') || 
                 e.target.classList.contains('cancel-delete') || 
@@ -28,7 +28,7 @@ export class ModalManager {
             }
         });
 
-        // Tecla Escape para cerrar modales
+        // Escape key to close modals
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.currentModal) {
                 this.hideCurrentModal();
@@ -46,12 +46,12 @@ export class ModalManager {
         modal.classList.add('flex');
         this.currentModal = modal;
 
-        // Animación de entrada
+        // Entrance animation
         setTimeout(() => {
             modal.classList.add('opacity-100', 'scale-100');
         }, 10);
 
-        // Focus en el primer input si existe
+        // Focus on first input if exists
         if (options.focusFirstInput !== false) {
             const firstInput = modal.querySelector('input, select, textarea');
             if (firstInput) firstInput.focus();
@@ -88,21 +88,21 @@ export class ModalManager {
         const resultsContainer = document.getElementById('imageSearchResults');
         
         if (!query) {
-            Utils.showNotification('Por favor ingresa un término de búsqueda', 'error');
+            Utils.showNotification('Please enter a search term', 'error');
             return;
         }
         
         try {
-            resultsContainer.innerHTML = this.getLoadingTemplate('Buscando imágenes...');
+            resultsContainer.innerHTML = this.getLoadingTemplate('Searching images...');
             
-            // Simular búsqueda (reemplazar con API real)
+            // Simulate search (replace with real API)
             await new Promise(resolve => setTimeout(resolve, 1000));
             
             resultsContainer.innerHTML = this.getImageSearchInfoTemplate();
             
         } catch (error) {
-            console.error('Error buscando imágenes:', error);
-            resultsContainer.innerHTML = this.getErrorTemplate('Error al buscar imágenes');
+            console.error('Error searching images:', error);
+            resultsContainer.innerHTML = this.getErrorTemplate('Error searching images');
         }
     }
 
@@ -121,12 +121,12 @@ export class ModalManager {
                 <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-image text-2xl text-blue-500"></i>
                 </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Sistema de búsqueda de imágenes</h3>
-                <p class="text-gray-600 mb-4">Ingresa la URL completa de la imagen manualmente</p>
+                <h3 class="text-lg font-semibold text-gray-800 mb-2">Image Search System</h3>
+                <p class="text-gray-600 mb-4">Enter the complete image URL manually</p>
                 <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                    <p class="text-sm text-blue-800 font-medium mb-1">Formato recomendado:</p>
-                    <code class="text-xs bg-white p-2 rounded border block">https://ejemplo.com/ruta/imagen.jpg</code>
-                    <p class="text-xs text-blue-600 mt-2">Asegúrate de que la URL sea accesible públicamente</p>
+                    <p class="text-sm text-blue-800 font-medium mb-1">Recommended format:</p>
+                    <code class="text-xs bg-white p-2 rounded border block">https://example.com/path/image.jpg</code>
+                    <p class="text-xs text-blue-600 mt-2">Make sure the URL is publicly accessible</p>
                 </div>
             </div>
         `;
@@ -140,7 +140,7 @@ export class ModalManager {
                 </div>
                 <p class="text-gray-600">${message}</p>
                 <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                    Reintentar
+                    Retry
                 </button>
             </div>
         `;
@@ -154,13 +154,13 @@ export class ProductModal {
     }
 
     setupEventListeners() {
-        // Añadir plan
+        // Add plan
         const addPlanBtn = document.getElementById('addPlanBtn');
         if (addPlanBtn) {
             addPlanBtn.addEventListener('click', () => this.addPlanRow());
         }
 
-        // Buscar imagen
+        // Search image
         const searchImageBtn = document.getElementById('searchImageBtn');
         if (searchImageBtn) {
             searchImageBtn.addEventListener('click', () => {
@@ -168,7 +168,7 @@ export class ProductModal {
             });
         }
 
-        // Vista previa de imagen
+        // Image preview
         const photoUrlInput = document.getElementById('photo_url');
         if (photoUrlInput) {
             photoUrlInput.addEventListener('input', Utils.debounce((e) => {
@@ -176,13 +176,13 @@ export class ProductModal {
             }, 500));
         }
 
-        // Envío del formulario
+        // Form submission
         const productForm = document.getElementById('productForm');
         if (productForm) {
             productForm.addEventListener('submit', (e) => this.handleProductSubmit(e));
         }
 
-        // Añadir categoría
+        // Add category
         const addCategoryBtn = document.getElementById('addCategoryBtn');
         if (addCategoryBtn) {
             addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
@@ -202,35 +202,35 @@ export class ProductModal {
         const submitText = document.getElementById('submitProductText');
         const form = document.getElementById('productForm');
 
-        // Limpiar formulario
+        // Clear form
         form.reset();
         document.getElementById('productId').value = '';
         this.updateImagePreview('');
 
-        // Configurar para edición o creación
+        // Configure for edit or create
         if (product) {
-            title.textContent = 'Editar Producto';
-            submitText.textContent = 'Actualizar Producto';
+            title.textContent = 'Edit Product';
+            submitText.textContent = 'Update Product';
             
-            // Llenar formulario
+            // Fill form
             document.getElementById('productId').value = product.id;
             document.getElementById('name').value = product.name || '';
             document.getElementById('category').value = product.category_id || '';
             document.getElementById('description').value = product.description || '';
             document.getElementById('photo_url').value = product.photo_url || '';
             
-            // Vista previa
+            // Preview
             if (product.photo_url) {
                 this.updateImagePreview(product.photo_url);
             }
             
-            // Cargar planes
+            // Load plans
             this.loadProductPlans(product);
         } else {
-            title.textContent = 'Agregar Nuevo Producto';
-            submitText.textContent = 'Agregar Producto';
+            title.textContent = 'Add New Product';
+            submitText.textContent = 'Add Product';
             
-            // Limpiar planes
+            // Clear plans
             const plansContainer = document.getElementById('plansContainer');
             if (plansContainer) {
                 plansContainer.innerHTML = '';
@@ -238,7 +238,7 @@ export class ProductModal {
             }
         }
         
-        // Cargar categorías
+        // Load categories
         await this.loadCategories();
     }
 
@@ -249,11 +249,11 @@ export class ProductModal {
         if (imageUrl) {
             previewContainer.innerHTML = `
                 <div class="relative w-full h-full">
-                    <img src="${imageUrl}" alt="Vista previa" 
+                    <img src="${imageUrl}" alt="Preview" 
                          class="w-full h-full object-cover rounded-lg"
-                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+cargando+imagen'">
+                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
                     <button class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
-                            onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>La imagen aparecerá aquí</p>';">
+                            onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>Image will appear here</p>';">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -262,7 +262,7 @@ export class ProductModal {
             previewContainer.innerHTML = `
                 <div class="text-center py-8 text-gray-400">
                     <i class="fas fa-image text-3xl mb-2"></i>
-                    <p>La imagen aparecerá aquí</p>
+                    <p>Image will appear here</p>
                 </div>
             `;
         }
@@ -283,45 +283,45 @@ export class ProductModal {
         planRow.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Nombre del Plan</label>
+                    <label class="block text-sm text-gray-700 mb-1">Plan Name</label>
                     <input type="text" class="plan-name w-full px-3 py-2 border rounded" 
-                           value="${planName}" placeholder="Ej: Plan Básico" required>
+                           value="${planName}" placeholder="Ex: Basic Plan" required>
                 </div>
                 <div class="flex items-end">
                     <button type="button" class="remove-plan text-red-600 hover:text-red-800 text-sm">
-                        <i class="fas fa-trash mr-1"></i> Eliminar
+                        <i class="fas fa-trash mr-1"></i> Remove
                     </button>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Precio (S/)</label>
+                    <label class="block text-sm text-gray-700 mb-1">Price (S/)</label>
                     <input type="number" step="0.01" min="0" class="plan-price-soles w-full px-3 py-2 border rounded" 
                            value="${priceSoles}" placeholder="0.00">
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Precio ($)</label>
+                    <label class="block text-sm text-gray-700 mb-1">Price ($)</label>
                     <input type="number" step="0.01" min="0" class="plan-price-dollars w-full px-3 py-2 border rounded" 
                            value="${priceDollars}" placeholder="0.00">
                 </div>
             </div>
             <div>
-                <label class="block text-sm text-gray-700 mb-1">Características (separadas por coma)</label>
+                <label class="block text-sm text-gray-700 mb-1">Features (comma separated)</label>
                 <textarea class="plan-features w-full px-3 py-2 border rounded" rows="2" 
-                          placeholder="Ej: HD, 4K, Subtítulos">${features}</textarea>
+                          placeholder="Ex: HD, 4K, Subtitles">${features}</textarea>
             </div>
         `;
         
         plansContainer.appendChild(planRow);
         
-        // Añadir event listener para eliminar plan
+        // Add event listener to remove plan
         const removeBtn = planRow.querySelector('.remove-plan');
         if (removeBtn) {
             removeBtn.addEventListener('click', () => {
                 if (plansContainer.querySelectorAll('.plan-row').length > 1) {
                     planRow.remove();
                 } else {
-                    Utils.showNotification('Debe haber al menos un plan', 'warning');
+                    Utils.showNotification('There must be at least one plan', 'warning');
                 }
             });
         }
@@ -362,11 +362,11 @@ export class ProductModal {
                 throw new Error('Error loading categories');
             }
             
-            // Guardar opción actual seleccionada
+            // Save current selected option
             const currentValue = categorySelect.value;
             
-            // Limpiar y llenar select
-            categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
+            // Clear and fill select
+            categorySelect.innerHTML = '<option value="">Select category</option>';
             categories.forEach(category => {
                 const option = document.createElement('option');
                 option.value = category.id;
@@ -374,13 +374,13 @@ export class ProductModal {
                 categorySelect.appendChild(option);
             });
             
-            // Restaurar valor seleccionado si existe
+            // Restore selected value if exists
             if (currentValue) {
                 categorySelect.value = currentValue;
             }
         } catch (error) {
             console.error('Error loading categories:', error);
-            Utils.showNotification('Error al cargar categorías', 'error');
+            Utils.showNotification('Error loading categories', 'error');
         }
     }
 
@@ -391,7 +391,7 @@ export class ProductModal {
         const productId = document.getElementById('productId').value;
         
         try {
-            // Recopilar datos de los planes
+            // Collect plan data
             const plans = [];
             document.querySelectorAll('.plan-row').forEach(row => {
                 const name = row.querySelector('.plan-name').value;
@@ -409,7 +409,7 @@ export class ProductModal {
                 }
             });
             
-            // Preparar datos del producto
+            // Prepare product data
             const productData = {
                 name: formData.get('name'),
                 description: formData.get('description'),
@@ -421,26 +421,26 @@ export class ProductModal {
             
             let result;
             if (productId) {
-                // Actualizar producto existente
+                // Update existing product
                 result = await productManager.updateProduct(productId, productData);
-                Utils.showNotification('Producto actualizado correctamente', 'success');
+                Utils.showNotification('Product updated successfully', 'success');
             } else {
-                // Crear nuevo producto
-                result = await productManager.productManager(productData);
-                Utils.showNotification('Producto creado correctamente', 'success');
+                // Create new product
+                result = await productManager.createProduct(productData);
+                Utils.showNotification('Product created successfully', 'success');
             }
             
-            // Cerrar modal
+            // Close modal
             this.modalManager.hideCurrentModal();
             
-            // Recargar datos si estamos en el contexto de adminPage
+            // Reload data if in adminPage context
             if (window.adminPage && typeof window.adminPage.loadData === 'function') {
                 window.adminPage.loadData();
             }
             
         } catch (error) {
             console.error('Error saving product:', error);
-            Utils.showNotification('Error al guardar el producto', 'error');
+            Utils.showNotification('Error saving product', 'error');
         }
     }
 
@@ -449,7 +449,7 @@ export class ProductModal {
         const name = nameInput.value.trim();
         
         if (!name) {
-            Utils.showNotification('Por favor ingresa un nombre para la categoría', 'error');
+            Utils.showNotification('Please enter a category name', 'error');
             return;
         }
         
@@ -460,19 +460,19 @@ export class ProductModal {
                 throw new Error(result.error);
             }
             
-            Utils.showNotification('Categoría añadida correctamente', 'success');
+            Utils.showNotification('Category added successfully', 'success');
             nameInput.value = '';
             
-            // Recargar listas de categorías
+            // Reload category lists
             this.loadCategories();
             
         } catch (error) {
             console.error('Error adding category:', error);
-            Utils.showNotification('Error al añadir categoría: ' + error.message, 'error');
+            Utils.showNotification('Error adding category: ' + error.message, 'error');
         }
     }
 }
 
-// Crear instancias globales
+// Create global instances
 export const modalManager = new ModalManager();
 export const productModal = new ProductModal(modalManager);
