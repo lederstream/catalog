@@ -128,10 +128,12 @@ export class CategoryManager {
     
     async initialize() {
         try {
-            await this.loadCategories();
-            return { success: true };
+            console.log('🔄 Inicializando CategoryManager...');
+            const result = await this.loadCategories();
+            console.log('✅ CategoryManager inicializado:', result.success);
+            return result;
         } catch (error) {
-            console.error('Error initializing CategoryManager:', error);
+            console.error('❌ Error initializing CategoryManager:', error);
             return { success: false, error: error.message };
         }
     }
