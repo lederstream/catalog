@@ -16,73 +16,115 @@ export class ProductManager {
         this.isInitialized = false;
     }
 
-    async loadProducts(page = 1, filters = {}) {
+async loadProducts(page = 1, filters = {}) {
+    try {
+        this.currentPage = page;
+        this.currentFilters = { ...this.currentFilters, ...filters };
+        
+        console.log('🔄 Cargando productos con filtros:', this.currentFilters);
+        
+        // PRIMERO: Probemos diferentes formatos de consulta
+        let query;
+        let data, error, count;
+        
+        // Intentemos diferentes formatos de consulta
         try {
-            this.currentPage = page;
-            this.currentFilters = { ...this.currentFilters, ...filters };
-            
-            console.log('🔄 Cargando productos con filtros:', this.currentFilters);
-            
-            // Construir consulta CORREGIDA
-            let query = supabase
+            // Opción 1: Sintaxis estándar con join implícito
+            query = supabase
                 .from('products')
                 .select(`
                     *,
                     categories (*)
                 `, { count: 'exact' });
             
-            // Aplicar filtros
-            if (this.currentFilters.category && this.currentFilters.category !== '') {
-                query = query.eq('category_id', this.currentFilters.category);
-                console.log('🔍 Filtrando por categoría:', this.currentFilters.category);
-            }
-            
-            if (this.currentFilters.search && this.currentFilters.search !== '') {
-                query = query.or(`name.ilike.%${this.currentFilters.search}%,description.ilike.%${this.currentFilters.search}%`);
-                console.log('🔍 Filtrando por búsqueda:', this.currentFilters.search);
-            }
-            
-            // Aplicar ordenamiento
-            switch (this.currentFilters.sort) {
-                case 'newest':
-                    query = query.order('created_at', { ascending: false });
-                    break;
-                case 'oldest':
-                    query = query.order('created_at', { ascending: true });
-                    break;
-                case 'name_asc':
-                    query = query.order('name', { ascending: true });
-                    break;
-                case 'name_desc':
-                    query = query.order('name', { ascending: false });
-                    break;
-                default:
-                    query = query.order('created_at', { ascending: false });
-            }
-            
-            // Aplicar paginación
-            const from = (page - 1) * this.itemsPerPage;
-            const to = from + this.itemsPerPage - 1;
-            query = query.range(from, to);
-            
-            // Ejecutar consulta
-            const { data, error, count } = await query;
-            
-            if (error) {
-                console.error('❌ Error en consulta Supabase:', error);
-                throw error;
-            }
-            
-            console.log('✅ Productos cargados:', data?.length || 0);
-            this.products = data || [];
-            this.totalProducts = count || 0;
-            
-            return { success: true, products: this.products, total: this.totalProducts };
-        } catch (error) {
-            console.error('❌ Error al cargar productos:', error.message);
-            return { success: false, error: error.message };
+        } catch (syntaxError) {
+            console.log('❌ Sintaxis 1 falló, probando alternativa...');
+            // Opción 2: Sintaxis alternativa
+            query = supabase
+                .from('products')
+                .select('*, categories!inner(*)', { count: 'exact' });
         }
+        
+        // Aplicar filtros
+        if (this.currentFilters.category && this.currentFilters.category !== '') {
+            query = query.eq('category_id', this.currentFilters.category);
+        }
+        
+        if (this.currentFilters.search && this.currentFilters.search !== '') {
+            query = query.or(`name.ilike.%${this.currentFilters.search}%,description.ilike.%${this.currentFilters.search}%`);
+        }
+        
+        // Aplicar ordenamiento
+        switch (this.currentFilters.sort) {
+            case 'newest':
+                query = query.order('created_at', { ascending: false });
+                break;
+            case 'oldest':
+                query = query.order('created_at', { ascending: true });
+                break;
+            case 'name_asc':
+                query = query.order('name', { ascending: true });
+                break;
+            case 'name_desc':
+                query = query.order('name', { ascending: false });
+                break;
+            default:
+                query = query.order('created_at', { ascending: false });
+        }
+        
+        // Aplicar paginación
+        const from = (page - 1) * this.itemsPerPage;
+        const to = from + this.itemsPerPage - 1;
+        query = query.range(from, to);
+        
+        // Ejecutar consulta
+        ({ data, error, count } = await query);
+        
+        if (error) {
+            console.error('❌ Error en consulta Supabase:', error);
+            // Intentar consulta básica sin joins
+            const basicQuery = supabase
+                .from('products')
+                .select('*', { count: 'exact' })
+                .order('created_at', { ascending: false })
+                .range(from, to);
+            
+            const basicResult = await basicQuery;
+            data = basicResult.data;
+            error = basicResult.error;
+            count = basicResult.count;
+            
+            if (error) throw error;
+        }
+        
+        console.log('✅ Productos cargados:', data?.length || 0);
+        
+        // Si tenemos datos pero no categorías, cargarlas por separado
+        if (data && data.length > 0) {
+            for (let product of data) {
+                if (product.category_id && (!product.categories || Object.keys(product.categories).length === 0)) {
+                    const categoryResult = await supabase
+                        .from('categories')
+                        .select('*')
+                        .eq('id', product.category_id)
+                        .single();
+                    
+                    if (categoryResult.data) {
+                        product.categories = categoryResult.data;
+                    }
+                }
+            }
+        }
+        
+        this.products = data || [];
+        this.totalProducts = count || 0;
+        
+        return { success: true, products: this.products, total: this.totalProducts };
+    } catch (error) {
+        console.error('❌ Error al cargar productos:', error.message);
+        return { success: false, error: error.message };
     }
+}
 
     async initialize() {
         try {
@@ -312,4 +354,4 @@ export class ProductManager {
 }
 
 // Instancia global para usar en toda la aplicación
-export const productManager = new ProductManager();
+export const productManager = new ProductManager();s
