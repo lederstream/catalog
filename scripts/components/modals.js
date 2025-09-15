@@ -11,14 +11,13 @@ export class ModalManager {
 
     init() {
         this.setupEventListeners();
-        this.setupImageSearch();
     }
 
     setupEventListeners() {
         // Close modals
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('close-modal') || 
-                e.target.classList.contains('cancel-delete') || 
+                e.target.classList.contains('cancel-btn') || 
                 e.target.id === 'cancelProductBtn') {
                 this.hideCurrentModal();
             }
@@ -40,7 +39,10 @@ export class ModalManager {
         this.hideCurrentModal();
         
         const modal = document.getElementById(modalId);
-        if (!modal) return false;
+        if (!modal) {
+            console.error(`Modal with ID ${modalId} not found`);
+            return false;
+        }
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -69,81 +71,6 @@ export class ModalManager {
             }, 300);
             this.currentModal = null;
         }
-    }
-
-    setupImageSearch() {
-        const searchBtn = document.getElementById('performSearch');
-        const searchInput = document.getElementById('imageSearchQuery');
-        
-        if (searchBtn && searchInput) {
-            searchBtn.addEventListener('click', () => this.performImageSearch());
-            searchInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') this.performImageSearch();
-            });
-        }
-    }
-
-    async performImageSearch() {
-        const query = document.getElementById('imageSearchQuery').value.trim();
-        const resultsContainer = document.getElementById('imageSearchResults');
-        
-        if (!query) {
-            Utils.showNotification('Please enter a search term', 'error');
-            return;
-        }
-        
-        try {
-            resultsContainer.innerHTML = this.getLoadingTemplate('Searching images...');
-            
-            // Simulate search (replace with real API)
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            resultsContainer.innerHTML = this.getImageSearchInfoTemplate();
-            
-        } catch (error) {
-            console.error('Error searching images:', error);
-            resultsContainer.innerHTML = this.getErrorTemplate('Error searching images');
-        }
-    }
-
-    getLoadingTemplate(message) {
-        return `
-            <div class="col-span-full text-center py-8">
-                <div class="loading-spinner inline-block w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                <p class="mt-2 text-gray-600">${message}</p>
-            </div>
-        `;
-    }
-
-    getImageSearchInfoTemplate() {
-        return `
-            <div class="col-span-full text-center py-8">
-                <div class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-image text-2xl text-blue-500"></i>
-                </div>
-                <h3 class="text-lg font-semibold text-gray-800 mb-2">Image Search System</h3>
-                <p class="text-gray-600 mb-4">Enter the complete image URL manually</p>
-                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 max-w-md mx-auto">
-                    <p class="text-sm text-blue-800 font-medium mb-1">Recommended format:</p>
-                    <code class="text-xs bg-white p-2 rounded border block">https://example.com/path/image.jpg</code>
-                    <p class="text-xs text-blue-600 mt-2">Make sure the URL is publicly accessible</p>
-                </div>
-            </div>
-        `;
-    }
-
-    getErrorTemplate(message) {
-        return `
-            <div class="col-span-full text-center py-8">
-                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-exclamation-triangle text-2xl text-red-500"></i>
-                </div>
-                <p class="text-gray-600">${message}</p>
-                <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
-                    Retry
-                </button>
-            </div>
-        `;
     }
 }
 
@@ -252,7 +179,7 @@ export class ProductModal {
                     <img src="${imageUrl}" alt="Preview" 
                          class="w-full h-full object-cover rounded-lg"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
-                    <button class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
+                    <button type="button" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
                             onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>Image will appear here</p>';">
                         <i class="fas fa-times"></i>
                     </button>
