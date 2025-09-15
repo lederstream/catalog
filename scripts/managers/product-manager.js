@@ -23,35 +23,23 @@ async loadProducts(page = 1, filters = {}) {
         
         console.log('🔄 Cargando productos con filtros:', this.currentFilters);
         
-        // PRIMERO: Probemos diferentes formatos de consulta
-        let query;
-        let data, error, count;
-        
-        // Intentemos diferentes formatos de consulta
-        try {
-            // Opción 1: Sintaxis estándar con join implícito
-            query = supabase
-                .from('products')
-                .select(`
-                    *,
-                    categories (*)
-                `, { count: 'exact' });
-            
-        } catch (syntaxError) {
-            console.log('❌ Sintaxis 1 falló, probando alternativa...');
-            // Opción 2: Sintaxis alternativa
-            query = supabase
-                .from('products')
-                .select('*, categories!inner(*)', { count: 'exact' });
-        }
+        // Construir consulta CORREGIDA
+        let query = supabase
+            .from('products')
+            .select(`
+                *,
+                categories (*)
+            `, { count: 'exact' });
         
         // Aplicar filtros
         if (this.currentFilters.category && this.currentFilters.category !== '') {
             query = query.eq('category_id', this.currentFilters.category);
+            console.log('🔍 Filtrando por categoría:', this.currentFilters.category);
         }
         
         if (this.currentFilters.search && this.currentFilters.search !== '') {
             query = query.or(`name.ilike.%${this.currentFilters.search}%,description.ilike.%${this.currentFilters.search}%`);
+            console.log('🔍 Filtrando por búsqueda:', this.currentFilters.search);
         }
         
         // Aplicar ordenamiento
@@ -78,44 +66,14 @@ async loadProducts(page = 1, filters = {}) {
         query = query.range(from, to);
         
         // Ejecutar consulta
-        ({ data, error, count } = await query);
+        const { data, error, count } = await query;
         
         if (error) {
             console.error('❌ Error en consulta Supabase:', error);
-            // Intentar consulta básica sin joins
-            const basicQuery = supabase
-                .from('products')
-                .select('*', { count: 'exact' })
-                .order('created_at', { ascending: false })
-                .range(from, to);
-            
-            const basicResult = await basicQuery;
-            data = basicResult.data;
-            error = basicResult.error;
-            count = basicResult.count;
-            
-            if (error) throw error;
+            throw error;
         }
         
         console.log('✅ Productos cargados:', data?.length || 0);
-        
-        // Si tenemos datos pero no categorías, cargarlas por separado
-        if (data && data.length > 0) {
-            for (let product of data) {
-                if (product.category_id && (!product.categories || Object.keys(product.categories).length === 0)) {
-                    const categoryResult = await supabase
-                        .from('categories')
-                        .select('*')
-                        .eq('id', product.category_id)
-                        .single();
-                    
-                    if (categoryResult.data) {
-                        product.categories = categoryResult.data;
-                    }
-                }
-            }
-        }
-        
         this.products = data || [];
         this.totalProducts = count || 0;
         
@@ -354,4 +312,4 @@ async loadProducts(page = 1, filters = {}) {
 }
 
 // Instancia global para usar en toda la aplicación
-export const productManager = new ProductManager();s
+export const productManager = new ProductManager();
