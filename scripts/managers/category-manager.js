@@ -2,7 +2,7 @@
 import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class categoryManager {
+export class CategoryManager {
     constructor() {
         this.categories = [];
     }
@@ -38,6 +38,10 @@ export class categoryManager {
             
             if (error) throw error;
             
+            // Actualizar la lista local
+            this.categories.push(data);
+            this.categories.sort((a, b) => a.name.localeCompare(b.name));
+            
             Utils.showNotification('Categoría creada exitosamente', 'success');
             return { success: true, category: data };
         } catch (error) {
@@ -57,6 +61,12 @@ export class categoryManager {
                 .single();
             
             if (error) throw error;
+            
+            // Actualizar la lista local
+            const index = this.categories.findIndex(cat => cat.id === id);
+            if (index !== -1) {
+                this.categories[index] = { ...this.categories[index], ...updates };
+            }
             
             Utils.showNotification('Categoría actualizada exitosamente', 'success');
             return { success: true, category: data };
@@ -91,6 +101,9 @@ export class categoryManager {
             
             if (error) throw error;
             
+            // Eliminar de la lista local
+            this.categories = this.categories.filter(cat => cat.id !== id);
+            
             Utils.showNotification('Categoría eliminada exitosamente', 'success');
             return { success: true };
         } catch (error) {
@@ -108,5 +121,11 @@ export class categoryManager {
         const category = this.getCategoryById(id);
         return category ? category.color : '#3B82F6'; // Color por defecto
     }
+
+    getCategories() {
+        return this.categories;
+    }
 }
 
+// Instancia global para usar en toda la aplicación
+export const categoryManager = new CategoryManager();
