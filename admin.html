@@ -21,7 +21,7 @@
         
         .line-clamp-3 {
             display: -webkit-box;
-            -webkit-line-clamp: 3;
+            -webkit-line-2: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
         }
@@ -47,11 +47,9 @@
             margin-top: 0.25rem;
         }
         
+        /* Estilos para modales */
         .modal-container {
             transition: all 0.3s ease;
-        }
-        
-        .modal-container:not(.flex) {
             opacity: 0;
             transform: scale(0.95);
         }
@@ -59,6 +57,11 @@
         .modal-container.flex {
             opacity: 1;
             transform: scale(1);
+        }
+        
+        .modal-content {
+            max-height: 90vh;
+            overflow-y: auto;
         }
     </style>
 </head>
@@ -150,6 +153,15 @@
                     <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
                     <p>Cargando productos...</p>
                 </div>
+            </div>
+            
+            <!-- Estado vacío (hidden por defecto) -->
+            <div id="emptyState" class="text-center py-12 text-gray-500 hidden">
+                <i class="fas fa-box-open text-4xl mb-3"></i>
+                <p>No hay productos disponibles</p>
+                <button id="addFirstProduct" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                    <i class="fas fa-plus mr-2"></i>Agregar primer producto
+                </button>
             </div>
             
             <!-- Paginación -->
@@ -358,4 +370,4 @@
     <script type="module" src="scripts/components/modals.js"></script>
     <script type="module" src="scripts/pages/admin.js"></script>
 </body>
-</html>
+</html>s
