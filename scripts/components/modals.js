@@ -1,4 +1,3 @@
-// scripts/components/modals.js
 import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
@@ -16,14 +15,20 @@ export class ModalManager {
     setupEventListeners() {
         // Close modals
         document.addEventListener('click', (e) => {
+            // Cerrar con botones de cerrar/cancelar
             if (e.target.classList.contains('close-modal') || 
+                e.target.closest('.close-modal') ||
                 e.target.classList.contains('cancel-btn') || 
+                e.target.closest('.cancel-btn') ||
                 e.target.id === 'cancelProductBtn') {
                 this.hideCurrentModal();
+                return;
             }
             
+            // Cerrar al hacer clic fuera del contenido del modal
             if (e.target.classList.contains('modal-container')) {
                 this.hideCurrentModal();
+                return;
             }
         });
 
@@ -44,9 +49,17 @@ export class ModalManager {
             return false;
         }
 
+        // Asegurarse de que el modal tenga la clase container
+        if (!modal.classList.contains('modal-container')) {
+            modal.classList.add('modal-container');
+        }
+
         modal.classList.remove('hidden');
         modal.classList.add('flex');
         this.currentModal = modal;
+
+        // Deshabilitar scroll del body
+        document.body.style.overflow = 'hidden';
 
         // Entrance animation
         setTimeout(() => {
@@ -65,11 +78,15 @@ export class ModalManager {
     hideCurrentModal() {
         if (this.currentModal) {
             this.currentModal.classList.remove('opacity-100', 'scale-100');
+            
             setTimeout(() => {
                 this.currentModal.classList.add('hidden');
                 this.currentModal.classList.remove('flex');
+                this.currentModal = null;
+                
+                // Habilitar scroll del body
+                document.body.style.overflow = 'auto';
             }, 300);
-            this.currentModal = null;
         }
     }
 }
@@ -115,6 +132,14 @@ export class ProductModal {
         if (addCategoryBtn) {
             addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
         }
+
+        // Add first product button
+        const addFirstProductBtn = document.getElementById('addFirstProduct');
+        if (addFirstProductBtn) {
+            addFirstProductBtn.addEventListener('click', () => {
+                this.modalManager.showModal('productModal');
+            });
+        }
     }
 
     async open(product = null) {
@@ -137,8 +162,8 @@ export class ProductModal {
 
         // Configure for edit or create
         if (product) {
-            title.textContent = 'Edit Product';
-            submitText.textContent = 'Update Product';
+            title.textContent = 'Editar Producto';
+            submitText.textContent = 'Actualizar Producto';
             
             // Fill form
             document.getElementById('productId').value = product.id;
@@ -155,8 +180,8 @@ export class ProductModal {
             // Load plans
             this.loadProductPlans(product);
         } else {
-            title.textContent = 'Add New Product';
-            submitText.textContent = 'Add Product';
+            title.textContent = 'Agregar Nuevo Producto';
+            submitText.textContent = 'Agregar Producto';
             
             // Clear plans
             const plansContainer = document.getElementById('plansContainer');
@@ -180,7 +205,7 @@ export class ProductModal {
                     <img src="${imageUrl}" alt="Preview" 
                          class="w-full h-full object-cover rounded-lg"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
-                    <button type="button" class="absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
+                    <button type="button" class="close-modal absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
                             onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>Image will appear here</p>';">
                         <i class="fas fa-times"></i>
                     </button>
@@ -190,7 +215,7 @@ export class ProductModal {
             previewContainer.innerHTML = `
                 <div class="text-center py-8 text-gray-400">
                     <i class="fas fa-image text-3xl mb-2"></i>
-                    <p>Image will appear here</p>
+                    <p>La imagen aparecerá aquí</p>
                 </div>
             `;
         }
@@ -211,32 +236,32 @@ export class ProductModal {
         planRow.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Plan Name</label>
+                    <label class="block text-sm text-gray-700 mb-1">Nombre del Plan *</label>
                     <input type="text" class="plan-name w-full px-3 py-2 border rounded" 
-                           value="${planName}" placeholder="Ex: Basic Plan" required>
+                           value="${planName}" placeholder="Ej: Plan Básico" required>
                 </div>
                 <div class="flex items-end">
                     <button type="button" class="remove-plan text-red-600 hover:text-red-800 text-sm">
-                        <i class="fas fa-trash mr-1"></i> Remove
+                        <i class="fas fa-trash mr-1"></i> Eliminar
                     </button>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Price (S/)</label>
+                    <label class="block text-sm text-gray-700 mb-1">Precio (S/) *</label>
                     <input type="number" step="0.01" min="0" class="plan-price-soles w-full px-3 py-2 border rounded" 
-                           value="${priceSoles}" placeholder="0.00">
+                           value="${priceSoles}" placeholder="0.00" required>
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-700 mb-1">Price ($)</label>
+                    <label class="block text-sm text-gray-700 mb-1">Precio ($)</label>
                     <input type="number" step="0.01" min="0" class="plan-price-dollars w-full px-3 py-2 border rounded" 
                            value="${priceDollars}" placeholder="0.00">
                 </div>
             </div>
             <div>
-                <label class="block text-sm text-gray-700 mb-1">Features (comma separated)</label>
+                <label class="block text-sm text-gray-700 mb-1">Características (separadas por comas)</label>
                 <textarea class="plan-features w-full px-3 py-2 border rounded" rows="2" 
-                          placeholder="Ex: HD, 4K, Subtitles">${features}</textarea>
+                          placeholder="Ej: HD, 4K, Subtítulos">${features}</textarea>
             </div>
         `;
         
@@ -249,7 +274,7 @@ export class ProductModal {
                 if (plansContainer.querySelectorAll('.plan-row').length > 1) {
                     planRow.remove();
                 } else {
-                    Utils.showNotification('There must be at least one plan', 'warning');
+                    Utils.showNotification('Debe haber al menos un plan', 'warning');
                 }
             });
         }
@@ -294,7 +319,7 @@ export class ProductModal {
             const currentValue = categorySelect.value;
             
             // Clear and fill select
-            categorySelect.innerHTML = '<option value="">Select category</option>';
+            categorySelect.innerHTML = '<option value="">Seleccionar categoría</option>';
             categories.forEach(category => {
                 const option = document.createElement('option');
                 option.value = category.id;
@@ -308,7 +333,7 @@ export class ProductModal {
             }
         } catch (error) {
             console.error('Error loading categories:', error);
-            Utils.showNotification('Error loading categories', 'error');
+            Utils.showNotification('Error al cargar categorías', 'error');
         }
     }
 
@@ -337,6 +362,11 @@ export class ProductModal {
                 }
             });
             
+            // Validate form
+            if (!this.validateForm(formData, plans)) {
+                return;
+            }
+            
             // Prepare product data
             const productData = {
                 name: formData.get('name'),
@@ -351,11 +381,11 @@ export class ProductModal {
             if (productId) {
                 // Update existing product
                 result = await productManager.updateProduct(productId, productData);
-                Utils.showNotification('Product updated successfully', 'success');
+                Utils.showNotification('Producto actualizado correctamente', 'success');
             } else {
                 // Create new product
                 result = await productManager.createProduct(productData);
-                Utils.showNotification('Product created successfully', 'success');
+                Utils.showNotification('Producto creado correctamente', 'success');
             }
             
             // Close modal
@@ -368,7 +398,62 @@ export class ProductModal {
             
         } catch (error) {
             console.error('Error saving product:', error);
-            Utils.showNotification('Error saving product', 'error');
+            Utils.showNotification('Error al guardar el producto: ' + error.message, 'error');
+        }
+    }
+
+    validateForm(formData, plans) {
+        // Validar nombre
+        if (!formData.get('name') || formData.get('name').trim().length < 2) {
+            Utils.showNotification('El nombre del producto debe tener al menos 2 caracteres', 'error');
+            return false;
+        }
+        
+        // Validar categoría
+        if (!formData.get('category')) {
+            Utils.showNotification('Debe seleccionar una categoría', 'error');
+            return false;
+        }
+        
+        // Validar descripción
+        if (!formData.get('description') || formData.get('description').trim().length < 10) {
+            Utils.showNotification('La descripción debe tener al menos 10 caracteres', 'error');
+            return false;
+        }
+        
+        // Validar URL de imagen
+        if (!formData.get('photo_url') || !this.isValidUrl(formData.get('photo_url'))) {
+            Utils.showNotification('Debe proporcionar una URL de imagen válida', 'error');
+            return false;
+        }
+        
+        // Validar planes
+        if (plans.length === 0) {
+            Utils.showNotification('Debe agregar al menos un plan', 'error');
+            return false;
+        }
+        
+        for (const plan of plans) {
+            if (!plan.name || plan.name.trim().length === 0) {
+                Utils.showNotification('Todos los planes deben tener un nombre', 'error');
+                return false;
+            }
+            
+            if (!plan.price_soles && !plan.price_dollars) {
+                Utils.showNotification('Cada plan debe tener al menos un precio (S/ o $)', 'error');
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
         }
     }
 
@@ -377,7 +462,12 @@ export class ProductModal {
         const name = nameInput.value.trim();
         
         if (!name) {
-            Utils.showNotification('Please enter a category name', 'error');
+            Utils.showNotification('Por favor ingrese un nombre de categoría', 'error');
+            return;
+        }
+        
+        if (name.length < 2) {
+            Utils.showNotification('El nombre de la categoría debe tener al menos 2 caracteres', 'error');
             return;
         }
         
@@ -388,7 +478,7 @@ export class ProductModal {
                 throw new Error(result.error);
             }
             
-            Utils.showNotification('Category added successfully', 'success');
+            Utils.showNotification('Categoría agregada correctamente', 'success');
             nameInput.value = '';
             
             // Reload category lists
@@ -396,7 +486,7 @@ export class ProductModal {
             
         } catch (error) {
             console.error('Error adding category:', error);
-            Utils.showNotification('Error adding category: ' + error.message, 'error');
+            Utils.showNotification('Error al agregar categoría: ' + error.message, 'error');
         }
     }
 }
