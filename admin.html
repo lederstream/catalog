@@ -39,6 +39,22 @@
             font-size: 0.875rem;
             margin-top: 0.25rem;
         }
+        
+        .stats-card {
+            @apply rounded-lg p-4 flex items-center;
+        }
+        
+        .stats-icon {
+            @apply rounded-full w-12 h-12 flex items-center justify-center text-white mr-4;
+        }
+        
+        .stats-content h3 {
+            @apply text-2xl font-bold;
+        }
+        
+        .stats-content p {
+            @apply text-gray-600 text-sm;
+        }
     </style>
 </head>
 <body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen">
@@ -130,17 +146,7 @@
             
             <!-- Paginación -->
             <div id="productsPagination" class="mt-8 flex justify-center hidden">
-                <nav class="flex items-center space-x-2">
-                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">
-                        <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <span class="px-3 py-1 rounded border border-blue-500 bg-blue-500 text-white">1</span>
-                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">2</button>
-                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">3</button>
-                    <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50">
-                        <i class="fas fa-chevron-right"></i>
-                    </button>
-                </nav>
+                <!-- La paginación se cargará dinámicamente -->
             </div>
         </div>
     </main>
@@ -341,7 +347,7 @@
     <script type="module" src="scripts/managers/product-manager.js"></script>
     <script type="module" src="scripts/managers/category-manager.js"></script>
     <script type="module" src="scripts/components/modals.js"></script>
-    <script type="module" src="scripts/event-listeners.js"></script>
+    <script type="module" src="scripts/components/product-card.js"></script>
     <script type="module" src="scripts/pages/admin.js"></script>
 </body>
 </html>
