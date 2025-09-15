@@ -21,18 +21,25 @@ export class ProductManager {
             this.currentPage = page;
             this.currentFilters = { ...this.currentFilters, ...filters };
             
-            // Construir consulta
+            console.log('🔄 Cargando productos con filtros:', this.currentFilters);
+            
+            // Construir consulta CORREGIDA
             let query = supabase
                 .from('products')
-                .select('*, categories(name, color)', { count: 'exact' });
+                .select(`
+                    *,
+                    categories (*)
+                `, { count: 'exact' });
             
             // Aplicar filtros
-            if (this.currentFilters.category) {
+            if (this.currentFilters.category && this.currentFilters.category !== '') {
                 query = query.eq('category_id', this.currentFilters.category);
+                console.log('🔍 Filtrando por categoría:', this.currentFilters.category);
             }
             
-            if (this.currentFilters.search) {
-                query = query.ilike('name', `%${this.currentFilters.search}%`);
+            if (this.currentFilters.search && this.currentFilters.search !== '') {
+                query = query.or(`name.ilike.%${this.currentFilters.search}%,description.ilike.%${this.currentFilters.search}%`);
+                console.log('🔍 Filtrando por búsqueda:', this.currentFilters.search);
             }
             
             // Aplicar ordenamiento
@@ -61,14 +68,18 @@ export class ProductManager {
             // Ejecutar consulta
             const { data, error, count } = await query;
             
-            if (error) throw error;
+            if (error) {
+                console.error('❌ Error en consulta Supabase:', error);
+                throw error;
+            }
             
+            console.log('✅ Productos cargados:', data?.length || 0);
             this.products = data || [];
             this.totalProducts = count || 0;
             
             return { success: true, products: this.products, total: this.totalProducts };
         } catch (error) {
-            console.error('Error al cargar productos:', error.message);
+            console.error('❌ Error al cargar productos:', error.message);
             return { success: false, error: error.message };
         }
     }
