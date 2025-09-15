@@ -1,4 +1,3 @@
-// scripts/pages/admin.js
 import { authManager } from '../core/auth.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
@@ -19,37 +18,37 @@ class AdminPage {
     }
 
     async init() {
-        // Verificar autenticación
+        // Check authentication
         if (!authManager.requireAuth()) return;
         
         try {
-            // Inicializar managers
+            // Initialize managers
             await Promise.all([
                 authManager.initialize(),
                 productManager.initialize(),
                 categoryManager.initialize()
             ]);
             
-            // Configurar UI
+            // Setup UI
             this.setupUI();
             this.setupEventListeners();
             
-            // Cargar datos iniciales
+            // Load initial data
             await this.loadData();
             
-            console.log('✅ AdminPage inicializada correctamente');
+            console.log('✅ AdminPage initialized successfully');
             
         } catch (error) {
-            console.error('Error inicializando AdminPage:', error);
-            Utils.showError('Error al inicializar la aplicación');
+            console.error('Error initializing AdminPage:', error);
+            Utils.showError('Error initializing application');
         }
     }
 
     setupUI() {
-        // Configurar tema oscuro/claro según preferencia
+        // Setup dark/light theme based on preference
         this.setupTheme();
         
-        // Configurar tooltips
+        // Setup tooltips
         this.setupTooltips();
     }
 
@@ -73,7 +72,7 @@ class AdminPage {
     }
 
     setupTooltips() {
-        // Implementar tooltips con Tippy.js o similar
+        // Implement tooltips with Tippy.js or similar
         const elements = document.querySelectorAll('[data-tooltip]');
         elements.forEach(el => {
             el.addEventListener('mouseenter', () => {
@@ -82,7 +81,7 @@ class AdminPage {
                 tooltip.textContent = el.dataset.tooltip;
                 document.body.appendChild(tooltip);
                 
-                // Posicionamiento básico (mejorar con librería)
+                // Basic positioning (improve with library)
                 const rect = el.getBoundingClientRect();
                 tooltip.style.top = `${rect.bottom + 5}px`;
                 tooltip.style.left = `${rect.left}px`;
@@ -101,7 +100,7 @@ class AdminPage {
 
     async loadData() {
         try {
-            Utils.showLoading('Cargando productos...');
+            Utils.showLoading('Loading products...');
             
             await Promise.all([
                 productManager.loadProducts(1, this.currentFilters),
@@ -116,7 +115,7 @@ class AdminPage {
             
         } catch (error) {
             console.error('Error loading data:', error);
-            Utils.showError('Error al cargar los datos');
+            Utils.showError('Error loading data');
             Utils.hideLoading();
         }
     }
@@ -140,40 +139,40 @@ class AdminPage {
         if (products.length === 0) {
             productsList.innerHTML = '';
             if (emptyState) emptyState.classList.remove('hidden');
-            if (productsCount) productsCount.textContent = '0 productos';
+            if (productsCount) productsCount.textContent = '0 products';
             return;
         }
         
         if (emptyState) emptyState.classList.add('hidden');
         
-        // Actualizar contador
+        // Update counter
         if (productsCount) {
-            productsCount.textContent = `${productManager.getTotalProducts()} productos`;
+            productsCount.textContent = `${productManager.getTotalProducts()} products`;
         }
         
-        // Renderizar productos
+        // Render products
         productsList.innerHTML = products.map(product => 
             ProductCard.create(product, true)
         ).join('');
         
-        // Configurar eventos
+        // Setup events
         this.setupProductEvents();
         
-        // Renderizar paginación
+        // Render pagination
         this.renderPagination();
     }
 
     setupProductEvents() {
         document.querySelectorAll('.edit-product').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const productId = e.currentTarget.dataset.productId;
+                const productId = e.currentTarget.dataset.id;
                 this.editProduct(productId);
             });
         });
         
         document.querySelectorAll('.delete-product').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                const productId = e.currentTarget.dataset.productId;
+                const productId = e.currentTarget.dataset.id;
                 this.confirmDeleteProduct(productId);
             });
         });
@@ -194,7 +193,7 @@ class AdminPage {
         pagination.classList.remove('hidden');
         pagination.innerHTML = this.createPaginationHTML(currentPage, totalPages);
         
-        // Configurar eventos de paginación
+        // Setup pagination events
         pagination.querySelectorAll('[data-page]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const page = parseInt(btn.dataset.page);
@@ -211,7 +210,7 @@ class AdminPage {
             </button>
         `;
         
-        // Mostrar máximo 5 páginas alrededor de la actual
+        // Show max 5 pages around current
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, startPage + 4);
         
@@ -235,12 +234,12 @@ class AdminPage {
     }
 
     async changePage(page) {
-        Utils.showLoading(`Cargando página ${page}...`);
+        Utils.showLoading(`Loading page ${page}...`);
         await productManager.loadProducts(page, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
         
-        // Scroll suave al principio
+        // Smooth scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -250,11 +249,11 @@ class AdminPage {
         
         const categories = categoryManager.getCategories();
         
-        // Mantener valor seleccionado actual
+        // Keep current selected value
         const currentValue = filterSelect.value;
         
         filterSelect.innerHTML = `
-            <option value="">Todas las categorías</option>
+            <option value="">All categories</option>
             ${categories.map(cat => `
                 <option value="${cat.id}" ${currentValue === cat.id ? 'selected' : ''}>
                     ${cat.name}
@@ -274,7 +273,7 @@ class AdminPage {
                 </div>
                 <div class="stats-content">
                     <h3>${this.stats.totalProducts}</h3>
-                    <p>Total Productos</p>
+                    <p>Total Products</p>
                 </div>
             </div>
             
@@ -284,7 +283,7 @@ class AdminPage {
                 </div>
                 <div class="stats-content">
                     <h3>${this.stats.categories?.length || 0}</h3>
-                    <p>Categorías</p>
+                    <p>Categories</p>
                 </div>
             </div>
             
@@ -294,7 +293,7 @@ class AdminPage {
                 </div>
                 <div class="stats-content">
                     <h3>${this.stats.activeProducts || 0}</h3>
-                    <p>Activos</p>
+                    <p>Active</p>
                 </div>
             </div>
             
@@ -304,7 +303,7 @@ class AdminPage {
                 </div>
                 <div class="stats-content">
                     <h3>${this.getTopCategory()}</h3>
-                    <p>Categoría Principal</p>
+                    <p>Top Category</p>
                 </div>
             </div>
         `;
@@ -321,15 +320,15 @@ class AdminPage {
     }
 
     setupEventListeners() {
-        // Configurar listeners básicos
+        // Setup basic listeners
         setupAllEventListeners(this);
         
-        // Listeners adicionales
+        // Additional listeners
         this.setupAdditionalListeners();
     }
 
     setupAdditionalListeners() {
-        // Botón agregar producto
+        // Add product button
         const addProductBtn = document.getElementById('addProductBtn');
         if (addProductBtn) {
             addProductBtn.addEventListener('click', () => {
@@ -337,7 +336,7 @@ class AdminPage {
             });
         }
         
-        // Botón recargar
+        // Reload button
         const reloadBtn = document.getElementById('reloadBtn');
         if (reloadBtn) {
             reloadBtn.addEventListener('click', () => {
@@ -345,7 +344,7 @@ class AdminPage {
             });
         }
         
-        // Botón exportar
+        // Export button
         const exportBtn = document.getElementById('exportBtn');
         if (exportBtn) {
             exportBtn.addEventListener('click', () => {
@@ -353,7 +352,7 @@ class AdminPage {
             });
         }
         
-        // Filtros
+        // Filters
         const searchInput = document.getElementById('searchProducts');
         if (searchInput) {
             searchInput.addEventListener('input', Utils.debounce(() => {
@@ -378,7 +377,7 @@ class AdminPage {
             });
         }
 
-        // Botón de logout
+        // Logout button
         const logoutBtn = document.getElementById('logoutBtn');
         if (logoutBtn) {
             logoutBtn.addEventListener('click', () => {
@@ -386,19 +385,19 @@ class AdminPage {
             });
         }
 
-        // Botón de gestión de categorías
+        // Category management button
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
             manageCategoriesBtn.addEventListener('click', () => {
-                modalManager.openCategoriesModal();
+                modalManager.showModal('categoriesModal');
             });
         }
         
-        // Botón de ver estadísticas
+        // View statistics button
         const viewStatsBtn = document.getElementById('viewStatsBtn');
         if (viewStatsBtn) {
             viewStatsBtn.addEventListener('click', () => {
-                modalManager.openStatsModal(this.stats);
+                modalManager.showModal('statsModal');
             });
         }
     }
@@ -419,7 +418,7 @@ class AdminPage {
     }
 
     async applyFilters() {
-        Utils.showLoading('Aplicando filtros...');
+        Utils.showLoading('Applying filters...');
         await productManager.loadProducts(1, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
@@ -431,11 +430,11 @@ class AdminPage {
             if (success) {
                 productModal.open(product);
             } else {
-                Utils.showError('Error al cargar el producto');
+                Utils.showError('Error loading product');
             }
         } catch (error) {
             console.error('Error editing product:', error);
-            Utils.showError('Error al cargar el producto');
+            Utils.showError('Error loading product');
         }
     }
 
@@ -443,32 +442,32 @@ class AdminPage {
         try {
             const { success, product } = await productManager.getProductById(productId);
             if (!success) {
-                Utils.showError('Producto no encontrado');
+                Utils.showError('Product not found');
                 return;
             }
             
             const confirmed = await Utils.showConfirm(
-                `Eliminar "${product.name}"`,
-                `¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.`,
+                `Delete "${product.name}"`,
+                `Are you sure you want to delete this product? This action cannot be undone.`,
                 'warning'
             );
             
             if (confirmed) {
-                Utils.showLoading('Eliminando producto...');
+                Utils.showLoading('Deleting product...');
                 await productManager.deleteProduct(productId);
                 await this.loadData();
-                Utils.showSuccess('Producto eliminado correctamente');
+                Utils.showSuccess('Product deleted successfully');
             }
         } catch (error) {
             console.error('Error deleting product:', error);
-            Utils.showError('Error al eliminar el producto');
+            Utils.showError('Error deleting product');
         }
     }
 
     async handleLogout() {
         const confirmed = await Utils.showConfirm(
-            'Cerrar sesión',
-            '¿Estás seguro de que deseas cerrar sesión?',
+            'Logout',
+            'Are you sure you want to logout?',
             'question'
         );
         
@@ -480,31 +479,31 @@ class AdminPage {
 
     handleAuthenticationChange(event, user) {
         console.log('Auth change:', event, user);
-        // Actualizar UI según estado de autenticación
+        // Update UI based on authentication status
     }
 
     async exportData() {
         try {
-            Utils.showLoading('Exportando datos...');
+            Utils.showLoading('Exporting data...');
             
             const products = productManager.getProducts();
             const csvContent = this.convertToCSV(products);
             
-            this.downloadCSV(csvContent, 'productos.csv');
+            this.downloadCSV(csvContent, 'products.csv');
             
-            Utils.showSuccess('Datos exportados correctamente');
+            Utils.showSuccess('Data exported successfully');
             
         } catch (error) {
             console.error('Error exporting data:', error);
-            Utils.showError('Error al exportar datos');
+            Utils.showError('Error exporting data');
         }
     }
 
     convertToCSV(products) {
-        const headers = ['Nombre', 'Categoría', 'Descripción', 'Estado', 'Fecha Creación'];
+        const headers = ['Name', 'Category', 'Description', 'Status', 'Creation Date'];
         const rows = products.map(product => [
             `"${product.name}"`,
-            `"${product.categories?.name || 'Sin categoría'}"`,
+            `"${product.categories?.name || 'No category'}"`,
             `"${product.description}"`,
             `"${product.status}"`,
             `"${new Date(product.created_at).toLocaleDateString()}"`
@@ -528,7 +527,7 @@ class AdminPage {
     }
 }
 
-// Inicializar cuando el DOM esté listo
+// Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
     window.adminPage = new AdminPage();
 });
