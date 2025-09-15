@@ -18,16 +18,37 @@ class AdminPage {
     }
 
     async init() {
+        console.log('🔍 Iniciando diagnóstico de AdminPage...');
+        
         // Check authentication
-        if (!authManager.requireAuth()) return false;
+        if (!authManager.requireAuth()) {
+            console.log('❌ Auth required failed');
+            return false;
+        }
         
         try {
-            // Initialize managers
-            await Promise.all([
-                authManager.initialize(),
-                productManager.initialize(),
-                categoryManager.initialize()
-            ]);
+            console.log('🟡 Inicializando authManager...');
+            await authManager.initialize();
+            console.log('✅ authManager inicializado');
+            
+            console.log('🟡 Verificando usuario autenticado...');
+            if (!authManager.isAuthenticated()) {
+                console.log('❌ Usuario no autenticado');
+                return false;
+            }
+            console.log('✅ Usuario autenticado:', authManager.getCurrentUser()?.email);
+            
+            console.log('🟡 Inicializando categoryManager...');
+            const categoryInit = await categoryManager.initialize();
+            console.log('✅ categoryManager inicializado:', categoryInit.success);
+            
+            console.log('🟡 Inicializando productManager...');
+            const productInit = await productManager.initialize();
+            console.log('✅ productManager inicializado:', productInit.success);
+            
+            // Verificar datos inmediatamente después de inicializar
+            console.log('📊 Categorías disponibles:', categoryManager.getCategories().length);
+            console.log('📊 Productos disponibles:', productManager.getProducts().length);
             
             // Setup UI
             this.setupUI();
@@ -37,11 +58,12 @@ class AdminPage {
             await this.loadData();
             
             console.log('✅ AdminPage initialized successfully');
+            return true;
             
         } catch (error) {
-            console.error('Error initializing AdminPage:', error);
+            console.error('❌ Error initializing AdminPage:', error);
             Utils.showError('Error initializing application');
-            return false
+            return false;
         }
     }
 
