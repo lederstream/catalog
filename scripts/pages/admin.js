@@ -15,12 +15,11 @@ class AdminPage {
             sort: 'newest'
         };
         
-        this.init();
     }
 
     async init() {
         // Check authentication
-        if (!authManager.requireAuth()) return;
+        if (!authManager.requireAuth()) return false;
         
         try {
             // Initialize managers
@@ -42,6 +41,7 @@ class AdminPage {
         } catch (error) {
             console.error('Error initializing AdminPage:', error);
             Utils.showError('Error initializing application');
+            return false
         }
     }
 
@@ -103,6 +103,10 @@ class AdminPage {
         try {
             Utils.showLoading('Loading products...');
             
+            // Cargar categorías primero y esperar a que terminen
+            await categoryManager.loadCategories();
+            
+            // Ahora cargar productos y estadísticas
             await Promise.all([
                 productManager.loadProducts(1, this.currentFilters),
                 this.loadStats()
