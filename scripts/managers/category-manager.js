@@ -2,7 +2,7 @@
 import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class categoryManager {
+export class CategoryManager {
     constructor() {
         this.categories = [];
         this.isInitialized = false;
@@ -141,4 +141,4 @@ export class categoryManager {
 }
 
 // Global instance for use throughout the application
-export const categoryManager = new categoryManager();
+export const CategoryManager = new CategoryManager();
