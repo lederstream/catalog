@@ -70,6 +70,36 @@ export class productManager {
         }
     }
 
+ async initialize() {
+        try {
+            await this.loadProducts(1, this.currentFilters);
+            return { success: true };
+        } catch (error) {
+            console.error('Error initializing ProductManager:', error);
+            return { success: false, error: error.message };
+        }
+    }
+
+    // Añade este método getProducts() que admin.js necesita
+    getProducts() {
+        return this.products;
+    }
+
+    // Añade este método getTotalProducts() que admin.js necesita
+    getTotalProducts() {
+        return this.totalProducts;
+    }
+
+    // Añade este método getTotalPages() que admin.js necesita
+    getTotalPages() {
+        return Math.ceil(this.totalProducts / this.itemsPerPage);
+    }
+
+    // Añade este método getCurrentPage() que admin.js necesita
+    getCurrentPage() {
+        return this.currentPage;
+    }
+    
     async getProductById(id) {
         try {
             const { data, error } = await supabase
