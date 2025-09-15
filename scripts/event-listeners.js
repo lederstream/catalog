@@ -1,6 +1,6 @@
 // scripts/event-listeners.js
-import { Utils } from './core/utils.js'
-import { authManager } from './core/auth.js'
+import { Utils } from './core/utils.js';
+import { authManager } from './core/auth.js';
 
 export function setupAllEventListeners(adminPage) {
     if (!adminPage) {
@@ -46,7 +46,9 @@ export function setupAllEventListeners(adminPage) {
     
     // Escuchar cambios de autenticación
     authManager.addAuthStateListener((event, user) => {
-        adminPage.handleAuthenticationChange(event, user);
+        if (adminPage.handleAuthenticationChange) {
+            adminPage.handleAuthenticationChange(event, user);
+        }
     });
     
     console.log('✅ Todos los event listeners configurados correctamente');
