@@ -125,7 +125,18 @@ export class CategoryManager {
     getCategories() {
         return this.categories;
     }
+    
+    async initialize() {
+    try {
+        await this.loadCategories();
+        return { success: true };
+    } catch (error) {
+        console.error('Error initializing CategoryManager:', error);
+        return { success: false, error: error.message };
+    }
 }
+}
+
 
 // Instancia global para usar en toda la aplicación
 export const categoryManager = new CategoryManager();
