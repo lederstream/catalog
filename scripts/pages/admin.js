@@ -19,23 +19,8 @@ class AdminPage {
         try {
             console.log('🔄 Inicializando AdminPage...');
             
-            // Initialize auth first
-            const authInitialized = await authManager.initialize();
-            
-            if (!authInitialized) {
-                console.error('❌ Auth initialization failed');
-                // Redirigir a login si no está autenticado
-                if (!authManager.isAuthenticated()) {
-                    authManager.requireAuth();
-                    return false;
-                }
-            }
-            
             // Check authentication
-            if (!authManager.isAuthenticated()) {
-                authManager.requireAuth();
-                return false;
-            }
+            authManager.requireAuth();
             
             // Initialize managers
             await this.initializeManagers();
@@ -61,6 +46,12 @@ class AdminPage {
         try {
             console.log('🔄 Initializing managers...');
             
+            // Initialize auth first
+            const authResult = await authManager.initialize();
+            if (!authResult) {
+                throw new Error('Auth initialization failed');
+            }
+            
             // Initialize category and product managers
             const [categoryResult, productResult] = await Promise.all([
                 categoryManager.initialize(),
@@ -76,6 +67,52 @@ class AdminPage {
             console.error('❌ Error initializing managers:', error);
             throw error;
         }
+    }
+
+    setupUI() {
+        this.setupTheme();
+        this.setupTooltips();
+    }
+
+    setupTheme() {
+        const themeToggle = document.getElementById('themeToggle');
+        if (!themeToggle) return;
+        
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', 
+                document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+            );
+        });
+    }
+
+    setupTooltips() {
+        // Simple tooltip implementation
+        const elements = document.querySelectorAll('[data-tooltip]');
+        elements.forEach(el => {
+            el.addEventListener('mouseenter', (e) => {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'fixed z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg';
+                tooltip.textContent = el.dataset.tooltip;
+                tooltip.style.top = `${e.clientY + 15}px`;
+                tooltip.style.left = `${e.clientX}px`;
+                tooltip.id = 'current-tooltip';
+                
+                document.body.appendChild(tooltip);
+            });
+            
+            el.addEventListener('mouseleave', () => {
+                const tooltip = document.getElementById('current-tooltip');
+                if (tooltip) tooltip.remove();
+            });
+        });
     }
 
     async loadData() {
