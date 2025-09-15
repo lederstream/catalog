@@ -19,19 +19,16 @@ class AdminPage {
     }
 
     async init() {
+        // Verificar autenticación
+        if (!authManager.requireAuth()) return
+        
         try {
-            console.log('🔄 Inicializando AdminPage...')
-            
-            // Verificar autenticación
-            if (!authManager.requireAuth()) {
-                console.error('❌ Usuario no autenticado')
-                return
-            }
-            
             // Inicializar managers
-            console.log('🔄 Inicializando managers...')
-            await authManager.initialize()
-            await categoryManager.loadCategories()
+            await Promise.all([
+                authManager.initialize(),
+                productManager.initialize(),
+                categoryManager.loadCategories()
+            ])
             
             // Configurar UI
             this.setupUI()
@@ -43,28 +40,71 @@ class AdminPage {
             console.log('✅ AdminPage inicializada correctamente')
             
         } catch (error) {
-            console.error('❌ Error inicializando AdminPage:', error)
-            Utils.showError('Error al inicializar la aplicación: ' + error.message)
+            console.error('Error inicializando AdminPage:', error)
+            Utils.showError('Error al inicializar la aplicación')
         }
     }
 
     setupUI() {
         // Configurar tema oscuro/claro según preferencia
         this.setupTheme()
+        
+        // Configurar tooltips
+        this.setupTooltips()
     }
 
     setupTheme() {
-        // Implementación existente...
+        const themeToggle = document.getElementById('themeToggle')
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+        const savedTheme = localStorage.getItem('theme')
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add('dark')
+        }
+        
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark')
+                localStorage.setItem('theme', 
+                    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+                )
+            })
+        }
+    }
+
+    setupTooltips() {
+        // Implementar tooltips con Tippy.js o similar
+        const elements = document.querySelectorAll('[data-tooltip]')
+        elements.forEach(el => {
+            el.addEventListener('mouseenter', () => {
+                const tooltip = document.createElement('div')
+                tooltip.className = 'tooltip'
+                tooltip.textContent = el.dataset.tooltip
+                document.body.appendChild(tooltip)
+                
+                // Posicionamiento básico (mejorar con librería)
+                const rect = el.getBoundingClientRect()
+                tooltip.style.top = `${rect.bottom + 5}px`
+                tooltip.style.left = `${rect.left}px`
+                
+                el._tooltip = tooltip
+            })
+            
+            el.addEventListener('mouseleave', () => {
+                if (el._tooltip) {
+                    el._tooltip.remove()
+                    delete el._tooltip
+                }
+            })
+        })
     }
 
     async loadData() {
         try {
-            console.log('🔄 Cargando datos...')
             Utils.showLoading('Cargando productos...')
             
-            // Cargar productos y estadísticas en paralelo
             await Promise.all([
-                this.loadProducts(),
+                productManager.loadProducts(1, this.currentFilters),
                 this.loadStats()
             ])
             
@@ -75,177 +115,55 @@ class AdminPage {
             Utils.hideLoading()
             
         } catch (error) {
-            console.error('❌ Error loading data:', error)
-            Utils.showError('Error al cargar los datos: ' + error.message)
+            console.error('Error loading data:', error)
+            Utils.showError('Error al cargar los datos')
             Utils.hideLoading()
         }
     }
 
-    async loadProducts() {
-        try {
-            console.log('🔄 Cargando productos con filtros:', this.currentFilters)
-            
-            // Usar el productManager para cargar productos
-            const result = await productManager.loadProducts(1, this.currentFilters)
-            
-            if (!result.success) {
-                throw new Error(result.error || 'Error desconocido al cargar productos')
-            }
-            
-            console.log(`✅ ${result.products.length} productos cargados correctamente`)
-            
-        } catch (error) {
-            console.error('❌ Error en loadProducts:', error)
-            throw error
-        }
-    }
-
     async loadStats() {
-        try {
-            console.log('🔄 Cargando estadísticas...')
-            const result = await productManager.getStats()
-            
-            if (result.success) {
-                this.stats = result.stats
-                console.log('✅ Estadísticas cargadas correctamente')
-            } else {
-                console.warn('⚠️ No se pudieron cargar las estadísticas:', result.error)
-            }
-        } catch (error) {
-            console.error('❌ Error cargando estadísticas:', error)
-            // No lanzamos el error para que no afecte la carga de productos
+        const { success, stats } = await productManager.getStats()
+        if (success) {
+            this.stats = stats
         }
     }
 
     renderProducts() {
         const productsList = document.getElementById('adminProductsList')
         const productsCount = document.getElementById('productsCount')
+        const emptyState = document.getElementById('emptyState')
         
-        if (!productsList) {
-            console.error('❌ Elemento adminProductsList no encontrado en el DOM')
-            return
-        }
+        if (!productsList) return
         
-        // Obtener productos del manager
         const products = productManager.getProducts()
-        const totalProducts = productManager.getTotalProducts()
-        
-        console.log(`🔄 Renderizando ${products.length} de ${totalProducts} productos`)
         
         if (products.length === 0) {
-            productsList.innerHTML = `
-                <div class="text-center py-12 text-gray-500">
-                    <i class="fas fa-box-open text-4xl mb-4"></i>
-                    <p class="text-lg font-medium">No se encontraron productos</p>
-                    <p class="mt-2">Intenta ajustar los filtros o agregar nuevos productos.</p>
-                </div>
-            `
-            
-            if (productsCount) {
-                productsCount.textContent = '0 productos'
-            }
+            productsList.innerHTML = ''
+            if (emptyState) emptyState.classList.remove('hidden')
+            if (productsCount) productsCount.textContent = '0 productos'
             return
         }
+        
+        if (emptyState) emptyState.classList.add('hidden')
         
         // Actualizar contador
         if (productsCount) {
-            productsCount.textContent = `${totalProducts} producto${totalProducts !== 1 ? 's' : ''}`
+            productsCount.textContent = `${productManager.getTotalProducts()} productos`
         }
         
         // Renderizar productos
         productsList.innerHTML = products.map(product => 
-            this.createProductCard(product)
+            ProductCard.create(product, true)
         ).join('')
         
-        // Configurar eventos para los botones de cada producto
+        // Configurar eventos
         this.setupProductEvents()
         
         // Renderizar paginación
         this.renderPagination()
     }
 
-    createProductCard(product) {
-        // Asegurarse de que los planes sean un array
-        let plans = []
-        try {
-            plans = typeof product.plans === 'string' ? 
-                JSON.parse(product.plans) : 
-                (product.plans || [])
-        } catch (e) {
-            console.warn('Error parsing plans for product', product.id, e)
-            plans = []
-        }
-        
-        // Obtener nombre de categoría
-        const categoryName = product.categories?.name || 'Sin categoría'
-        const categoryColor = product.categories?.color || '#3B82F6'
-        
-        return `
-            <div class="bg-white border rounded-lg p-4 md:p-6 flex flex-col md:flex-row gap-4">
-                <div class="md:w-1/4">
-                    <img src="${product.photo_url || 'https://via.placeholder.com/300x200?text=Imagen+no+disponible'}" 
-                         alt="${product.name}" 
-                         class="w-full h-40 object-cover rounded-lg">
-                </div>
-                
-                <div class="md:w-2/4">
-                    <div class="flex items-start justify-between mb-2">
-                        <h4 class="font-semibold text-lg">${product.name}</h4>
-                        <span class="px-2 py-1 text-xs font-semibold text-white rounded-full" 
-                              style="background-color: ${categoryColor}">
-                            ${categoryName}
-                        </span>
-                    </div>
-                    
-                    <p class="text-gray-600 mb-4 line-clamp-2">${product.description || 'Sin descripción'}</p>
-                    
-                    <div class="mb-4">
-                        <p class="text-sm font-medium mb-2">Planes:</p>
-                        ${plans.length > 0 ? 
-                            plans.map(plan => `
-                                <div class="flex justify-between text-sm mb-1">
-                                    <span>${plan.name}</span>
-                                    <span>
-                                        ${plan.price_soles ? `S/ ${plan.price_soles}` : ''}
-                                        ${plan.price_soles && plan.price_usd ? ' | ' : ''}
-                                        ${plan.price_usd ? `$ ${plan.price_usd}` : ''}
-                                    </span>
-                                </div>
-                            `).join('') : 
-                            '<p class="text-gray-500 text-sm">No hay planes definidos</p>'
-                        }
-                    </div>
-                </div>
-                
-                <div class="md:w-1/4 flex flex-col justify-between">
-                    <div class="text-sm text-gray-500 mb-4">
-                        <p>ID: ${product.id}</p>
-                        <p>Creado: ${new Date(product.created_at).toLocaleDateString()}</p>
-                        <p>Estado: 
-                            <span class="px-2 py-1 rounded-full text-xs 
-                                ${product.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}">
-                                ${product.status || 'unknown'}
-                            </span>
-                        </p>
-                    </div>
-                    
-                    <div class="flex flex-col gap-2">
-                        <button class="edit-product px-3 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm flex items-center justify-center"
-                                data-product-id="${product.id}">
-                            <i class="fas fa-edit mr-2"></i> Editar
-                        </button>
-                        <button class="delete-product px-3 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 text-sm flex items-center justify-center"
-                                data-product-id="${product.id}">
-                            <i class="fas fa-trash mr-2"></i> Eliminar
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `
-    }
-
     setupProductEvents() {
-        // Botones de editar
         document.querySelectorAll('.edit-product').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const productId = e.currentTarget.dataset.productId
@@ -253,7 +171,6 @@ class AdminPage {
             })
         })
         
-        // Botones de eliminar
         document.querySelectorAll('.delete-product').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 const productId = e.currentTarget.dataset.productId
@@ -276,38 +193,56 @@ class AdminPage {
         }
         
         pagination.classList.remove('hidden')
+        pagination.innerHTML = this.createPaginationHTML(currentPage, totalPages)
         
-        // Crear HTML de paginación
+        // Configurar eventos de paginación
+        pagination.querySelectorAll('[data-page]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = parseInt(btn.dataset.page)
+                this.changePage(page)
+            })
+        })
+    }
+
+    createPaginationHTML(currentPage, totalPages) {
         let html = `
-            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 
-                ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}"
-                ${currentPage === 1 ? 'disabled' : ''} 
-                onclick="adminPage.changePage(${currentPage - 1})">
+            <button class="pagination-btn ${currentPage === 1 ? 'disabled' : ''}" 
+                    ${currentPage === 1 ? 'disabled' : ''} data-page="${currentPage - 1}">
                 <i class="fas fa-chevron-left"></i>
             </button>
         `
         
-        // Mostrar páginas
-        for (let i = 1; i <= totalPages; i++) {
+        // Mostrar máximo 5 páginas alrededor de la actual
+        const startPage = Math.max(1, currentPage - 2)
+        const endPage = Math.min(totalPages, startPage + 4)
+        
+        for (let i = startPage; i <= endPage; i++) {
             html += `
-                <button class="px-3 py-1 rounded border 
-                    ${currentPage === i ? 'border-blue-500 bg-blue-500 text-white' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}" 
-                    onclick="adminPage.changePage(${i})">
+                <button class="pagination-btn ${i === currentPage ? 'active' : ''}" 
+                        data-page="${i}">
                     ${i}
                 </button>
             `
         }
         
         html += `
-            <button class="px-3 py-1 rounded border border-gray-300 text-gray-600 hover:bg-gray-50 
-                ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}"
-                ${currentPage === totalPages ? 'disabled' : ''} 
-                onclick="adminPage.changePage(${currentPage + 1})">
+            <button class="pagination-btn ${currentPage === totalPages ? 'disabled' : ''}" 
+                    ${currentPage === totalPages ? 'disabled' : ''} data-page="${currentPage + 1}">
                 <i class="fas fa-chevron-right"></i>
             </button>
         `
         
-        pagination.innerHTML = html
+        return html
+    }
+
+    async changePage(page) {
+        Utils.showLoading(`Cargando página ${page}...`)
+        await productManager.loadProducts(page, this.currentFilters)
+        this.renderProducts()
+        Utils.hideLoading()
+        
+        // Scroll suave al principio
+        window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     renderCategoryFilters() {
@@ -315,6 +250,8 @@ class AdminPage {
         if (!filterSelect) return
         
         const categories = categoryManager.getCategories()
+        
+        // Mantener valor seleccionado actual
         const currentValue = filterSelect.value
         
         filterSelect.innerHTML = `
@@ -329,72 +266,47 @@ class AdminPage {
 
     renderStats() {
         const statsContainer = document.getElementById('statsSummary')
-        if (!statsContainer) return
-        
-        // Si no hay estadísticas, mostrar esqueleto
-        if (!this.stats) {
-            statsContainer.innerHTML = `
-                <div class="bg-white rounded-lg shadow p-4 animate-pulse">
-                    <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-4 animate-pulse">
-                    <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-4 animate-pulse">
-                    <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-4 animate-pulse">
-                    <div class="h-6 bg-gray-200 rounded w-2/3 mb-4"></div>
-                    <div class="h-4 bg-gray-200 rounded w-1/2"></div>
-                </div>
-            `
-            return
-        }
-        
-        const topCategory = this.getTopCategory()
+        if (!statsContainer || !this.stats) return
         
         statsContainer.innerHTML = `
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg shadow p-4">
-                <div class="flex items-center mb-2">
-                    <div class="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center mr-3">
-                        <i class="fas fa-box text-white"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold">${this.stats.totalProducts || 0}</h3>
+            <div class="stats-card bg-gradient-to-br from-blue-50 to-blue-100">
+                <div class="stats-icon bg-blue-500">
+                    <i class="fas fa-box"></i>
                 </div>
-                <p class="text-gray-700">Total Productos</p>
+                <div class="stats-content">
+                    <h3>${this.stats.totalProducts}</h3>
+                    <p>Total Productos</p>
+                </div>
             </div>
             
-            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg shadow p-4">
-                <div class="flex items-center mb-2">
-                    <div class="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center mr-3">
-                        <i class="fas fa-tags text-white"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold">${this.stats.categories?.length || 0}</h3>
+            <div class="stats-card bg-gradient-to-br from-green-50 to-green-100">
+                <div class="stats-icon bg-green-500">
+                    <i class="fas fa-tags"></i>
                 </div>
-                <p class="text-gray-700">Categorías</p>
+                <div class="stats-content">
+                    <h3>${this.stats.categories?.length || 0}</h3>
+                    <p>Categorías</p>
+                </div>
             </div>
             
-            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg shadow p-4">
-                <div class="flex items-center mb-2">
-                    <div class="w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center mr-3">
-                        <i class="fas fa-star text-white"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold">${this.stats.activeProducts || 0}</h3>
+            <div class="stats-card bg-gradient-to-br from-purple-50 to-purple-100">
+                <div class="stats-icon bg-purple-500">
+                    <i class="fas fa-star"></i>
                 </div>
-                <p class="text-gray-700">Activos</p>
+                <div class="stats-content">
+                    <h3>${this.stats.activeProducts || 0}</h3>
+                    <p>Activos</p>
+                </div>
             </div>
             
-            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg shadow p-4">
-                <div class="flex items-center mb-2">
-                    <div class="w-10 h-10 bg-orange-500 rounded-full flex items-center justify-center mr-3">
-                        <i class="fas fa-chart-line text-white"></i>
-                    </div>
-                    <h3 class="text-2xl font-bold">${topCategory}</h3>
+            <div class="stats-card bg-gradient-to-br from-orange-50 to-orange-100">
+                <div class="stats-icon bg-orange-500">
+                    <i class="fas fa-chart-line"></i>
                 </div>
-                <p class="text-gray-700">Categoría Principal</p>
+                <div class="stats-content">
+                    <h3>${this.getTopCategory()}</h3>
+                    <p>Categoría Principal</p>
+                </div>
             </div>
         `
     }
@@ -404,7 +316,7 @@ class AdminPage {
         
         const topCategory = this.stats.categories.reduce((prev, current) => 
             (prev.product_count > current.product_count) ? prev : current, 
-        { product_count: 0, name: 'N/A' })
+        { product_count: 0 })
         
         return topCategory.product_count > 0 ? topCategory.name : 'N/A'
     }
@@ -426,11 +338,19 @@ class AdminPage {
             })
         }
         
-        // Botón recargar (si existe)
+        // Botón recargar
         const reloadBtn = document.getElementById('reloadBtn')
         if (reloadBtn) {
             reloadBtn.addEventListener('click', () => {
                 this.loadData()
+            })
+        }
+        
+        // Botón exportar
+        const exportBtn = document.getElementById('exportBtn')
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportData()
             })
         }
     }
@@ -452,32 +372,20 @@ class AdminPage {
 
     async applyFilters() {
         Utils.showLoading('Aplicando filtros...')
-        await this.loadProducts()
+        await productManager.loadProducts(1, this.currentFilters)
         this.renderProducts()
         Utils.hideLoading()
-    }
-
-    async changePage(page) {
-        Utils.showLoading(`Cargando página ${page}...`)
-        await productManager.loadProducts(page, this.currentFilters)
-        this.renderProducts()
-        Utils.hideLoading()
-        
-        // Scroll suave al principio
-        window.scrollTo({ top: 0, behavior: 'smooth' })
     }
 
     async editProduct(productId) {
         try {
-            const result = await productManager.getProductById(productId)
-            if (result.success) {
-                productModal.open(result.product)
-            } else {
-                throw new Error(result.error)
+            const product = productManager.getProductById(productId)
+            if (product) {
+                productModal.open(product)
             }
         } catch (error) {
             console.error('Error editing product:', error)
-            Utils.showError('Error al cargar el producto: ' + error.message)
+            Utils.showError('Error al cargar el producto')
         }
     }
 
@@ -491,17 +399,12 @@ class AdminPage {
         if (confirmed) {
             try {
                 Utils.showLoading('Eliminando producto...')
-                const result = await productManager.deleteProduct(product.id)
-                
-                if (result.success) {
-                    await this.loadData()
-                    Utils.showSuccess('Producto eliminado correctamente')
-                } else {
-                    throw new Error(result.error)
-                }
+                await productManager.deleteProduct(product.id)
+                await this.loadData()
+                Utils.showSuccess('Producto eliminado correctamente')
             } catch (error) {
                 console.error('Error deleting product:', error)
-                Utils.showError('Error al eliminar el producto: ' + error.message)
+                Utils.showError('Error al eliminar el producto')
             }
         }
     }
@@ -523,9 +426,56 @@ class AdminPage {
         console.log('Auth change:', event, user)
         // Actualizar UI según estado de autenticación
     }
+
+    async exportData() {
+        try {
+            Utils.showLoading('Exportando datos...')
+            
+            const products = productManager.getProducts()
+            const csvContent = this.convertToCSV(products)
+            
+            this.downloadCSV(csvContent, 'productos.csv')
+            
+            Utils.showSuccess('Datos exportados correctamente')
+            
+        } catch (error) {
+            console.error('Error exporting data:', error)
+            Utils.showError('Error al exportar datos')
+        }
+    }
+
+    convertToCSV(products) {
+        const headers = ['Nombre', 'Categoría', 'Descripción', 'Estado', 'Fecha Creación']
+        const rows = products.map(product => [
+            `"${product.name}"`,
+            `"${product.category_name}"`,
+            `"${product.description}"`,
+            `"${product.status}"`,
+            `"${new Date(product.created_at).toLocaleDateString()}"`
+        ])
+        
+        return [headers, ...rows].map(row => row.join(',')).join('\n')
+    }
+
+    downloadCSV(content, filename) {
+        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' })
+        const link = document.createElement('a')
+        const url = URL.createObjectURL(blob)
+        
+        link.setAttribute('href', url)
+        link.setAttribute('download', filename)
+        link.style.visibility = 'hidden'
+        
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+    }
 }
 
 // Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    window.adminPage = new AdminPage()
+    new AdminPage()
 })
+
+// Hacer disponible globalmente para acceso desde otros módulos
+window.adminPage = new AdminPage()
