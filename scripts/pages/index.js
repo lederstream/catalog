@@ -91,17 +91,21 @@ class IndexPage {
             return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
         }
         
+        // Parse plans if they are stored as string
+        const parsedPlans = typeof plans === 'string' ? JSON.parse(plans) : plans;
+        
         return `
             <div class="space-y-2">
-                ${plans.map(plan => `
+                ${parsedPlans.slice(0, 3).map(plan => `
                     <div class="flex justify-between items-center text-sm">
                         <span class="font-medium">${plan.name}</span>
                         <div class="text-right">
-                            <div class="font-semibold">${Utils.formatCurrency(plan.price_pen, 'PEN')}</div>
-                            <div class="text-gray-500">${Utils.formatCurrency(plan.price_usd, 'USD')}</div>
+                            <div class="font-semibold">${Utils.formatCurrency(plan.price_soles || 0, 'PEN')}</div>
+                            ${plan.price_dollars ? `<div class="text-gray-500">${Utils.formatCurrency(plan.price_dollars, 'USD')}</div>` : ''}
                         </div>
                     </div>
                 `).join('')}
+                ${parsedPlans.length > 3 ? `<div class="text-xs text-gray-500 text-center">+${parsedPlans.length - 3} más</div>` : ''}
             </div>
         `;
     }
