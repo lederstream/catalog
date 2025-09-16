@@ -150,9 +150,13 @@ export class AuthManager {
   }
 
   requireAuth(redirectUrl = 'login.html') {
-    if (!this.isAuthenticated()) {
-      window.location.href = redirectUrl;
-    }
+      if (!this.isAuthenticated()) {
+          // Guardar la URL actual para redirigir después del login
+          sessionStorage.setItem('redirectAfterLogin', window.location.href);
+          window.location.href = redirectUrl;
+          return false;
+      }
+      return true;
   }
 
   addAuthStateListener(callback) {
@@ -179,6 +183,79 @@ export class AuthManager {
   }
 }
 
+
+export class AuthGuard {
+    static async protect(required = true) {
+        try {
+            await authManager.initialize();
+            
+            if (required && !authManager.isAuthenticated()) {
+                console.warn('🔐 Acceso no autorizado - Redirigiendo a login');
+                this.redirectToLogin();
+                return false;
+            }
+            
+            if (!required && authManager.isAuthenticated()) {
+                console.log('🔐 Usuario ya autenticado - Redirigiendo a admin');
+                window.location.href = 'admin.html';
+                return false;
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('❌ Error en AuthGuard:', error);
+            if (required) {
+                this.redirectToLogin();
+            }
+            return false;
+        }
+    }
+
+    static redirectToLogin() {
+        // Guardar la URL actual para redirigir después del login
+        sessionStorage.setItem('redirectAfterLogin', window.location.href);
+        window.location.href = 'login.html';
+    }
+
+    static async checkRole(requiredRole) {
+        const user = authManager.getCurrentUser();
+        if (!user) return false;
+        
+        // Aquí puedes implementar lógica de roles si es necesario
+        return true; // Por ahora todos los usuarios autenticados tienen acceso
+    }
+}
+
+// Protección automática para páginas admin
+if (window.location.pathname.includes('admin.html')) {
+    document.addEventListener('DOMContentLoaded', async () => {
+        const isAuthenticated = await AuthGuard.protect(true);
+        if (!isAuthenticated) {
+            // Detener cualquier ejecución adicional
+            document.body.innerHTML = `
+                <div class="min-h-screen flex items-center justify-center bg-gray-100">
+                    <div class="text-center">
+                        <div class="loading-spinner w-12 h-12 mx-auto mb-4"></div>
+                        <p class="text-gray-600">Redirigiendo al login...</p>
+                    </div>
+                </div>
+            `;
+        }
+    });
+}
+
+// Redirección para página de login si ya está autenticado
+if (window.location.pathname.includes('login.html')) {
+    document.addEventListener('DOMContentLoaded', async () => {
+        const shouldRedirect = await AuthGuard.protect(false);
+        if (shouldRedirect === false) {
+            // Ya está autenticado, redirigir a admin
+            const redirectUrl = sessionStorage.getItem('redirectAfterLogin') || 'admin.html';
+            sessionStorage.removeItem('redirectAfterLogin');
+            window.location.href = redirectUrl;
+        }
+    });
+}
 // Singleton instance
 export const authManager = new AuthManager();
 
