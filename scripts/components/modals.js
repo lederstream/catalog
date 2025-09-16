@@ -3,7 +3,7 @@ import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
 
-// Reemplaza tu ModalManager con esta versión mejorada
+// Modal Manager
 class ModalManager {
     constructor() {
         this.currentModal = null;
@@ -55,6 +55,11 @@ class ModalManager {
             
             const container = document.createElement('div');
             container.className = 'modal-container';
+            if (modalId === 'productModal' || modalId === 'statsModal') {
+                container.classList.add('modal-xl');
+            } else if (modalId === 'categoriesModal' || modalId === 'imageSearchModal') {
+                container.classList.add('modal-lg');
+            }
             container.innerHTML = modalContent;
             modal.appendChild(container);
         }
@@ -85,6 +90,7 @@ class ModalManager {
     }
 }
 
+// Product Modal
 export class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
@@ -119,20 +125,6 @@ export class ProductModal {
         const productForm = document.getElementById('productForm');
         if (productForm) {
             productForm.addEventListener('submit', (e) => this.handleProductSubmit(e));
-        }
-
-        // Add category
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        if (addCategoryBtn) {
-            addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
-        }
-
-        // Add first product button
-        const addFirstProductBtn = document.getElementById('addFirstProduct');
-        if (addFirstProductBtn) {
-            addFirstProductBtn.addEventListener('click', () => {
-                this.modalManager.showModal('productModal');
-            });
         }
 
         // Cancel button
@@ -201,14 +193,14 @@ export class ProductModal {
         const previewContainer = document.getElementById('imagePreview');
         if (!previewContainer) return;
         
-        if (imageUrl) {
+        if (imageUrl && this.isValidUrl(imageUrl)) {
             previewContainer.innerHTML = `
                 <div class="relative w-full h-full">
                     <img src="${imageUrl}" alt="Preview" 
                          class="w-full h-full object-cover rounded-lg"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
                     <button type="button" class="modal-close absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
-                            onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>Image will appear here</p>';">
+                            onclick="document.getElementById('photo_url').value = ''; this.updateImagePreview('');">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
@@ -289,9 +281,12 @@ export class ProductModal {
         plansContainer.innerHTML = '';
         
         try {
-            const plans = typeof product.plans === 'string' ? 
-                JSON.parse(product.plans) : 
-                (product.plans || []);
+            let plans = [];
+            if (typeof product.plans === 'string') {
+                plans = JSON.parse(product.plans);
+            } else if (Array.isArray(product.plans)) {
+                plans = product.plans;
+            }
                 
             if (plans.length === 0) {
                 this.addPlanRow();
@@ -395,7 +390,7 @@ export class ProductModal {
             
             // Reload data if in adminPage context
             if (window.adminPage && typeof window.adminPage.loadData === 'function') {
-                window.adminPage.loadData();
+                window.adminPage.loadData(true);
             }
             
         } catch (error) {
@@ -458,6 +453,147 @@ export class ProductModal {
             return false;
         }
     }
+}
+
+// Categories Modal
+export class CategoriesModal {
+    constructor(modalManager) {
+        this.modalManager = modalManager;
+        this.setupEventListeners();
+    }
+
+    setupEventListeners() {
+        // Add category
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
+        }
+
+        // Cerrar modal
+        const closeButtons = document.querySelectorAll('#categoriesModal .modal-close, #categoriesModal .cancel-btn');
+        closeButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                this.modalManager.hideCurrentModal();
+            });
+        });
+    }
+
+    async open() {
+        if (!this.modalManager.showModal('categoriesModal')) return;
+        await this.renderCategoriesList();
+    }
+
+    async renderCategoriesList() {
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList) return;
+        
+        // Cargar categorías actualizadas
+        const { success, categories } = await categoryManager.loadCategories();
+        
+        if (!success || !categories || categories.length === 0) {
+            categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No hay categorías</p>';
+            return;
+        }
+        
+        categoriesList.innerHTML = categories.map(category => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-category-id="${category.id}">
+                <div class="flex items-center">
+                    <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
+                    <span class="category-name">${category.name}</span>
+                </div>
+                <div class="flex space-x-2">
+                    <button class="edit-category-btn text-blue-600 hover:text-blue-800" data-id="${category.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="delete-category-btn text-red-600 hover:text-red-800" data-id="${category.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+        
+        // Agregar event listeners para los botones
+        this.setupCategoryEventListeners();
+    }
+
+    setupCategoryEventListeners() {
+        // Botones de eliminar
+        document.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const categoryId = e.currentTarget.dataset.id;
+                await this.confirmDeleteCategory(categoryId);
+            });
+        });
+
+        // Botones de editar
+        document.querySelectorAll('.edit-category-btn').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const categoryId = e.currentTarget.dataset.id;
+                await this.editCategory(categoryId);
+            });
+        });
+    }
+
+    async editCategory(categoryId) {
+        const category = categoryManager.getCategoryById(categoryId);
+        if (!category) return;
+
+        const newName = prompt('Nuevo nombre de categoría:', category.name);
+        if (!newName || newName.trim() === '') return;
+
+        const newColor = prompt('Nuevo color (hexadecimal):', category.color || '#3B82F6');
+        
+        try {
+            Utils.showLoading('Actualizando categoría...');
+            const result = await categoryManager.updateCategory(categoryId, {
+                name: newName.trim(),
+                color: newColor || '#3B82F6'
+            });
+
+            if (result.success) {
+                await this.renderCategoriesList();
+                // Actualizar filtros en la página principal
+                if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
+                    window.adminPage.renderCategoryFilters();
+                }
+                Utils.showSuccess('Categoría actualizada correctamente');
+            } else {
+                Utils.showError(result.error);
+            }
+        } catch (error) {
+            console.error('Error editing category:', error);
+            Utils.showError('Error al actualizar la categoría');
+        } finally {
+            Utils.hideLoading();
+        }
+    }
+
+    async confirmDeleteCategory(categoryId) {
+        const category = categoryManager.getCategoryById(categoryId);
+        if (!category) return;
+        
+        const confirmed = await Utils.showConfirm(
+            `Eliminar "${category.name}"`,
+            `¿Estás seguro de que deseas eliminar esta categoría? Los productos en esta categoría no se eliminarán pero perderán su asociación de categoría.`,
+            'warning'
+        );
+        
+        if (confirmed) {
+            Utils.showLoading('Eliminando categoría...');
+            const result = await categoryManager.deleteCategory(categoryId);
+            
+            if (result.success) {
+                await this.renderCategoriesList();
+                // Actualizar filtros en la página principal
+                if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
+                    window.adminPage.renderCategoryFilters();
+                }
+                Utils.showSuccess('Categoría eliminada correctamente');
+            } else {
+                Utils.showError(result.error);
+            }
+        }
+    }
 
     async handleAddCategory() {
         const nameInput = document.getElementById('newCategoryName');
@@ -474,21 +610,25 @@ export class ProductModal {
         }
         
         try {
+            Utils.showLoading('Creando categoría...');
             const result = await categoryManager.createCategory(name);
             
-            if (!result.success) {
-                throw new Error(result.error);
+            if (result.success) {
+                nameInput.value = '';
+                await this.renderCategoriesList();
+                // Actualizar filtros en la página principal
+                if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
+                    window.adminPage.renderCategoryFilters();
+                }
+                Utils.showSuccess('Categoría creada correctamente');
+            } else {
+                Utils.showError(result.error);
             }
-            
-            Utils.showNotification('Categoría agregada correctamente', 'success');
-            nameInput.value = '';
-            
-            // Reload category lists
-            this.loadCategories();
-            
         } catch (error) {
             console.error('Error adding category:', error);
-            Utils.showNotification('Error al agregar categoría: ' + error.message, 'error');
+            Utils.showError('Error al crear la categoría: ' + error.message);
+        } finally {
+            Utils.hideLoading();
         }
     }
 }
@@ -496,3 +636,4 @@ export class ProductModal {
 // Create global instances
 export const modalManager = new ModalManager();
 export const productModal = new ProductModal(modalManager);
+export const categoriesModal = new CategoriesModal(modalManager);
