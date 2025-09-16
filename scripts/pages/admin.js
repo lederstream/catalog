@@ -15,23 +15,34 @@ class AdminPage {
         this.stats = null;
         this.currentPage = 1;
         this.isAuthenticated = false;
+        this.managersInitialized = false; // Nuevo flag para control de inicialización
+        this.eventListenersAttached = false; // Control de eventos
     }
 
     async init() {
         try {
             console.log('🔄 Inicializando AdminPage...');
             
-            // VERIFICAR AUTENTICACIÓN - CORRECCIÓN CLAVE
+            // VERIFICAR AUTENTICACIÓN
             const isAuth = await this.checkAuthentication();
             if (!isAuth) {
-                console.log('❌ Acceso no autorizado al panel admin');
                 return false;
             }
             
-            // El resto de la inicialización solo si está autenticado
-            await this.initializeManagers();
+            // Inicializar managers solo si no se han inicializado
+            if (!this.managersInitialized) {
+                await this.initializeManagers();
+                this.managersInitialized = true;
+            }
+            
             this.setupUI();
-            this.setupEventListeners();
+            
+            // Configurar eventos solo una vez
+            if (!this.eventListenersAttached) {
+                this.setupEventListeners();
+                this.eventListenersAttached = true;
+            }
+            
             await this.loadData();
             
             console.log('✅ AdminPage initialized successfully');
@@ -43,7 +54,7 @@ class AdminPage {
             return false;
         }
     }
-
+    
     async checkAuthentication() {
         try {
             // Esperar a que authManager se inicialice
