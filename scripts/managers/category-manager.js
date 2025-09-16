@@ -43,11 +43,9 @@ export class CategoryManager {
             this.categories.push(data);
             this.categories.sort((a, b) => a.name.localeCompare(b.name));
             
-            Utils.showNotification('Category created successfully', 'success');
             return { success: true, category: data };
         } catch (error) {
             console.error('Error creating category:', error.message);
-            Utils.showNotification('Error creating category: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
@@ -69,32 +67,24 @@ export class CategoryManager {
                 this.categories[index] = { ...this.categories[index], ...updates };
             }
             
-            Utils.showNotification('Category updated successfully', 'success');
             return { success: true, category: data };
         } catch (error) {
             console.error('Error updating category:', error.message);
-            Utils.showNotification('Error updating category: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
 
     async deleteCategory(id) {
         try {
-            // Check if there are products associated with this category
-            const { count, error: checkError } = await supabase
+            // Primero, actualizar todos los productos que usan esta categoría
+            const { error: updateError } = await supabase
                 .from('products')
-                .select('*', { count: 'exact' })
+                .update({ category_id: null })
                 .eq('category_id', id);
             
-            if (checkError) throw checkError;
+            if (updateError) throw updateError;
             
-            if (count > 0) {
-                return { 
-                    success: false, 
-                    error: 'Cannot delete category because it has associated products' 
-                };
-            }
-            
+            // Luego eliminar la categoría
             const { error } = await supabase
                 .from('categories')
                 .delete()
@@ -105,11 +95,9 @@ export class CategoryManager {
             // Remove from local list
             this.categories = this.categories.filter(cat => cat.id !== id);
             
-            Utils.showNotification('Category deleted successfully', 'success');
             return { success: true };
         } catch (error) {
             console.error('Error deleting category:', error.message);
-            Utils.showNotification('Error deleting category: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
