@@ -17,6 +17,10 @@ class AdminPage {
         this.isAuthenticated = false;
         this.managersInitialized = false; // Nuevo flag para control de inicialización
         this.eventListenersAttached = false; // Control de eventos
+
+        this.productsCache = null;
+        this.categoriesCache = null;
+        this.lastFilters = null;
     }
 
     async init() {
@@ -54,7 +58,7 @@ class AdminPage {
             return false;
         }
     }
-    
+
     async checkAuthentication() {
         try {
             // Esperar a que authManager se inicialice
@@ -150,23 +154,35 @@ class AdminPage {
         });
     }
 
-    async loadData() {
+    async loadData(forceRefresh = false) {
         try {
             console.log('🔄 Loading data...');
             Utils.showLoading('Loading products...');
             
-            // Load categories and products
-            const [categoriesResult, productsResult] = await Promise.all([
-                categoryManager.loadCategories(),
-                productManager.loadProducts(this.currentPage, this.currentFilters)
-            ]);
+            // Verificar si podemos usar datos cacheados
+            const filtersChanged = !this.lastFilters || 
+                JSON.stringify(this.currentFilters) !== JSON.stringify(this.lastFilters);
             
-            if (!categoriesResult.success || !productsResult.success) {
-                throw new Error('Failed to load data');
+            if (forceRefresh || filtersChanged || !this.productsCache) {
+                // Load categories and products
+                const [categoriesResult, productsResult] = await Promise.all([
+                    categoryManager.loadCategories(),
+                    productManager.loadProducts(this.currentPage, this.currentFilters)
+                ]);
+                
+                if (!categoriesResult.success || !productsResult.success) {
+                    throw new Error('Failed to load data');
+                }
+                
+                // Cachear resultados
+                this.productsCache = productManager.getProducts();
+                this.categoriesCache = categoryManager.getCategories();
+                this.lastFilters = {...this.currentFilters};
+                
+                // Load stats and render everything
+                await this.loadStats();
             }
             
-            // Load stats and render everything
-            await this.loadStats();
             this.renderProducts();
             this.renderStats();
             this.renderCategoryFilters();
