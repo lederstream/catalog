@@ -14,6 +14,7 @@ class AdminPage {
         };
         this.stats = null;
         this.currentPage = 1;
+        this.isAuthenticated = false;
     }
 
     async init() {
@@ -21,8 +22,12 @@ class AdminPage {
             console.log('🔄 Inicializando AdminPage...');
             
             // Check authentication
-            authManager.requireAuth();
-            
+            const isAuth = await this.checkAuthentication();
+            if (!isAuth) {
+                console.log('❌ Acceso no autorizado al panel admin');
+                return false;
+            }
+                        
             // Initialize managers
             await this.initializeManagers();
             
