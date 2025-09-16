@@ -211,11 +211,12 @@ class AdminPage {
         
         if (!productsList) return;
         
-        const products = productManager.getProducts();
+        const products = this.productsCache || productManager.getProducts();
         
         if (products.length === 0) {
-            productsList.innerHTML = '';
-            if (emptyState) {
+            // Usar emptyState existente en lugar de recrearlo
+            if (emptyState && !emptyState.parentNode) {
+                productsList.innerHTML = '';
                 emptyState.classList.remove('hidden');
                 productsList.appendChild(emptyState);
             }
@@ -225,20 +226,31 @@ class AdminPage {
         
         if (emptyState) emptyState.classList.add('hidden');
         
-        // Update counter
+        // Actualizar contador solo si cambió
         if (productsCount) {
-            productsCount.textContent = `${productManager.getTotalProducts()} products`;
+            const newCount = `${productManager.getTotalProducts()} products`;
+            if (productsCount.textContent !== newCount) {
+                productsCount.textContent = newCount;
+            }
         }
         
-        // Render products
-        productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
+        // Verificar si necesitamos rerenderizar
+        const currentProductIds = Array.from(productsList.children)
+            .map(el => el.dataset.productId)
+            .filter(id => id);
         
-        // Setup events
-        this.setupProductEvents();
+        const newProductIds = products.map(p => p.id);
+        
+        // Solo rerenderizar si los productos cambiaron
+        if (currentProductIds.join() !== newProductIds.join()) {
+            productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
+            this.setupProductEvents();
+        }
         
         // Render pagination
         this.renderPagination();
     }
+
 
     createProductCard(product) {
         const category = product.categories || {};
