@@ -2,7 +2,7 @@
 import { authManager } from '../core/auth.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
-import { modalManager, productModal } from '../components/modals.js';
+import { modalManager, productModal, categoriesModal } from '../components/modals.js';
 import { Utils } from '../core/utils.js';
 
 class AdminPage {
@@ -15,8 +15,8 @@ class AdminPage {
         this.stats = null;
         this.currentPage = 1;
         this.isAuthenticated = false;
-        this.managersInitialized = false; // Nuevo flag para control de inicialización
-        this.eventListenersAttached = false; // Control de eventos
+        this.managersInitialized = false;
+        this.eventListenersAttached = false;
 
         this.productsCache = null;
         this.categoriesCache = null;
@@ -207,60 +207,64 @@ class AdminPage {
     renderProducts() {
         const productsList = document.getElementById('adminProductsList');
         const productsCount = document.getElementById('productsCount');
-        const emptyState = document.getElementById('emptyState');
         
         if (!productsList) return;
         
         const products = this.productsCache || productManager.getProducts();
         
         if (products.length === 0) {
-            // Usar emptyState existente en lugar de recrearlo
-            if (emptyState && !emptyState.parentNode) {
-                productsList.innerHTML = '';
-                emptyState.classList.remove('hidden');
-                productsList.appendChild(emptyState);
+            productsList.innerHTML = `
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-box-open text-3xl mb-3"></i>
+                    <p>No hay productos</p>
+                    <button id="addFirstProduct" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                        <i class="fas fa-plus-circle mr-2"></i> Agregar primer producto
+                    </button>
+                </div>
+            `;
+            
+            // Add event listener to the button
+            const addFirstProductBtn = document.getElementById('addFirstProduct');
+            if (addFirstProductBtn) {
+                addFirstProductBtn.addEventListener('click', () => {
+                    productModal.open();
+                });
             }
-            if (productsCount) productsCount.textContent = '0 products';
+            
+            if (productsCount) productsCount.textContent = '0 productos';
             return;
         }
         
-        if (emptyState) emptyState.classList.add('hidden');
-        
-        // Actualizar contador solo si cambió
+        // Actualizar contador
         if (productsCount) {
-            const newCount = `${productManager.getTotalProducts()} products`;
-            if (productsCount.textContent !== newCount) {
-                productsCount.textContent = newCount;
-            }
+            productsCount.textContent = `${productManager.getTotalProducts()} productos`;
         }
         
-        // Verificar si necesitamos rerenderizar
-        const currentProductIds = Array.from(productsList.children)
-            .map(el => el.dataset.productId)
-            .filter(id => id);
-        
-        const newProductIds = products.map(p => p.id);
-        
-        // Solo rerenderizar si los productos cambiaron
-        if (currentProductIds.join() !== newProductIds.join()) {
-            productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
-            this.setupProductEvents();
-        }
+        productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
+        this.setupProductEvents();
         
         // Render pagination
         this.renderPagination();
     }
 
-
     createProductCard(product) {
         const category = product.categories || {};
-        const plans = typeof product.plans === 'string' ? JSON.parse(product.plans) : (product.plans || []);
+        let plans = [];
+        
+        try {
+            plans = typeof product.plans === 'string' ? 
+                JSON.parse(product.plans) : 
+                (product.plans || []);
+        } catch (error) {
+            console.error('Error parsing plans:', error);
+            plans = [];
+        }
         
         return `
-            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200 product-card" data-product-id="${product.id}">
                 <div class="flex flex-col md:flex-row gap-4">
                     <div class="w-full md:w-48 h-32 flex-shrink-0">
-                        <img src="${product.photo_url}" alt="${product.name}" 
+                        <img src="${Utils.getSafeImageUrl(product.photo_url)}" alt="${product.name}" 
                              class="w-full h-full object-cover rounded-lg">
                     </div>
                     <div class="flex-grow">
@@ -392,7 +396,7 @@ class AdminPage {
         const currentValue = filterSelect.value;
         
         filterSelect.innerHTML = `
-            <option value="">All categories</option>
+            <option value="">Todas las categorías</option>
             ${categories.map(cat => `
                 <option value="${cat.id}" ${currentValue === cat.id ? 'selected' : ''}>
                     ${cat.name}
@@ -406,50 +410,50 @@ class AdminPage {
         if (!statsContainer || !this.stats) return;
         
         statsContainer.innerHTML = `
-            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+            <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200 stat-card">
                 <div class="flex items-center">
                     <div class="w-12 h-12 rounded-full bg-blue-500 flex items-center justify-center text-white mr-3">
                         <i class="fas fa-box"></i>
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold">${this.stats.totalProducts || 0}</h3>
-                        <p class="text-sm text-gray-600">Total Products</p>
+                        <p class="text-sm text-gray-600">Total Productos</p>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+            <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200 stat-card">
                 <div class="flex items-center">
                     <div class="w-12 h-12 rounded-full bg-green-500 flex items-center justify-center text-white mr-3">
                         <i class="fas fa-tags"></i>
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold">${this.stats.categories?.length || 0}</h3>
-                        <p class="text-sm text-gray-600">Categories</p>
+                        <p class="text-sm text-gray-600">Categorías</p>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200">
+            <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-4 border border-purple-200 stat-card">
                 <div class="flex items-center">
                     <div class="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center text-white mr-3">
                         <i class="fas fa-star"></i>
                     </div>
                     <div>
                         <h3 class="text-2xl font-bold">${this.stats.activeProducts || 0}</h3>
-                        <p class="text-sm text-gray-600">Active</p>
+                        <p class="text-sm text-gray-600">Activos</p>
                     </div>
                 </div>
             </div>
             
-            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200">
+            <div class="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-4 border border-orange-200 stat-card">
                 <div class="flex items-center">
                     <div class="w-12 h-12 rounded-full bg-orange-500 flex items-center justify-center text-white mr-3">
                         <i class="fas fa-chart-line"></i>
                     </div>
                     <div>
                         <h3 class="text-xl font-bold">${this.getTopCategory()}</h3>
-                        <p class="text-sm text-gray-600">Top Category</p>
+                        <p class="text-sm text-gray-600">Categoría Principal</p>
                     </div>
                 </div>
             </div>
@@ -472,22 +476,6 @@ class AdminPage {
         if (addProductBtn) {
             addProductBtn.addEventListener('click', () => {
                 productModal.open();
-            });
-        }
-        
-        // Reload button
-        const reloadBtn = document.getElementById('reloadBtn');
-        if (reloadBtn) {
-            reloadBtn.addEventListener('click', () => {
-                this.loadData();
-            });
-        }
-        
-        // Export button
-        const exportBtn = document.getElementById('exportBtn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => {
-                this.exportData();
             });
         }
         
@@ -528,7 +516,7 @@ class AdminPage {
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
             manageCategoriesBtn.addEventListener('click', () => {
-                this.openCategoriesModal();
+                categoriesModal.open();
             });
         }
 
@@ -543,7 +531,7 @@ class AdminPage {
 
     async applyFilters() {
         this.currentPage = 1;
-        Utils.showLoading('Applying filters...');
+        Utils.showLoading('Aplicando filtros...');
         await productManager.loadProducts(this.currentPage, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
@@ -555,11 +543,11 @@ class AdminPage {
             if (success) {
                 productModal.open(product);
             } else {
-                Utils.showError('Error loading product');
+                Utils.showError('Error al cargar producto');
             }
         } catch (error) {
             console.error('Error editing product:', error);
-            Utils.showError('Error loading product');
+            Utils.showError('Error al cargar producto');
         }
     }
 
@@ -567,32 +555,37 @@ class AdminPage {
         try {
             const { success, product } = await productManager.getProductById(productId);
             if (!success) {
-                Utils.showError('Product not found');
+                Utils.showError('Producto no encontrado');
                 return;
             }
             
             const confirmed = await Utils.showConfirm(
-                `Delete "${product.name}"`,
-                `Are you sure you want to delete this product? This action cannot be undone.`,
+                `Eliminar "${product.name}"`,
+                `¿Estás seguro de que deseas eliminar este producto? Esta acción no se puede deshacer.`,
                 'warning'
             );
             
             if (confirmed) {
-                Utils.showLoading('Deleting product...');
-                await productManager.deleteProduct(productId);
-                await this.loadData();
-                Utils.showSuccess('Product deleted successfully');
+                Utils.showLoading('Eliminando producto...');
+                const result = await productManager.deleteProduct(productId);
+                
+                if (result.success) {
+                    await this.loadData(true);
+                    Utils.showSuccess('Producto eliminado correctamente');
+                } else {
+                    Utils.showError(result.error);
+                }
             }
         } catch (error) {
             console.error('Error deleting product:', error);
-            Utils.showError('Error deleting product');
+            Utils.showError('Error al eliminar producto');
         }
     }
 
     async handleLogout() {
         const confirmed = await Utils.showConfirm(
-            'Logout',
-            'Are you sure you want to logout?',
+            'Cerrar sesión',
+            '¿Estás seguro de que deseas cerrar sesión?',
             'question'
         );
         
@@ -602,90 +595,8 @@ class AdminPage {
         }
     }
 
-    async exportData() {
-        try {
-            Utils.showLoading('Exporting data...');
-            
-            const products = productManager.getProducts();
-            const csvContent = this.convertToCSV(products);
-            
-            this.downloadCSV(csvContent, 'products.csv');
-            
-            Utils.showSuccess('Data exported successfully');
-            
-        } catch (error) {
-            console.error('Error exporting data:', error);
-            Utils.showError('Error exporting data');
-        }
-    }
-
-    convertToCSV(products) {
-        const headers = ['Name', 'Category', 'Description', 'Status', 'Creation Date'];
-        const rows = products.map(product => [
-            `"${product.name}"`,
-            `"${product.categories?.name || 'No category'}"`,
-            `"${product.description}"`,
-            `"${product.status}"`,
-            `"${new Date(product.created_at).toLocaleDateString()}"`
-        ]);
-        
-        return [headers, ...rows].map(row => row.join(',')).join('\n');
-    }
-
-    downloadCSV(content, filename) {
-        const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        const url = URL.createObjectURL(blob);
-        
-        link.setAttribute('href', url);
-        link.setAttribute('download', filename);
-        link.style.visibility = 'hidden';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
     openCategoriesModal() {
-        modalManager.showModal('categoriesModal');
-        this.renderCategoriesList();
-    }
-
-    renderCategoriesList() {
-        const categoriesList = document.getElementById('categoriesList');
-        if (!categoriesList) return;
-        
-        const categories = categoryManager.getCategories();
-        
-        if (categories.length === 0) {
-            categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No categories found</p>';
-            return;
-        }
-        
-        categoriesList.innerHTML = categories.map(category => `
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div class="flex items-center">
-                    <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
-                    <span>${category.name}</span>
-                </div>
-                <div class="flex space-x-2">
-                    <button class="edit-category text-blue-600 hover:text-blue-800" data-id="${category.id}">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="delete-category text-red-600 hover:text-red-800" data-id="${category.id}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
-        
-        // Add event listeners
-        categoriesList.querySelectorAll('.delete-category').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const categoryId = e.currentTarget.dataset.id;
-                this.confirmDeleteCategory(categoryId);
-            });
-        });
+        categoriesModal.open();
     }
 
     async confirmDeleteCategory(categoryId) {
@@ -693,19 +604,19 @@ class AdminPage {
         if (!category) return;
         
         const confirmed = await Utils.showConfirm(
-            `Delete "${category.name}"`,
-            `Are you sure you want to delete this category? Products in this category will not be deleted but will lose their category association.`,
+            `Eliminar "${category.name}"`,
+            `¿Estás seguro de que deseas eliminar esta categoría? Los productos en esta categoría no se eliminarán pero perderán su asociación de categoría.`,
             'warning'
         );
         
         if (confirmed) {
-            Utils.showLoading('Deleting category...');
+            Utils.showLoading('Eliminando categoría...');
             const result = await categoryManager.deleteCategory(categoryId);
             
             if (result.success) {
-                this.renderCategoriesList();
-                this.renderCategoryFilters();
-                Utils.showSuccess('Category deleted successfully');
+                // Recargar datos
+                await this.loadData(true);
+                Utils.showSuccess('Categoría eliminada correctamente');
             } else {
                 Utils.showError(result.error);
             }
@@ -724,7 +635,7 @@ class AdminPage {
         statsContent.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                 <div class="bg-white p-4 rounded-lg shadow">
-                    <h4 class="font-semibold mb-3">Products by Category</h4>
+                    <h4 class="font-semibold mb-3">Productos por Categoría</h4>
                     <div class="space-y-3">
                         ${this.stats.categories.map(category => `
                             <div class="flex justify-between items-center">
@@ -739,18 +650,18 @@ class AdminPage {
                 </div>
                 
                 <div class="bg-white p-4 rounded-lg shadow">
-                    <h4 class="font-semibold mb-3">Quick Stats</h4>
+                    <h4 class="font-semibold mb-3">Estadísticas Rápidas</h4>
                     <div class="space-y-3">
                         <div class="flex justify-between">
-                            <span>Total Products</span>
+                            <span>Total Productos</span>
                             <span class="font-semibold">${this.stats.totalProducts}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Active Products</span>
+                            <span>Productos Activos</span>
                             <span class="font-semibold">${this.stats.activeProducts}</span>
                         </div>
                         <div class="flex justify-between">
-                            <span>Categories</span>
+                            <span>Categorías</span>
                             <span class="font-semibold">${this.stats.categories.length}</span>
                         </div>
                     </div>
@@ -758,15 +669,15 @@ class AdminPage {
             </div>
             
             <div class="bg-white p-4 rounded-lg shadow">
-                <h4 class="font-semibold mb-3">Recent Products</h4>
+                <h4 class="font-semibold mb-3">Productos Recientes</h4>
                 <div class="space-y-3">
                     ${this.stats.recentProducts.map(product => `
                         <div class="flex items-center justify-between py-2 border-b border-gray-100">
                             <div class="flex items-center">
-                                <img src="${product.photo_url}" alt="${product.name}" class="w-10 h-10 object-cover rounded mr-3">
+                                <img src="${Utils.getSafeImageUrl(product.photo_url)}" alt="${product.name}" class="w-10 h-10 object-cover rounded mr-3">
                                 <div>
                                     <div class="font-medium">${product.name}</div>
-                                    <div class="text-sm text-gray-500">${product.categories?.name || 'No category'}</div>
+                                    <div class="text-sm text-gray-500">${product.categories?.name || 'Sin categoría'}</div>
                                 </div>
                             </div>
                             <span class="text-sm text-gray-500">${new Date(product.created_at).toLocaleDateString()}</span>
