@@ -21,21 +21,17 @@ class AdminPage {
         try {
             console.log('🔄 Inicializando AdminPage...');
             
-            // VERIFICAR AUTENTICACIÓN PRIMERO - CORRECCIÓN CLAVE
+            // VERIFICAR AUTENTICACIÓN - CORRECCIÓN CLAVE
             const isAuth = await this.checkAuthentication();
             if (!isAuth) {
                 console.log('❌ Acceso no autorizado al panel admin');
                 return false;
             }
             
-            // Initialize managers
+            // El resto de la inicialización solo si está autenticado
             await this.initializeManagers();
-            
-            // Setup UI and event listeners
             this.setupUI();
             this.setupEventListeners();
-            
-            // Load initial data
             await this.loadData();
             
             console.log('✅ AdminPage initialized successfully');
@@ -50,12 +46,8 @@ class AdminPage {
 
     async checkAuthentication() {
         try {
-            // Inicializar auth manager
-            const authInitialized = await authManager.initialize();
-            if (!authInitialized) {
-                window.location.href = 'login.html';
-                return false;
-            }
+            // Esperar a que authManager se inicialice
+            await authManager.initialize();
             
             // Verificar si está autenticado
             if (!authManager.isAuthenticated()) {
@@ -73,10 +65,16 @@ class AdminPage {
             return false;
         }
     }
-
+    
     async initializeManagers() {
         try {
             console.log('🔄 Initializing managers...');
+            
+            // Initialize auth first
+            const authResult = await authManager.initialize();
+            if (!authResult) {
+                throw new Error('Auth initialization failed');
+            }
             
             // Initialize category and product managers
             const [categoryResult, productResult] = await Promise.all([
