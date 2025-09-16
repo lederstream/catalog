@@ -8,15 +8,9 @@ class LoginPage {
     }
 
     async init() {
-        // Inicializar el administrador de autenticación
-        await authManager.initialize();
-        
-        // Si ya está autenticado, redirigir al panel de administración
-        if (authManager.isAuthenticated()) {
-            console.log('✅ User already authenticated, redirecting to admin');
-            window.location.href = 'admin.html';
-            return;
-        }
+        // Verificar si ya está autenticado (redirigirá automáticamente si lo está)
+        const shouldContinue = await AuthGuard.protect(false);
+        if (!shouldContinue) return;
         
         this.setupEventListeners();
     }
