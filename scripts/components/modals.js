@@ -1,3 +1,4 @@
+// scripts/components/modals.js
 import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
@@ -15,11 +16,16 @@ export class ModalManager {
     setupEventListeners() {
         // Close modals
         document.addEventListener('click', (e) => {
-            // Cerrar con botones de cerrar/cancelar
+            // Cerrar con botones de cerrar
             if (e.target.classList.contains('modal-close') || 
-                e.target.closest('.modal-close') ||
-                e.target.classList.contains('cancel-btn') || 
-                e.target.closest('.cancel-btn') ||
+                e.target.closest('.modal-close')) {
+                this.hideCurrentModal();
+                return;
+            }
+            
+            // Cerrar con botones de cancelar
+            if (e.target.classList.contains('cancel-delete') || 
+                e.target.closest('.cancel-delete') ||
                 e.target.id === 'cancelProductBtn') {
                 this.hideCurrentModal();
                 return;
@@ -74,6 +80,7 @@ export class ModalManager {
         }
     }
 }
+
 export class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
@@ -121,6 +128,14 @@ export class ProductModal {
         if (addFirstProductBtn) {
             addFirstProductBtn.addEventListener('click', () => {
                 this.modalManager.showModal('productModal');
+            });
+        }
+
+        // Cancel button
+        const cancelBtn = document.getElementById('cancelProductBtn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                this.modalManager.hideCurrentModal();
             });
         }
     }
@@ -188,7 +203,7 @@ export class ProductModal {
                     <img src="${imageUrl}" alt="Preview" 
                          class="w-full h-full object-cover rounded-lg"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
-                    <button type="button" class="close-modal absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
+                    <button type="button" class="modal-close absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
                             onclick="document.getElementById('photo_url').value = ''; this.closest('#imagePreview').innerHTML = '<p class=\\'text-gray-500 text-center py-8\\>Image will appear here</p>';">
                         <i class="fas fa-times"></i>
                     </button>
