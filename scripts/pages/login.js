@@ -1,5 +1,5 @@
 // scripts/pages/login.js
-import { authManager } from '../core/auth.js';
+import { authManager, AuthGuard } from '../core/auth.js';
 import { Utils } from '../core/utils.js';
 
 class LoginPage {
