@@ -3,7 +3,8 @@ import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
 
-export class ModalManager {
+// Reemplaza tu ModalManager con esta versión mejorada
+class ModalManager {
     constructor() {
         this.currentModal = null;
         this.init();
@@ -14,31 +15,22 @@ export class ModalManager {
     }
 
     setupEventListeners() {
-        // Close modals
+        // Cerrar modales al hacer clic en el botón de cerrar o fuera del modal
         document.addEventListener('click', (e) => {
-            // Cerrar con botones de cerrar
             if (e.target.classList.contains('modal-close') || 
-                e.target.closest('.modal-close')) {
+                e.target.closest('.modal-close') ||
+                e.target.classList.contains('modal-overlay')) {
                 this.hideCurrentModal();
-                return;
             }
             
-            // Cerrar con botones de cancelar
             if (e.target.classList.contains('cancel-delete') || 
                 e.target.closest('.cancel-delete') ||
                 e.target.id === 'cancelProductBtn') {
                 this.hideCurrentModal();
-                return;
-            }
-            
-            // Cerrar al hacer clic fuera del contenido del modal
-            if (e.target.classList.contains('modal-overlay')) {
-                this.hideCurrentModal();
-                return;
             }
         });
 
-        // Escape key to close modals
+        // Tecla Escape para cerrar modales
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.currentModal) {
                 this.hideCurrentModal();
@@ -51,17 +43,29 @@ export class ModalManager {
         
         const modal = document.getElementById(modalId);
         if (!modal) {
-            console.error(`Modal with ID ${modalId} not found`);
+            console.error(`Modal con ID ${modalId} no encontrado`);
             return false;
         }
 
+        // Cambiar la estructura del modal para permitir scroll
+        if (!modal.classList.contains('modal-overlay')) {
+            const modalContent = modal.innerHTML;
+            modal.innerHTML = '';
+            modal.classList.add('modal-overlay');
+            
+            const container = document.createElement('div');
+            container.className = 'modal-container';
+            container.innerHTML = modalContent;
+            modal.appendChild(container);
+        }
+        
         modal.classList.remove('hidden');
         this.currentModal = modal;
 
         // Deshabilitar scroll del body pero permitir scroll en el modal
         document.body.style.overflow = 'hidden';
 
-        // Focus on first input if exists
+        // Enfocar el primer input si existe
         if (options.focusFirstInput !== false) {
             const firstInput = modal.querySelector('input, select, textarea');
             if (firstInput) firstInput.focus();
