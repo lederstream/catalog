@@ -73,15 +73,10 @@ class AdminPage {
             return false;
         }
     }
+
     async initializeManagers() {
         try {
             console.log('🔄 Initializing managers...');
-            
-            // Initialize auth first
-            const authResult = await authManager.initialize();
-            if (!authResult) {
-                throw new Error('Auth initialization failed');
-            }
             
             // Initialize category and product managers
             const [categoryResult, productResult] = await Promise.all([
