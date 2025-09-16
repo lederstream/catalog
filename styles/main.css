@@ -1,6 +1,24 @@
-/* Estilos principales de la aplicación */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+/* Variables CSS - Tema futurista */
+:root {
+    --primary: #3a86ff;
+    --primary-dark: #2667cc;
+    --secondary: #8338ec;
+    --accent: #ff006e;
+    --neon-blue: #00d9ff;
+    --neon-purple: #b300ff;
+    --dark-bg: #0a0a1a;
+    --dark-card: #12122a;
+    --light-bg: #f8f9ff;
+    --text-light: #ffffff;
+    --text-dark: #1a1a2e;
+    --gradient-primary: linear-gradient(135deg, var(--primary), var(--secondary));
+    --gradient-neon: linear-gradient(135deg, var(--neon-blue), var(--neon-purple));
+    --glow-blue: 0 0 10px rgba(58, 134, 255, 0.7), 0 0 20px rgba(58, 134, 255, 0.5);
+    --glow-purple: 0 0 10px rgba(131, 56, 236, 0.7), 0 0 20px rgba(131, 56, 236, 0.5);
+    --glow-accent: 0 0 10px rgba(255, 0, 110, 0.7), 0 0 20px rgba(255, 0, 110, 0.5);
+}
 
+/* Reset y base */
 * {
     margin: 0;
     padding: 0;
@@ -8,114 +26,379 @@
 }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
-    color: #374151;
+    color: var(--text-dark);
+    background: var(--light-bg);
+    overflow-x: hidden;
+    transition: background 0.5s ease, color 0.5s ease;
 }
 
-/* Animaciones */
-@keyframes fadeIn {
-    from {
-        opacity: 0;
-        transform: translateY(10px);
-    }
-    to {
-        opacity: 1;
-        transform: translateY(0);
-    }
+body.dark-mode {
+    background: var(--dark-bg);
+    color: var(--text-light);
 }
 
-.fade-in {
-    animation: fadeIn 0.5s ease-out;
+/* Scroll personalizado */
+::-webkit-scrollbar {
+    width: 10px;
 }
 
-@keyframes slideIn {
-    from {
-        opacity: 0;
-        transform: translateX(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(0);
-    }
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
 }
 
-.slide-in {
-    animation: slideIn 0.3s ease-out;
+::-webkit-scrollbar-thumb {
+    background: var(--gradient-primary);
+    border-radius: 10px;
 }
 
-/* Utilidades para texto */
-.text-shadow {
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gradient-neon);
 }
 
-.truncate {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.line-clamp-3 {
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-/* Loading spinner */
-.loading-spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
+/* Contenedor principal */
+.container {
+    max-width: 1200px;
     margin: 0 auto;
+    padding: 0 1rem;
 }
 
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+/* Efectos de partículas futuristas (pseudo-elementos) */
+body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-image: 
+        radial-gradient(circle at 15% 50%, rgba(74, 134, 255, 0.1) 0%, transparent 25%),
+        radial-gradient(circle at 85% 30%, rgba(131, 56, 236, 0.1) 0%, transparent 25%),
+        radial-gradient(circle at 50% 80%, rgba(255, 0, 110, 0.1) 0%, transparent 25%);
+    pointer-events: none;
+    z-index: -1;
 }
 
-/* Transiciones suaves */
-.transition-smooth {
+/* Animaciones de fondo futurista */
+@keyframes float {
+    0%, 100% {
+        transform: translateY(0) rotate(0deg);
+    }
+    33% {
+        transform: translateY(-10px) rotate(120deg);
+    }
+    66% {
+        transform: translateY(10px) rotate(240deg);
+    }
+}
+
+.floating-shapes {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    pointer-events: none;
+    z-index: -1;
+}
+
+.floating-shapes div {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.1;
+    animation: float 15s infinite linear;
+}
+
+.floating-shapes div:nth-child(1) {
+    width: 80px;
+    height: 80px;
+    background: var(--primary);
+    top: 10%;
+    left: 20%;
+    animation-duration: 20s;
+}
+
+.floating-shapes div:nth-child(2) {
+    width: 120px;
+    height: 120px;
+    background: var(--secondary);
+    top: 70%;
+    left: 80%;
+    animation-duration: 25s;
+    animation-delay: -5s;
+}
+
+.floating-shapes div:nth-child(3) {
+    width: 60px;
+    height: 60px;
+    background: var(--accent);
+    top: 50%;
+    left: 50%;
+    animation-duration: 15s;
+    animation-delay: -10s;
+}
+
+/* Efectos de texto futurista */
+.futuristic-text {
+    background: var(--gradient-neon);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    font-weight: bold;
+}
+
+/* Tarjetas con efecto glassmorphism */
+.glass-card {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
     transition: all 0.3s ease;
 }
 
-/* Focus styles para accesibilidad */
-.focus\:ring-blue-500:focus {
-    --tw-ring-color: rgba(59, 130, 246, 0.5);
-    box-shadow: 0 0 0 3px var(--tw-ring-color);
+.dark-mode .glass-card {
+    background: rgba(26, 26, 46, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-/* Mejoras de scroll para modales */
-.modal-content {
-    scrollbar-width: thin;
-    scrollbar-color: #cbd5e1 #f1f5f9;
+.glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--glow-blue);
 }
 
-.modal-content::-webkit-scrollbar {
-    width: 6px;
+/* Botones futuristas */
+.futuristic-btn {
+    background: var(--gradient-primary);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 24px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
 }
 
-.modal-content::-webkit-scrollbar-track {
-    background: #f1f5f9;
-    border-radius: 3px;
+.futuristic-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: var(--gradient-neon);
+    transition: all 0.4s ease;
+    z-index: -1;
 }
 
-.modal-content::-webkit-scrollbar-thumb {
-    background: #cbd5e1;
-    border-radius: 3px;
+.futuristic-btn:hover::before {
+    left: 0;
 }
 
-.modal-content::-webkit-scrollbar-thumb:hover {
-    background: #94a3b8;
+.futuristic-btn:hover {
+    box-shadow: var(--glow-blue);
+    transform: translateY(-2px);
+}
+
+.futuristic-btn:active {
+    transform: translateY(1px);
+}
+
+/* Efecto de borde neón */
+.neon-border {
+    position: relative;
+    border-radius: 12px;
+}
+
+.neon-border::after {
+    content: '';
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: var(--gradient-neon);
+    border-radius: 14px;
+    z-index: -1;
+    animation: border-pulse 2s infinite;
+}
+
+@keyframes border-pulse {
+    0%, 100% {
+        opacity: 0.7;
+    }
+    50% {
+        opacity: 1;
+    }
+}
+
+/* Efectos de entrada y salida */
+.fade-in {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.slide-in-left {
+    opacity: 0;
+    transform: translateX(-50px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.slide-in-left.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.slide-in-right {
+    opacity: 0;
+    transform: translateX(50px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.slide-in-right.visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+/* Animación de aparición escalonada */
+.stagger-item {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.5s ease, transform 0.5s ease;
+}
+
+.stagger-item.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Efecto de maquina de escribir */
+.typewriter {
+    overflow: hidden;
+    border-right: 3px solid var(--primary);
+    white-space: nowrap;
+    margin: 0 auto;
+    animation: typing 3.5s steps(40, end), blink-caret 0.75s step-end infinite;
+}
+
+@keyframes typing {
+    from { width: 0 }
+    to { width: 100% }
+}
+
+@keyframes blink-caret {
+    from, to { border-color: transparent }
+    50% { border-color: var(--primary) }
+}
+
+/* Efecto de parpadeo neón */
+.neon-flicker {
+    animation: neon-flicker 2s infinite alternate;
+}
+
+@keyframes neon-flicker {
+    0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
+        text-shadow: 
+            0 0 5px #fff,
+            0 0 10px #fff,
+            0 0 15px var(--neon-blue),
+            0 0 20px var(--neon-blue),
+            0 0 35px var(--neon-blue),
+            0 0 40px var(--neon-blue);
+    }
+    20%, 24%, 55% {
+        text-shadow: none;
+    }
+}
+
+/* Efecto de carga con animación futurista */
+.futuristic-loader {
+    display: inline-block;
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    position: relative;
+    border: 4px solid transparent;
+    background: linear-gradient(45deg, transparent, transparent, transparent);
+    animation: rotate-loader 1.5s linear infinite;
+}
+
+.futuristic-loader::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    background: linear-gradient(45deg, transparent, transparent, var(--primary), var(--secondary));
+    border-radius: 50%;
+    z-index: -1;
+    filter: blur(20px);
+}
+
+@keyframes rotate-loader {
+    0% {
+        transform: rotate(0deg);
+        background: conic-gradient(from 0deg, transparent, var(--primary), transparent);
+    }
+    100% {
+        transform: rotate(360deg);
+        background: conic-gradient(from 360deg, transparent, var(--primary), transparent);
+    }
+}
+
+/* Efecto de holograma */
+.hologram-effect {
+    position: relative;
+    overflow: hidden;
+}
+
+.hologram-effect::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        to bottom right,
+        rgba(255, 255, 255, 0.1),
+        rgba(255, 255, 255, 0.05),
+        transparent
+    );
+    transform: rotate(30deg);
+    animation: hologram-scan 3s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes hologram-scan {
+    0% {
+        top: -50%;
+    }
+    100% {
+        top: 150%;
+    }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container {
+        padding: 0 0.5rem;
+    }
+    
+    .floating-shapes div {
+        display: none;
+    }
 }
