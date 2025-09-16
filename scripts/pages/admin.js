@@ -21,13 +21,13 @@ class AdminPage {
         try {
             console.log('🔄 Inicializando AdminPage...');
             
-            // Check authentication
+            // VERIFICAR AUTENTICACIÓN PRIMERO - CORRECCIÓN CLAVE
             const isAuth = await this.checkAuthentication();
             if (!isAuth) {
                 console.log('❌ Acceso no autorizado al panel admin');
                 return false;
             }
-                        
+            
             // Initialize managers
             await this.initializeManagers();
             
@@ -48,6 +48,31 @@ class AdminPage {
         }
     }
 
+    async checkAuthentication() {
+        try {
+            // Inicializar auth manager
+            const authInitialized = await authManager.initialize();
+            if (!authInitialized) {
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            // Verificar si está autenticado
+            if (!authManager.isAuthenticated()) {
+                console.log('🔐 Usuario no autenticado, redirigiendo a login');
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            this.isAuthenticated = true;
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Error verificando autenticación:', error);
+            window.location.href = 'login.html';
+            return false;
+        }
+    }
     async initializeManagers() {
         try {
             console.log('🔄 Initializing managers...');
