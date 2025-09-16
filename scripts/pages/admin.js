@@ -13,6 +13,7 @@ class AdminPage {
             sort: 'newest'
         };
         this.stats = null;
+        this.currentPage = 1;
     }
 
     async init() {
@@ -123,7 +124,7 @@ class AdminPage {
             // Load categories and products
             const [categoriesResult, productsResult] = await Promise.all([
                 categoryManager.loadCategories(),
-                productManager.loadProducts(1, this.currentFilters)
+                productManager.loadProducts(this.currentPage, this.currentFilters)
             ]);
             
             if (!categoriesResult.success || !productsResult.success) {
@@ -164,7 +165,10 @@ class AdminPage {
         
         if (products.length === 0) {
             productsList.innerHTML = '';
-            if (emptyState) emptyState.classList.remove('hidden');
+            if (emptyState) {
+                emptyState.classList.remove('hidden');
+                productsList.appendChild(emptyState);
+            }
             if (productsCount) productsCount.textContent = '0 products';
             return;
         }
@@ -306,6 +310,7 @@ class AdminPage {
     }
 
     async changePage(page) {
+        this.currentPage = page;
         Utils.showLoading(`Loading page ${page}...`);
         await productManager.loadProducts(page, this.currentFilters);
         this.renderProducts();
@@ -475,8 +480,9 @@ class AdminPage {
     }
 
     async applyFilters() {
+        this.currentPage = 1;
         Utils.showLoading('Applying filters...');
-        await productManager.loadProducts(1, this.currentFilters);
+        await productManager.loadProducts(this.currentPage, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
     }
