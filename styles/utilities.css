@@ -1,94 +1,10 @@
-/* styles/utilities.css */
-/* Utilidades adicionales de Tailwind */
-
-/* Espaciado */
-.space-responsive > * + * {
-    margin-top: 1rem;
+/* Utilidades de animación */
+.animate-float {
+    animation: float 6s ease-in-out infinite;
 }
 
-@media (min-width: 768px) {
-    .space-responsive > * + * {
-        margin-top: 0;
-        margin-left: 1rem;
-    }
-}
-
-/* Sombras mejoradas */
-.shadow-hover {
-    transition: box-shadow 0.2s;
-}
-
-.shadow-hover:hover {
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Transiciones */
-.transition-all {
-    transition: all 0.3s;
-}
-
-/* Transformaciones */
-.transform-center {
-    transform: translate(-50%, -50%);
-}
-
-/* Gradientes personalizados */
-.gradient-blue {
-    background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
-}
-
-.gradient-purple {
-    background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
-}
-
-.gradient-green {
-    background: linear-gradient(135deg, #10B981 0%, #059669 100%);
-}
-
-/* Utilidades para imágenes */
-.image-cover {
-    object-fit: cover;
-}
-
-.image-contain {
-    object-fit: contain;
-}
-
-/* Utilidades para texto */
-.text-balance {
-    text-wrap: balance;
-}
-
-/* Utilidades para scroll */
-.scrollbar-thin {
-    scrollbar-width: thin;
-}
-
-.scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-}
-
-.scrollbar-thumb-blue::-webkit-scrollbar-thumb {
-    background: #3B82F6;
-    border-radius: 3px;
-}
-
-.scrollbar-thumb-blue:hover::-webkit-scrollbar-thumb {
-    background: #2563EB;
-}
-
-/* Utilidades para elementos interactivos */
-.focus-ring:focus {
-    outline: 2px solid transparent;
-    outline-offset: 2px;
-    --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color);
-    --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color);
-    box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000);
-}
-
-/* Utilidades para animaciones */
 .animate-pulse-slow {
-    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    animation: pulse-slow 3s ease-in-out infinite;
 }
 
 @keyframes pulse-slow {
@@ -101,137 +17,374 @@
 }
 
 .animate-bounce-slow {
-    animation: bounce 3s infinite;
+    animation: bounce-slow 4s infinite;
 }
 
 @keyframes bounce-slow {
-    0%, 100% {
+    0%, 20%, 50%, 80%, 100% {
         transform: translateY(0);
     }
-    50% {
+    40% {
+        transform: translateY(-20px);
+    }
+    60% {
         transform: translateY(-10px);
     }
 }
 
-/* Utilidades para ocultar/mostrar elementos */
-.visible-hidden {
-    visibility: hidden;
+.animate-spin-slow {
+    animation: spin-slow 10s linear infinite;
 }
 
-.visible-visible {
-    visibility: visible;
+@keyframes spin-slow {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
-/* Utilidades para capas (z-index) */
-.z-dropdown {
-    z-index: 1000;
-}
-
-.z-sticky {
-    z-index: 1020;
-}
-
-.z-modal {
-    z-index: 1050;
-}
-
-.z-popover {
-    z-index: 1070;
-}
-
-.z-tooltip {
-    z-index: 1080;
-}
-
-/* Utilidades para elementos de formulario */
-.input-group {
-    display: flex;
-}
-
-.input-group .form-input:first-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.input-group .form-input:last-child {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.input-group .btn:first-child {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.input-group .btn:last-child {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-.input-group-append,
-.input-group-prepend {
-    display: flex;
-}
-
-.input-group-prepend .btn {
-    border-top-right-radius: 0;
-    border-bottom-right-radius: 0;
-}
-
-.input-group-append .btn {
-    border-top-left-radius: 0;
-    border-bottom-left-radius: 0;
-}
-
-/* Utilidades para tablas */
-.table-auto {
-    width: auto;
-}
-
-.table-fixed {
-    table-layout: fixed;
-}
-
-.table-responsive {
-    overflow-x: auto;
-}
-
-/* Utilidades para elementos de lista */
-.list-checkmarks {
-    list-style: none;
-    padding-left: 0;
-}
-
-.list-checkmarks li {
+.animate-glitch {
     position: relative;
-    padding-left: 1.5rem;
 }
 
-.list-checkmarks li:before {
-    content: "✓";
+.animate-glitch::before,
+.animate-glitch::after {
+    content: attr(data-text);
     position: absolute;
+    top: 0;
     left: 0;
-    color: #10B981;
-    font-weight: bold;
+    width: 100%;
+    height: 100%;
 }
 
-/* Utilidades para iconos */
-.icon-sm {
-    width: 1rem;
-    height: 1rem;
+.animate-glitch::before {
+    animation: glitch-effect 3s infinite;
+    color: var(--neon-blue);
+    left: 2px;
 }
 
-.icon-md {
-    width: 1.5rem;
-    height: 1.5rem;
+.animate-glitch::after {
+    animation: glitch-effect 2s infinite;
+    color: var(--accent);
+    left: -2px;
 }
 
-.icon-lg {
-    width: 2rem;
-    height: 2rem;
+@keyframes glitch-effect {
+    0% {
+        clip-path: inset(0 0 0 0);
+        opacity: 0.1;
+    }
+    5% {
+        clip-path: inset(15% 0 30% 0);
+    }
+    10% {
+        clip-path: inset(65% 0 10% 0);
+    }
+    15% {
+        clip-path: inset(35% 0 30% 0);
+    }
+    20% {
+        clip-path: inset(40% 0 20% 0);
+    }
+    25% {
+        clip-path: inset(25% 0 50% 0);
+    }
+    30% {
+        clip-path: inset(15% 0 30% 0);
+        opacity: 0.1;
+    }
+    35% {
+        clip-path: inset(75% 0 5% 0);
+    }
+    40% {
+        clip-path: inset(55% 0 15% 0);
+    }
+    45% {
+        clip-path: inset(25% 0 55% 0);
+    }
+    50% {
+        clip-path: inset(15% 0 30% 0);
+    }
+    55% {
+        clip-path: inset(65% 0 15% 0);
+    }
+    60% {
+        clip-path: inset(35% 0 45% 0);
+    }
+    65% {
+        clip-path: inset(75% 0 5% 0);
+    }
+    70% {
+        clip-path: inset(15% 0 30% 0);
+        opacity: 0.1;
+    }
+    100% {
+        clip-path: inset(0 0 0 0);
+        opacity: 0;
+    }
 }
 
-.icon-xl {
-    width: 2.5rem;
-    height: 2.5rem;
+/* Utilidades de gradiente */
+.gradient-text {
+    background: var(--gradient-neon);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.gradient-bg {
+    background: var(--gradient-primary);
+}
+
+.gradient-border {
+    border: double 3px transparent;
+    background-image: 
+        linear-gradient(var(--dark-bg), var(--dark-bg)), 
+        var(--gradient-neon);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+}
+
+/* Utilidades de sombra */
+.shadow-neon {
+    box-shadow: var(--glow-blue);
+}
+
+.shadow-neon-purple {
+    box-shadow: var(--glow-purple);
+}
+
+.shadow-neon-accent {
+    box-shadow: var(--glow-accent);
+}
+
+/* Utilidades de filtro */
+.filter-blur {
+    backdrop-filter: blur(10px);
+}
+
+.filter-grayscale {
+    filter: grayscale(100%);
+    transition: filter 0.3s ease;
+}
+
+.filter-grayscale:hover {
+    filter: grayscale(0%);
+}
+
+/* Utilidades de transform */
+.transform-3d {
+    transform-style: preserve-3d;
+    perspective: 1000px;
+}
+
+.transform-3d:hover {
+    transform: rotateY(10deg) rotateX(5deg);
+}
+
+/* Utilidades de transición */
+.transition-all-slow {
+    transition: all 0.5s ease;
+}
+
+.transition-all-fast {
+    transition: all 0.2s ease;
+}
+
+.transition-transform {
+    transition: transform 0.3s ease;
+}
+
+/* Utilidades de interactividad */
+.hover-lift:hover {
+    transform: translateY(-5px);
+}
+
+.hover-glow:hover {
+    box-shadow: var(--glow-blue);
+}
+
+.hover-scale:hover {
+    transform: scale(1.05);
+}
+
+.hover-rotate:hover {
+    transform: rotate(5deg);
+}
+
+/* Utilidades de visibilidad */
+.visible {
+    opacity: 1 !important;
+    transform: translateY(0) !important;
+}
+
+.hidden {
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+/* Utilidades de layout */
+.grid-responsive {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 1.5rem;
+}
+
+.flex-center {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Utilidades de espaciado */
+.p-section {
+    padding: 4rem 0;
+}
+
+.m-section {
+    margin: 4rem 0;
+}
+
+/* Utilidades de texto */
+.text-gradient {
+    background: var(--gradient-neon);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.text-shadow {
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.text-stroke {
+    -webkit-text-stroke: 1px var(--neon-blue);
+    color: transparent;
+}
+
+/* Utilidades de cursor */
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.cursor-progress {
+    cursor: progress;
+}
+
+.cursor-wait {
+    cursor: wait;
+}
+
+/* Utilidades de scroll */
+.smooth-scroll {
+    scroll-behavior: smooth;
+}
+
+.hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+
+/* Utilidades de imagen */
+.image-cover {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-contain {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* Utilidades de overlay */
+.overlay {
+    position: relative;
+}
+
+.overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1;
+}
+
+.overlay-content {
+    position: relative;
+    z-index: 2;
+}
+
+/* Utilidades de modo oscuro/claro */
+.dark-mode-only {
+    display: none;
+}
+
+.dark-mode .dark-mode-only {
+    display: block;
+}
+
+.dark-mode .light-mode-only {
+    display: none;
+}
+
+/* Utilidades de impresión */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .print-only {
+        display: block !important;
+    }
+}
+
+/* Utilidades de accesibilidad */
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* Utilidades de rendimiento */
+.will-change {
+    will-change: transform, opacity;
+}
+
+/* Utilidades de validación */
+.is-valid {
+    border-color: #10b981 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3) !important;
+}
+
+.is-invalid {
+    border-color: #ef4444 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.3) !important;
 }
