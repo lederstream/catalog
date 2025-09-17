@@ -11,21 +11,15 @@ class ModalManager {
     }
 
     init() {
-        this.setupEventListeners();
+        this.setupGlobalEventListeners();
     }
 
-    setupEventListeners() {
+    setupGlobalEventListeners() {
         // Cerrar modales al hacer clic en el botón de cerrar o fuera del modal
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('modal-close') || 
                 e.target.closest('.modal-close') ||
-                e.target.classList.contains('modal-overlay')) {
-                this.hideCurrentModal();
-            }
-            
-            if (e.target.classList.contains('cancel-delete') || 
-                e.target.closest('.cancel-delete') ||
-                e.target.id === 'cancelProductBtn') {
+                (e.target.classList.contains('modal-overlay') && e.target === this.currentModal)) {
                 this.hideCurrentModal();
             }
         });
@@ -47,11 +41,11 @@ class ModalManager {
             return false;
         }
 
-        // Cambiar la estructura del modal para permitir scroll
+        // Asegurar que el modal tenga la estructura correcta
         if (!modal.classList.contains('modal-overlay')) {
+            modal.classList.add('modal-overlay');
             const modalContent = modal.innerHTML;
             modal.innerHTML = '';
-            modal.classList.add('modal-overlay');
             
             const container = document.createElement('div');
             container.className = 'modal-container';
@@ -73,7 +67,7 @@ class ModalManager {
         // Enfocar el primer input si existe
         if (options.focusFirstInput !== false) {
             const firstInput = modal.querySelector('input, select, textarea');
-            if (firstInput) firstInput.focus();
+            if (firstInput) setTimeout(() => firstInput.focus(), 100);
         }
 
         return true;
@@ -95,7 +89,6 @@ export class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
         this.currentProduct = null;
-        this.setupEventListeners();
     }
 
     setupEventListeners() {
@@ -124,7 +117,10 @@ export class ProductModal {
         // Form submission
         const productForm = document.getElementById('productForm');
         if (productForm) {
-            productForm.addEventListener('submit', (e) => this.handleProductSubmit(e));
+            // Remover event listener existente para evitar duplicados
+            productForm.removeEventListener('submit', this.handleProductSubmitBound);
+            this.handleProductSubmitBound = this.handleProductSubmit.bind(this);
+            productForm.addEventListener('submit', this.handleProductSubmitBound);
         }
 
         // Cancel button
@@ -142,6 +138,7 @@ export class ProductModal {
         if (!this.modalManager.showModal('productModal')) return;
 
         await this.initializeForm(product);
+        this.setupEventListeners();
     }
 
     async initializeForm(product) {
@@ -150,7 +147,7 @@ export class ProductModal {
         const form = document.getElementById('productForm');
 
         // Clear form
-        form.reset();
+        if (form) form.reset();
         document.getElementById('productId').value = '';
         this.updateImagePreview('');
 
@@ -459,7 +456,6 @@ export class ProductModal {
 export class CategoriesModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
-        this.setupEventListeners();
     }
 
     setupEventListeners() {
@@ -476,11 +472,15 @@ export class CategoriesModal {
                 this.modalManager.hideCurrentModal();
             });
         });
+
+        // Configurar event listeners para botones de categorías
+        this.setupCategoryEventListeners();
     }
 
     async open() {
         if (!this.modalManager.showModal('categoriesModal')) return;
         await this.renderCategoriesList();
+        this.setupEventListeners();
     }
 
     async renderCategoriesList() {
