@@ -23,7 +23,7 @@ export class ProductManager {
             
             console.log('🔄 Cargando productos con filtros:', this.currentFilters);
             
-            // Construir consulta CORREGIDA
+            // Construir consulta base
             let query = supabase
                 .from('products')
                 .select(`
@@ -34,12 +34,10 @@ export class ProductManager {
             // Aplicar filtros
             if (this.currentFilters.category && this.currentFilters.category !== '') {
                 query = query.eq('category_id', this.currentFilters.category);
-                console.log('🔍 Filtrando por categoría:', this.currentFilters.category);
             }
             
             if (this.currentFilters.search && this.currentFilters.search !== '') {
-                query = query.or(`name.ilike.%${this.currentFilters.search}%,description.ilike.%${this.currentFilters.search}%`);
-                console.log('🔍 Filtrando por búsqueda:', this.currentFilters.search);
+                query = query.ilike('name', `%${this.currentFilters.search}%`);
             }
             
             // Aplicar ordenamiento
@@ -145,11 +143,9 @@ export class ProductManager {
             // Recargar productos para mantener la sincronización
             await this.loadProducts(this.currentPage, this.currentFilters);
             
-            Utils.showNotification('Producto creado exitosamente', 'success');
             return { success: true, product: data };
         } catch (error) {
             console.error('Error al crear producto:', error.message);
-            Utils.showNotification('Error al crear producto: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
@@ -173,11 +169,9 @@ export class ProductManager {
             // Recargar productos para mantener la sincronización
             await this.loadProducts(this.currentPage, this.currentFilters);
             
-            Utils.showNotification('Producto actualizado exitosamente', 'success');
             return { success: true, product: data };
         } catch (error) {
             console.error('Error al actualizar producto:', error.message);
-            Utils.showNotification('Error al actualizar producto: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
@@ -198,11 +192,9 @@ export class ProductManager {
                 this.currentFilters
             );
             
-            Utils.showNotification('Producto eliminado exitosamente', 'success');
             return { success: true };
         } catch (error) {
             console.error('Error al eliminar producto:', error.message);
-            Utils.showNotification('Error al eliminar producto: ' + error.message, 'error');
             return { success: false, error: error.message };
         }
     }
@@ -210,36 +202,38 @@ export class ProductManager {
     validateProduct(productData) {
         // Validaciones básicas
         if (!productData.name || productData.name.trim().length < 2) {
-            Utils.showNotification('El nombre debe tener al menos 2 caracteres', 'error');
             return false;
         }
         
         if (!productData.description || productData.description.trim().length < 10) {
-            Utils.showNotification('La descripción debe tener al menos 10 caracteres', 'error');
             return false;
         }
         
         if (!productData.category_id) {
-            Utils.showNotification('Debe seleccionar una categoría', 'error');
             return false;
         }
         
         if (!productData.photo_url) {
-            Utils.showNotification('Debe proporcionar una URL de imagen', 'error');
             return false;
         }
         
-        // Validar planes y precios
-        if (!productData.plans || !Array.isArray(productData.plans) || productData.plans.length === 0) {
-            Utils.showNotification('Debe agregar al menos un plan', 'error');
-            return false;
-        }
-        
-        for (const plan of productData.plans) {
-            if (!plan.name || !plan.price_pen || !plan.price_usd) {
-                Utils.showNotification('Todos los planes deben tener nombre y precios', 'error');
+        try {
+            // Validar que plans sea un JSON válido
+            const plans = typeof productData.plans === 'string' ? 
+                JSON.parse(productData.plans) : 
+                productData.plans;
+                
+            if (!Array.isArray(plans) || plans.length === 0) {
                 return false;
             }
+            
+            for (const plan of plans) {
+                if (!plan.name || (!plan.price_soles && !plan.price_dollars)) {
+                    return false;
+                }
+            }
+        } catch (error) {
+            return false;
         }
         
         return true;
@@ -299,7 +293,6 @@ export class ProductManager {
                 success: true,
                 stats: {
                     totalProducts,
-                    activeProducts,
                     categories: categoriesWithCount,
                     recentProducts
                 }
