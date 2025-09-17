@@ -293,6 +293,7 @@ export class ProductManager {
                 success: true,
                 stats: {
                     totalProducts,
+                    activeProducts: totalProducts,
                     categories: categoriesWithCount,
                     recentProducts
                 }
