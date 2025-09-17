@@ -89,6 +89,7 @@ export class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
         this.currentProduct = null;
+        this.handleProductSubmitBound = this.handleProductSubmit.bind(this);
     }
 
     setupEventListeners() {
@@ -119,7 +120,6 @@ export class ProductModal {
         if (productForm) {
             // Remover event listener existente para evitar duplicados
             productForm.removeEventListener('submit', this.handleProductSubmitBound);
-            this.handleProductSubmitBound = this.handleProductSubmit.bind(this);
             productForm.addEventListener('submit', this.handleProductSubmitBound);
         }
 
