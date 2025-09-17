@@ -368,7 +368,6 @@ export class ProductModal {
                 category_id: formData.get('category'),
                 photo_url: formData.get('photo_url'),
                 plans: JSON.stringify(plans),
-                status: 'active'
             };
             
             let result;
