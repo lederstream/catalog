@@ -1,3 +1,4 @@
+// scripts/components/modals.js
 import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
@@ -14,12 +15,12 @@ class ModalManager {
     }
 
     setupGlobalEventListeners() {
-        // Cerrar modales al hacer clic en el botón de cerrar o fuera del modal
+        // Cerrar modales al hacer clic en el botón de cerrar
         document.addEventListener('click', (e) => {
-            if (e.target.classList.contains('modal-close') || 
-                e.target.closest('.modal-close') ||
-                (e.target.classList.contains('modal-overlay') && e.target === this.currentModal)) {
+            if (e.target.classList.contains('modal-close') || e.target.closest('.modal-close')) {
                 this.hideCurrentModal();
+                e.preventDefault();
+                e.stopPropagation();
             }
         });
 
@@ -31,7 +32,7 @@ class ModalManager {
         });
     }
 
-    showModal(modalId, options = {}) {
+    showModal(modalId) {
         this.hideCurrentModal();
         
         const modal = document.getElementById(modalId);
@@ -40,34 +41,11 @@ class ModalManager {
             return false;
         }
 
-        // Asegurar que el modal tenga la estructura correcta
-        if (!modal.classList.contains('modal-overlay')) {
-            modal.classList.add('modal-overlay');
-            const modalContent = modal.innerHTML;
-            modal.innerHTML = '';
-            
-            const container = document.createElement('div');
-            container.className = 'modal-container';
-            if (modalId === 'productModal' || modalId === 'statsModal') {
-                container.classList.add('modal-xl');
-            } else if (modalId === 'categoriesModal' || modalId === 'imageSearchModal') {
-                container.classList.add('modal-lg');
-            }
-            container.innerHTML = modalContent;
-            modal.appendChild(container);
-        }
-        
         modal.classList.remove('hidden');
         this.currentModal = modal;
 
-        // Deshabilitar scroll del body pero permitir scroll en el modal
+        // Deshabilitar scroll del body
         document.body.style.overflow = 'hidden';
-
-        // Enfocar el primer input si existe
-        if (options.focusFirstInput !== false) {
-            const firstInput = modal.querySelector('input, select, textarea');
-            if (firstInput) setTimeout(() => firstInput.focus(), 100);
-        }
 
         return true;
     }
@@ -76,66 +54,16 @@ class ModalManager {
         if (this.currentModal) {
             this.currentModal.classList.add('hidden');
             this.currentModal = null;
-            
-            // Habilitar scroll del body
             document.body.style.overflow = 'auto';
         }
     }
 }
 
-// Product Modal
+// Product Modal corregido
 class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
         this.currentProduct = null;
-        this.handleProductSubmitBound = this.handleProductSubmit.bind(this);
-        this.eventListeners = new Map();
-    }
-
-    setupEventListeners() {
-        this.removeEventListeners();
-        
-        // Add plan
-        this.addListener('#addPlanBtn', 'click', () => this.addPlanRow());
-        
-        // Search image
-        this.addListener('#searchImageBtn', 'click', () => {
-            this.modalManager.showModal('imageSearchModal');
-        });
-
-        // Image preview
-        const photoUrlInput = document.getElementById('photo_url');
-        if (photoUrlInput) {
-            this.addListener(photoUrlInput, 'input', Utils.debounce((e) => {
-                this.updateImagePreview(e.target.value);
-            }, 500));
-        }
-
-        // Form submission
-        const productForm = document.getElementById('productForm');
-        if (productForm) {
-            this.addListener(productForm, 'submit', this.handleProductSubmitBound);
-        }
-
-        // Cancel button
-        this.addListener('#cancelProductBtn', 'click', () => {
-            this.modalManager.hideCurrentModal();
-        });
-    }
-
-    addListener(selector, event, handler) {
-        const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
-        if (element) {
-            element.addEventListener(event, handler);
-            this.eventListeners.set(`${selector}-${event}`, { element, event, handler });
-        }
-    }
-
-    removeEventListeners() {
-        this.eventListeners.forEach(({ element, event, handler }) => {
-            element.removeEventListener(event, handler);
-        });
-        this.eventListeners.clear();
     }
 
     async open(product = null) {
@@ -145,43 +73,42 @@ class ProductModal {
 
         await this.initializeForm(product);
         this.setupEventListeners();
-        this.setupPlanButtons();
     }
 
     async initializeForm(product) {
         const title = document.getElementById('productModalTitle');
         const submitText = document.getElementById('submitProductText');
-        const form = document.getElementById('productForm');
 
-        // Clear form
+        // Limpiar formulario
+        const form = document.getElementById('productForm');
         if (form) form.reset();
         document.getElementById('productId').value = '';
         this.updateImagePreview('');
 
-        // Configure for edit or create
+        // Configurar para editar o crear
         if (product) {
             title.textContent = 'Editar Producto';
             submitText.textContent = 'Actualizar Producto';
             
-            // Fill form
+            // Llenar formulario
             document.getElementById('productId').value = product.id;
             document.getElementById('name').value = product.name || '';
             document.getElementById('category').value = product.category_id || '';
             document.getElementById('description').value = product.description || '';
             document.getElementById('photo_url').value = product.photo_url || '';
             
-            // Preview
+            // Vista previa
             if (product.photo_url) {
                 this.updateImagePreview(product.photo_url);
             }
             
-            // Load plans
+            // Cargar planes
             this.loadProductPlans(product);
         } else {
             title.textContent = 'Agregar Nuevo Producto';
             submitText.textContent = 'Agregar Producto';
             
-            // Clear plans
+            // Limpiar planes
             const plansContainer = document.getElementById('plansContainer');
             if (plansContainer) {
                 plansContainer.innerHTML = '';
@@ -189,52 +116,51 @@ class ProductModal {
             }
         }
         
-        // Load categories
+        // Cargar categorías
         await this.loadCategories();
     }
 
-    updateImagePreview(imageUrl) {
-        const previewContainer = document.getElementById('imagePreview');
-        if (!previewContainer) return;
-        
-        if (imageUrl && this.isValidUrl(imageUrl)) {
-            previewContainer.innerHTML = `
-                <div class="relative w-full h-full">
-                    <img src="${imageUrl}" alt="Preview" 
-                         class="w-full h-full object-cover rounded-lg"
-                         onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
-                    <button type="button" class="modal-close absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
-                            onclick="document.getElementById('photo_url').value = ''; this.parentElement.parentElement.innerHTML = this.getDefaultPreviewHTML();">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            `;
-        } else {
-            previewContainer.innerHTML = this.getDefaultPreviewHTML();
+    setupEventListeners() {
+        // Botón agregar plan
+        const addPlanBtn = document.getElementById('addPlanBtn');
+        if (addPlanBtn) {
+            addPlanBtn.onclick = () => this.addPlanRow();
+        }
+
+        // Botón buscar imagen
+        const searchImageBtn = document.getElementById('searchImageBtn');
+        if (searchImageBtn) {
+            searchImageBtn.onclick = () => {
+                this.modalManager.showModal('imageSearchModal');
+            };
+        }
+
+        // Preview de imagen
+        const photoUrlInput = document.getElementById('photo_url');
+        if (photoUrlInput) {
+            photoUrlInput.oninput = Utils.debounce((e) => {
+                this.updateImagePreview(e.target.value);
+            }, 500);
+        }
+
+        // Form submission
+        const productForm = document.getElementById('productForm');
+        if (productForm) {
+            productForm.onsubmit = (e) => this.handleProductSubmit(e);
         }
     }
 
-    getDefaultPreviewHTML() {
-        return `
-            <div class="text-center py-8 text-gray-400">
-                <i class="fas fa-image text-3xl mb-2"></i>
-                <p>La imagen aparecerá aquí</p>
-            </div>
-        `;
-    }
-
-    addPlanRow(planData = null, index = 0) {
+    addPlanRow(planData = null) {
         const plansContainer = document.getElementById('plansContainer');
         if (!plansContainer) return;
         
-        const planId = planData?.id || `plan-${Date.now()}-${index}`;
         const planName = planData?.name || '';
         const priceSoles = planData?.price_soles || '';
         const priceDollars = planData?.price_dollars || '';
         const features = planData?.features || '';
         
         const planRow = document.createElement('div');
-        planRow.className = 'plan-row border border-gray-200 rounded-lg p-3 bg-gray-50';
+        planRow.className = 'plan-row';
         planRow.innerHTML = `
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                 <div>
@@ -269,16 +195,16 @@ class ProductModal {
         
         plansContainer.appendChild(planRow);
         
-        // Add event listener to remove plan
+        // Event listener para eliminar plan
         const removeBtn = planRow.querySelector('.remove-plan');
         if (removeBtn) {
-            removeBtn.addEventListener('click', () => {
+            removeBtn.onclick = () => {
                 if (plansContainer.querySelectorAll('.plan-row').length > 1) {
                     planRow.remove();
                 } else {
                     Utils.showNotification('Debe haber al menos un plan', 'warning');
                 }
-            });
+            };
         }
     }
 
@@ -486,59 +412,43 @@ class ProductModal {
 class CategoriesModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
-        this.eventListeners = new Map();
+    }
+
+    async open() {
+        if (!this.modalManager.showModal('categoriesModal')) return;
+        await this.renderCategoriesList();
+        this.setupEventListeners();
     }
 
     setupEventListeners() {
-        this.removeEventListeners();
-        
-        // Add category
-        this.addListener('#addCategoryBtn', 'click', () => this.handleAddCategory());
-
-        // Cerrar modal
-        const closeButtons = document.querySelectorAll('#categoriesModal .modal-close, #categoriesModal .cancel-btn');
-        closeButtons.forEach(btn => {
-            this.addListener(btn, 'click', () => {
-                this.modalManager.hideCurrentModal();
-            });
-        });
-
-        // Configurar event listeners para botones de categorías
-        this.setupCategoryEventListeners();
-    }
-
-    addListener(selector, event, handler) {
-        const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
-        if (element) {
-            element.addEventListener(event, handler);
-            const key = `${selector}-${event}`;
-            this.eventListeners.set(key, { element, event, handler });
+        // Botón agregar categoría
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            addCategoryBtn.onclick = () => this.handleAddCategory();
         }
+
+        // Botones de editar y eliminar
+        this.setupCategoryButtons();
     }
 
     setupCategoryButtons() {
-        // Botón para agregar categoría
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        if (addCategoryBtn) {
-            addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
-        }
-
-        // Botones de editar y eliminar categorías
+        // Botones editar
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.onclick = (e) => {
                 const categoryId = e.currentTarget.dataset.id;
                 this.editCategory(categoryId);
-            });
+            };
         });
 
+        // Botones eliminar
         document.querySelectorAll('.delete-category-btn').forEach(btn => {
-            btn.addEventListener('click', (e) => {
+            btn.onclick = (e) => {
                 const categoryId = e.currentTarget.dataset.id;
                 this.confirmDeleteCategory(categoryId);
-            });
+            };
         });
     }
-
+    
     removeEventListeners() {
         this.eventListeners.forEach(({ element, event, handler }) => {
             element.removeEventListener(event, handler);
