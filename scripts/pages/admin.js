@@ -1,3 +1,4 @@
+// scripts/pages/admin.js
 import { authManager } from '../core/auth.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
@@ -11,120 +12,185 @@ class AdminPage {
             category: '',
             sort: 'newest'
         };
+        this.stats = null;
         this.currentPage = 1;
         this.isAuthenticated = false;
+        this.managersInitialized = false;
+        this.eventListenersAttached = false;
+
+        this.productsCache = null;
+        this.categoriesCache = null;
+        this.lastFilters = null;
     }
 
     async init() {
         try {
-            // Verificar autenticación
-            if (!await this.checkAuthentication()) {
+            console.log('🔄 Inicializando AdminPage...');
+            
+            // VERIFICAR AUTENTICACIÓN
+            const isAuth = await this.checkAuthentication();
+            if (!isAuth) {
                 return false;
             }
             
-            // Inicializar managers
-            await this.initializeManagers();
+            // Inicializar managers solo si no se han inicializado
+            if (!this.managersInitialized) {
+                await this.initializeManagers();
+                this.managersInitialized = true;
+            }
             
-            // Configurar UI y eventos
             this.setupUI();
-            this.setupEventListeners();
             
-            // Cargar datos
+            // Configurar eventos solo una vez
+            if (!this.eventListenersAttached) {
+                this.setupEventListeners();
+                this.eventListenersAttached = true;
+            }
+            
             await this.loadData();
             
+            console.log('✅ AdminPage initialized successfully');
             return true;
             
         } catch (error) {
-            console.error('Error initializing AdminPage:', error);
+            console.error('❌ Error initializing AdminPage:', error);
             Utils.showError('Error initializing application');
             return false;
         }
     }
 
     async checkAuthentication() {
-        await authManager.initialize();
-        if (!authManager.isAuthenticated()) {
+        try {
+            // Esperar a que authManager se inicialice
+            await authManager.initialize();
+            
+            // Verificar si está autenticado
+            if (!authManager.isAuthenticated()) {
+                console.log('🔐 Usuario no autenticado, redirigiendo a login');
+                window.location.href = 'login.html';
+                return false;
+            }
+            
+            this.isAuthenticated = true;
+            return true;
+            
+        } catch (error) {
+            console.error('❌ Error verificando autenticación:', error);
             window.location.href = 'login.html';
             return false;
         }
-        this.isAuthenticated = true;
-        return true;
     }
     
     async initializeManagers() {
-        await Promise.all([
-            categoryManager.initialize(),
-            productManager.initialize()
-        ]);
+        try {
+            console.log('🔄 Initializing managers...');
+            
+            // Initialize auth first
+            const authResult = await authManager.initialize();
+            if (!authResult) {
+                throw new Error('Auth initialization failed');
+            }
+            
+            // Initialize category and product managers
+            const [categoryResult, productResult] = await Promise.all([
+                categoryManager.initialize(),
+                productManager.initialize()
+            ]);
+            
+            if (!categoryResult.success || !productResult.success) {
+                throw new Error('Managers initialization failed');
+            }
+            
+            console.log('✅ Managers initialized successfully');
+        } catch (error) {
+            console.error('❌ Error initializing managers:', error);
+            throw error;
+        }
     }
 
     setupUI() {
         this.setupTheme();
+        this.setupTooltips();
     }
 
     setupTheme() {
         const themeToggle = document.getElementById('themeToggle');
-        if (themeToggle) {
-            themeToggle.addEventListener('click', () => {
-                document.documentElement.classList.toggle('dark');
-                localStorage.setItem('theme', 
-                    document.documentElement.classList.contains('dark') ? 'dark' : 'light'
-                );
+        if (!themeToggle) return;
+        
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        const savedTheme = localStorage.getItem('theme');
+        
+        if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            localStorage.setItem('theme', 
+                document.documentElement.classList.contains('dark') ? 'dark' : 'light'
+            );
+        });
+    }
+
+    setupTooltips() {
+        // Simple tooltip implementation
+        const elements = document.querySelectorAll('[data-tooltip]');
+        elements.forEach(el => {
+            el.addEventListener('mouseenter', (e) => {
+                const tooltip = document.createElement('div');
+                tooltip.className = 'fixed z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg';
+                tooltip.textContent = el.dataset.tooltip;
+                tooltip.style.top = `${e.clientY + 15}px`;
+                tooltip.style.left = `${e.clientX}px`;
+                tooltip.id = 'current-tooltip';
+                
+                document.body.appendChild(tooltip);
             });
-        }
-    }
-
-    setupEventListeners() {
-        // Botones principales
-        this.addListener('#addProductBtn', 'click', () => productModal.open());
-        this.addListener('#manageCategoriesBtn', 'click', () => categoriesModal.open());
-        this.addListener('#viewStatsBtn', 'click', () => this.openStatsModal());
-        this.addListener('#logoutBtn', 'click', () => this.handleLogout());
-
-        // Filtros
-        this.addListener('#searchProducts', 'input', Utils.debounce(() => {
-            this.currentFilters.search = document.getElementById('searchProducts').value;
-            this.applyFilters();
-        }, 300));
-
-        this.addListener('#filterCategory', 'change', () => {
-            this.currentFilters.category = document.getElementById('filterCategory').value;
-            this.applyFilters();
-        });
-
-        this.addListener('#sortProducts', 'change', () => {
-            this.currentFilters.sort = document.getElementById('sortProducts').value;
-            this.applyFilters();
+            
+            el.addEventListener('mouseleave', () => {
+                const tooltip = document.getElementById('current-tooltip');
+                if (tooltip) tooltip.remove();
+            });
         });
     }
 
-    addListener(selector, event, handler) {
-        const element = document.querySelector(selector);
-        if (element) {
-            element.addEventListener(event, handler);
-        }
-    }
-
-    async loadData() {
+    async loadData(forceRefresh = false) {
         try {
-            Utils.showLoading('Cargando productos...');
+            console.log('🔄 Loading data...');
+            Utils.showLoading('Loading products...');
             
-            const [categoriesResult, productsResult] = await Promise.all([
-                categoryManager.loadCategories(),
-                productManager.loadProducts(this.currentPage, this.currentFilters)
-            ]);
+            // Verificar si podemos usar datos cacheados
+            const filtersChanged = !this.lastFilters || 
+                JSON.stringify(this.currentFilters) !== JSON.stringify(this.lastFilters);
             
-            if (!categoriesResult.success || !productsResult.success) {
-                throw new Error('Failed to load data');
+            if (forceRefresh || filtersChanged || !this.productsCache) {
+                // Load categories and products
+                const [categoriesResult, productsResult] = await Promise.all([
+                    categoryManager.loadCategories(),
+                    productManager.loadProducts(this.currentPage, this.currentFilters)
+                ]);
+                
+                if (!categoriesResult.success || !productsResult.success) {
+                    throw new Error('Failed to load data');
+                }
+                
+                // Cachear resultados
+                this.productsCache = productManager.getProducts();
+                this.categoriesCache = categoryManager.getCategories();
+                this.lastFilters = {...this.currentFilters};
+                
+                // Load stats and render everything
+                await this.loadStats();
             }
             
-            await this.loadStats();
             this.renderProducts();
             this.renderStats();
             this.renderCategoryFilters();
             
+            console.log('✅ Data loaded successfully');
+            
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error('❌ Error loading data:', error);
             Utils.showError('Error loading data');
         } finally {
             Utils.hideLoading();
@@ -144,38 +210,55 @@ class AdminPage {
         
         if (!productsList) return;
         
-        const products = productManager.getProducts();
+        const products = this.productsCache || productManager.getProducts();
         
         if (products.length === 0) {
-            productsList.innerHTML = this.getNoProductsHTML();
+            productsList.innerHTML = `
+                <div class="text-center py-12 text-gray-500">
+                    <i class="fas fa-box-open text-3xl mb-3"></i>
+                    <p>No hay productos</p>
+                    <button id="addFirstProduct" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                        <i class="fas fa-plus-circle mr-2"></i> Agregar primer producto
+                    </button>
+                </div>
+            `;
+            
+            // Add event listener to the button
+            const addFirstProductBtn = document.getElementById('addFirstProduct');
+            if (addFirstProductBtn) {
+                addFirstProductBtn.addEventListener('click', () => {
+                    productModal.open();
+                });
+            }
+            
             if (productsCount) productsCount.textContent = '0 productos';
             return;
         }
         
+        // Actualizar contador
         if (productsCount) {
             productsCount.textContent = `${productManager.getTotalProducts()} productos`;
         }
         
         productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
         this.setupProductEvents();
+        
+        // Render pagination
         this.renderPagination();
-    }
-
-    getNoProductsHTML() {
-        return `
-            <div class="text-center py-12 text-gray-500">
-                <i class="fas fa-box-open text-3xl mb-3"></i>
-                <p>No hay productos</p>
-                <button id="addFirstProduct" class="mt-4 px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
-                    <i class="fas fa-plus-circle mr-2"></i> Agregar primer producto
-                </button>
-            </div>
-        `;
     }
 
     createProductCard(product) {
         const category = product.categories || {};
-        const plans = this.parsePlans(product.plans);
+        let plans = [];
+        
+        try {
+            plans = typeof product.plans === 'string' ? 
+                JSON.parse(product.plans) : 
+                (product.plans || []);
+        } catch (error) {
+            console.error('Error parsing plans:', error);
+            plans = [];
+        }
         
         return `
             <div class="bg-white rounded-lg shadow-md p-4 border border-gray-200 product-card" data-product-id="${product.id}">
@@ -221,33 +304,20 @@ class AdminPage {
         `;
     }
 
-    parsePlans(plansData) {
-        try {
-            return typeof plansData === 'string' ? JSON.parse(plansData) : (plansData || []);
-        } catch {
-            return [];
-        }
-    }
-
     setupProductEvents() {
         document.querySelectorAll('.edit-product').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.editProduct(e.currentTarget.dataset.id);
+                const productId = e.currentTarget.dataset.id;
+                this.editProduct(productId);
             });
         });
         
         document.querySelectorAll('.delete-product').forEach(btn => {
             btn.addEventListener('click', (e) => {
-                this.confirmDeleteProduct(e.currentTarget.dataset.id);
+                const productId = e.currentTarget.dataset.id;
+                this.confirmDeleteProduct(productId);
             });
         });
-
-        const addFirstProductBtn = document.getElementById('addFirstProduct');
-        if (addFirstProductBtn) {
-            addFirstProductBtn.addEventListener('click', () => {
-                productModal.open();
-            });
-        }
     }
 
     renderPagination() {
@@ -265,9 +335,11 @@ class AdminPage {
         pagination.classList.remove('hidden');
         pagination.innerHTML = this.createPaginationHTML(currentPage, totalPages);
         
+        // Setup pagination events
         pagination.querySelectorAll('[data-page]').forEach(btn => {
             btn.addEventListener('click', () => {
-                this.changePage(parseInt(btn.dataset.page));
+                const page = parseInt(btn.dataset.page);
+                this.changePage(page);
             });
         });
     }
@@ -280,6 +352,7 @@ class AdminPage {
             </button>
         `;
         
+        // Show max 5 pages around current
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, startPage + 4);
         
@@ -304,10 +377,12 @@ class AdminPage {
 
     async changePage(page) {
         this.currentPage = page;
-        Utils.showLoading(`Cargando página ${page}...`);
+        Utils.showLoading(`Loading page ${page}...`);
         await productManager.loadProducts(page, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
+        
+        // Smooth scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -316,6 +391,8 @@ class AdminPage {
         if (!filterSelect) return;
         
         const categories = categoryManager.getCategories();
+        
+        // Keep current selected value
         const currentValue = filterSelect.value;
         
         filterSelect.innerHTML = `
@@ -385,10 +462,71 @@ class AdminPage {
 
     getTopCategory() {
         if (!this.stats?.categories) return 'N/A';
+        
         const topCategory = this.stats.categories.reduce((prev, current) => 
             (prev.product_count > current.product_count) ? prev : current, 
         { product_count: 0, name: 'N/A' });
+        
         return topCategory.product_count > 0 ? topCategory.name : 'N/A';
+    }
+
+    setupEventListeners() {
+        // Add product button
+        const addProductBtn = document.getElementById('addProductBtn');
+        if (addProductBtn) {
+            addProductBtn.addEventListener('click', () => {
+                productModal.open();
+            });
+        }
+        
+        // Filters
+        const searchInput = document.getElementById('searchProducts');
+        if (searchInput) {
+            searchInput.addEventListener('input', Utils.debounce(() => {
+                this.currentFilters.search = searchInput.value;
+                this.applyFilters();
+            }, 300));
+        }
+        
+        const filterCategory = document.getElementById('filterCategory');
+        if (filterCategory) {
+            filterCategory.addEventListener('change', () => {
+                this.currentFilters.category = filterCategory.value;
+                this.applyFilters();
+            });
+        }
+        
+        const sortSelect = document.getElementById('sortProducts');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', () => {
+                this.currentFilters.sort = sortSelect.value;
+                this.applyFilters();
+            });
+        }
+
+        // Logout button
+        const logoutBtn = document.getElementById('logoutBtn');
+        if (logoutBtn) {
+            logoutBtn.addEventListener('click', () => {
+                this.handleLogout();
+            });
+        }
+
+        // Manage categories button
+        const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
+        if (manageCategoriesBtn) {
+            manageCategoriesBtn.addEventListener('click', () => {
+                categoriesModal.open();
+            });
+        }
+
+        // View stats button
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        if (viewStatsBtn) {
+            viewStatsBtn.addEventListener('click', () => {
+                this.openStatsModal();
+            });
+        }
     }
 
     async applyFilters() {
@@ -432,7 +570,7 @@ class AdminPage {
                 const result = await productManager.deleteProduct(productId);
                 
                 if (result.success) {
-                    await this.loadData();
+                    await this.loadData(true);
                     Utils.showSuccess('Producto eliminado correctamente');
                 } else {
                     Utils.showError(result.error);
@@ -454,6 +592,34 @@ class AdminPage {
         if (confirmed) {
             await authManager.signOut();
             window.location.href = 'login.html';
+        }
+    }
+
+    openCategoriesModal() {
+        categoriesModal.open();
+    }
+
+    async confirmDeleteCategory(categoryId) {
+        const category = categoryManager.getCategoryById(categoryId);
+        if (!category) return;
+        
+        const confirmed = await Utils.showConfirm(
+            `Eliminar "${category.name}"`,
+            `¿Estás seguro de que deseas eliminar esta categoría? Los productos en esta categoría no se eliminarán pero perderán su asociación de categoría.`,
+            'warning'
+        );
+        
+        if (confirmed) {
+            Utils.showLoading('Eliminando categoría...');
+            const result = await categoryManager.deleteCategory(categoryId);
+            
+            if (result.success) {
+                // Recargar datos
+                await this.loadData(true);
+                Utils.showSuccess('Categoría eliminada correctamente');
+            } else {
+                Utils.showError(result.error);
+            }
         }
     }
 
@@ -525,6 +691,20 @@ class AdminPage {
 
 // Initialize when DOM is ready
 document.addEventListener('DOMContentLoaded', async () => {
-    window.adminPage = new AdminPage();
-    await window.adminPage.init();
+    try {
+        console.log('🟡 Initializing AdminPage...');
+        window.adminPage = new AdminPage();
+        
+        const success = await window.adminPage.init();
+        
+        if (success) {
+            console.log('✅ AdminPage initialized successfully');
+        } else {
+            console.error('❌ Failed to initialize AdminPage');
+            Utils.showError('Error initializing admin panel');
+        }
+    } catch (error) {
+        console.error('❌ Critical error initializing AdminPage:', error);
+        Utils.showError('Critical error loading application');
+    }
 });
