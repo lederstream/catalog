@@ -1,4 +1,3 @@
-// scripts/components/modals.js
 import { Utils } from '../core/utils.js';
 import { productManager } from '../managers/product-manager.js';
 import { categoryManager } from '../managers/category-manager.js';
@@ -85,32 +84,29 @@ class ModalManager {
 }
 
 // Product Modal
-export class ProductModal {
+class ProductModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
         this.currentProduct = null;
         this.handleProductSubmitBound = this.handleProductSubmit.bind(this);
+        this.eventListeners = new Map();
     }
 
     setupEventListeners() {
+        this.removeEventListeners();
+        
         // Add plan
-        const addPlanBtn = document.getElementById('addPlanBtn');
-        if (addPlanBtn) {
-            addPlanBtn.addEventListener('click', () => this.addPlanRow());
-        }
-
+        this.addListener('#addPlanBtn', 'click', () => this.addPlanRow());
+        
         // Search image
-        const searchImageBtn = document.getElementById('searchImageBtn');
-        if (searchImageBtn) {
-            searchImageBtn.addEventListener('click', () => {
-                this.modalManager.showModal('imageSearchModal');
-            });
-        }
+        this.addListener('#searchImageBtn', 'click', () => {
+            this.modalManager.showModal('imageSearchModal');
+        });
 
         // Image preview
         const photoUrlInput = document.getElementById('photo_url');
         if (photoUrlInput) {
-            photoUrlInput.addEventListener('input', Utils.debounce((e) => {
+            this.addListener(photoUrlInput, 'input', Utils.debounce((e) => {
                 this.updateImagePreview(e.target.value);
             }, 500));
         }
@@ -118,18 +114,28 @@ export class ProductModal {
         // Form submission
         const productForm = document.getElementById('productForm');
         if (productForm) {
-            // Remover event listener existente para evitar duplicados
-            productForm.removeEventListener('submit', this.handleProductSubmitBound);
-            productForm.addEventListener('submit', this.handleProductSubmitBound);
+            this.addListener(productForm, 'submit', this.handleProductSubmitBound);
         }
 
         // Cancel button
-        const cancelBtn = document.getElementById('cancelProductBtn');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => {
-                this.modalManager.hideCurrentModal();
-            });
+        this.addListener('#cancelProductBtn', 'click', () => {
+            this.modalManager.hideCurrentModal();
+        });
+    }
+
+    addListener(selector, event, handler) {
+        const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (element) {
+            element.addEventListener(event, handler);
+            this.eventListeners.set(`${selector}-${event}`, { element, event, handler });
         }
+    }
+
+    removeEventListeners() {
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+        this.eventListeners.clear();
     }
 
     async open(product = null) {
@@ -139,6 +145,7 @@ export class ProductModal {
 
         await this.initializeForm(product);
         this.setupEventListeners();
+        this.setupPlanButtons();
     }
 
     async initializeForm(product) {
@@ -197,19 +204,23 @@ export class ProductModal {
                          class="w-full h-full object-cover rounded-lg"
                          onerror="this.src='https://via.placeholder.com/300x200?text=Error+loading+image'">
                     <button type="button" class="modal-close absolute top-2 right-2 bg-red-500 text-white p-1 rounded-full text-xs hover:bg-red-600"
-                            onclick="document.getElementById('photo_url').value = ''; this.updateImagePreview('');">
+                            onclick="document.getElementById('photo_url').value = ''; this.parentElement.parentElement.innerHTML = this.getDefaultPreviewHTML();">
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
             `;
         } else {
-            previewContainer.innerHTML = `
-                <div class="text-center py-8 text-gray-400">
-                    <i class="fas fa-image text-3xl mb-2"></i>
-                    <p>La imagen aparecerá aquí</p>
-                </div>
-            `;
+            previewContainer.innerHTML = this.getDefaultPreviewHTML();
         }
+    }
+
+    getDefaultPreviewHTML() {
+        return `
+            <div class="text-center py-8 text-gray-400">
+                <i class="fas fa-image text-3xl mb-2"></i>
+                <p>La imagen aparecerá aquí</p>
+            </div>
+        `;
     }
 
     addPlanRow(planData = null, index = 0) {
@@ -269,6 +280,26 @@ export class ProductModal {
                 }
             });
         }
+    }
+
+    setupPlanButtons() {
+        // Botón para agregar plan
+        const addPlanBtn = document.getElementById('addPlanBtn');
+        if (addPlanBtn) {
+            addPlanBtn.addEventListener('click', () => this.addPlanRow());
+        }
+
+        // Botones para eliminar planes
+        document.querySelectorAll('.remove-plan').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const planRow = e.target.closest('.plan-row');
+                if (document.querySelectorAll('.plan-row').length > 1) {
+                    planRow.remove();
+                } else {
+                    Utils.showNotification('Debe haber al menos un plan', 'warning');
+                }
+            });
+        });
     }
 
     loadProductPlans(product) {
@@ -452,22 +483,22 @@ export class ProductModal {
 }
 
 // Categories Modal
-export class CategoriesModal {
+class CategoriesModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
+        this.eventListeners = new Map();
     }
 
     setupEventListeners() {
+        this.removeEventListeners();
+        
         // Add category
-        const addCategoryBtn = document.getElementById('addCategoryBtn');
-        if (addCategoryBtn) {
-            addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
-        }
+        this.addListener('#addCategoryBtn', 'click', () => this.handleAddCategory());
 
         // Cerrar modal
         const closeButtons = document.querySelectorAll('#categoriesModal .modal-close, #categoriesModal .cancel-btn');
         closeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
+            this.addListener(btn, 'click', () => {
                 this.modalManager.hideCurrentModal();
             });
         });
@@ -476,10 +507,50 @@ export class CategoriesModal {
         this.setupCategoryEventListeners();
     }
 
+    addListener(selector, event, handler) {
+        const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (element) {
+            element.addEventListener(event, handler);
+            const key = `${selector}-${event}`;
+            this.eventListeners.set(key, { element, event, handler });
+        }
+    }
+
+    setupCategoryButtons() {
+        // Botón para agregar categoría
+        const addCategoryBtn = document.getElementById('addCategoryBtn');
+        if (addCategoryBtn) {
+            addCategoryBtn.addEventListener('click', () => this.handleAddCategory());
+        }
+
+        // Botones de editar y eliminar categorías
+        document.querySelectorAll('.edit-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const categoryId = e.currentTarget.dataset.id;
+                this.editCategory(categoryId);
+            });
+        });
+
+        document.querySelectorAll('.delete-category-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                const categoryId = e.currentTarget.dataset.id;
+                this.confirmDeleteCategory(categoryId);
+            });
+        });
+    }
+
+    removeEventListeners() {
+        this.eventListeners.forEach(({ element, event, handler }) => {
+            element.removeEventListener(event, handler);
+        });
+        this.eventListeners.clear();
+    }
+
     async open() {
         if (!this.modalManager.showModal('categoriesModal')) return;
         await this.renderCategoriesList();
         this.setupEventListeners();
+        this.setupCategoryButtons();
     }
 
     async renderCategoriesList() {
@@ -518,7 +589,7 @@ export class CategoriesModal {
     setupCategoryEventListeners() {
         // Botones de eliminar
         document.querySelectorAll('.delete-category-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+            this.addListener(btn, 'click', async (e) => {
                 const categoryId = e.currentTarget.dataset.id;
                 await this.confirmDeleteCategory(categoryId);
             });
@@ -526,7 +597,7 @@ export class CategoriesModal {
 
         // Botones de editar
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
+            this.addListener(btn, 'click', async (e) => {
                 const categoryId = e.currentTarget.dataset.id;
                 await this.editCategory(categoryId);
             });
@@ -633,6 +704,9 @@ export class CategoriesModal {
 }
 
 // Create global instances
-export const modalManager = new ModalManager();
-export const productModal = new ProductModal(modalManager);
-export const categoriesModal = new CategoriesModal(modalManager);
+const modalManager = new ModalManager();
+const productModal = new ProductModal(modalManager);
+const categoriesModal = new CategoriesModal(modalManager);
+
+// Exportar las instancias
+export { modalManager, productModal, categoriesModal };
