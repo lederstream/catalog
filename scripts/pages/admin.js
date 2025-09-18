@@ -17,10 +17,6 @@ class AdminPage {
         this.isAuthenticated = false;
         this.managersInitialized = false;
         this.eventListenersAttached = false;
-
-        this.productsCache = null;
-        this.categoriesCache = null;
-        this.lastFilters = null;
     }
 
     async init() {
@@ -33,7 +29,7 @@ class AdminPage {
                 return false;
             }
             
-            // Inicializar managers solo si no se han inicializado
+            // Inicializar managers
             if (!this.managersInitialized) {
                 await this.initializeManagers();
                 this.managersInitialized = true;
@@ -41,7 +37,7 @@ class AdminPage {
             
             this.setupUI();
             
-            // Configurar eventos solo una vez
+            // Configurar eventos
             if (!this.eventListenersAttached) {
                 this.setupEventListeners();
                 this.eventListenersAttached = true;
@@ -61,10 +57,8 @@ class AdminPage {
 
     async checkAuthentication() {
         try {
-            // Esperar a que authManager se inicialice
             await authManager.initialize();
             
-            // Verificar si está autenticado
             if (!authManager.isAuthenticated()) {
                 console.log('🔐 Usuario no autenticado, redirigiendo a login');
                 window.location.href = 'login.html';
@@ -85,13 +79,6 @@ class AdminPage {
         try {
             console.log('🔄 Initializing managers...');
             
-            // Initialize auth first
-            const authResult = await authManager.initialize();
-            if (!authResult) {
-                throw new Error('Auth initialization failed');
-            }
-            
-            // Initialize category and product managers
             const [categoryResult, productResult] = await Promise.all([
                 categoryManager.initialize(),
                 productManager.initialize()
@@ -110,7 +97,6 @@ class AdminPage {
 
     setupUI() {
         this.setupTheme();
-        this.setupTooltips();
     }
 
     setupTheme() {
@@ -132,57 +118,21 @@ class AdminPage {
         });
     }
 
-    setupTooltips() {
-        // Simple tooltip implementation
-        const elements = document.querySelectorAll('[data-tooltip]');
-        elements.forEach(el => {
-            el.addEventListener('mouseenter', (e) => {
-                const tooltip = document.createElement('div');
-                tooltip.className = 'fixed z-50 px-2 py-1 text-xs text-white bg-gray-800 rounded shadow-lg';
-                tooltip.textContent = el.dataset.tooltip;
-                tooltip.style.top = `${e.clientY + 15}px`;
-                tooltip.style.left = `${e.clientX}px`;
-                tooltip.id = 'current-tooltip';
-                
-                document.body.appendChild(tooltip);
-            });
-            
-            el.addEventListener('mouseleave', () => {
-                const tooltip = document.getElementById('current-tooltip');
-                if (tooltip) tooltip.remove();
-            });
-        });
-    }
-
     async loadData(forceRefresh = false) {
         try {
             console.log('🔄 Loading data...');
             Utils.showLoading('Loading products...');
             
-            // Verificar si podemos usar datos cacheados
-            const filtersChanged = !this.lastFilters || 
-                JSON.stringify(this.currentFilters) !== JSON.stringify(this.lastFilters);
+            const [categoriesResult, productsResult] = await Promise.all([
+                categoryManager.loadCategories(),
+                productManager.loadProducts(this.currentPage, this.currentFilters)
+            ]);
             
-            if (forceRefresh || filtersChanged || !this.productsCache) {
-                // Load categories and products
-                const [categoriesResult, productsResult] = await Promise.all([
-                    categoryManager.loadCategories(),
-                    productManager.loadProducts(this.currentPage, this.currentFilters)
-                ]);
-                
-                if (!categoriesResult.success || !productsResult.success) {
-                    throw new Error('Failed to load data');
-                }
-                
-                // Cachear resultados
-                this.productsCache = productManager.getProducts();
-                this.categoriesCache = categoryManager.getCategories();
-                this.lastFilters = {...this.currentFilters};
-                
-                // Load stats and render everything
-                await this.loadStats();
+            if (!categoriesResult.success || !productsResult.success) {
+                throw new Error('Failed to load data');
             }
             
+            await this.loadStats();
             this.renderProducts();
             this.renderStats();
             this.renderCategoryFilters();
@@ -210,7 +160,7 @@ class AdminPage {
         
         if (!productsList) return;
         
-        const products = this.productsCache || productManager.getProducts();
+        const products = productManager.getProducts();
         
         if (products.length === 0) {
             productsList.innerHTML = `
@@ -223,7 +173,6 @@ class AdminPage {
                 </div>
             `;
             
-            // Add event listener to the button
             const addFirstProductBtn = document.getElementById('addFirstProduct');
             if (addFirstProductBtn) {
                 addFirstProductBtn.addEventListener('click', () => {
@@ -235,15 +184,12 @@ class AdminPage {
             return;
         }
         
-        // Actualizar contador
         if (productsCount) {
             productsCount.textContent = `${productManager.getTotalProducts()} productos`;
         }
         
         productsList.innerHTML = products.map(product => this.createProductCard(product)).join('');
         this.setupProductEvents();
-        
-        // Render pagination
         this.renderPagination();
     }
 
@@ -335,7 +281,6 @@ class AdminPage {
         pagination.classList.remove('hidden');
         pagination.innerHTML = this.createPaginationHTML(currentPage, totalPages);
         
-        // Setup pagination events
         pagination.querySelectorAll('[data-page]').forEach(btn => {
             btn.addEventListener('click', () => {
                 const page = parseInt(btn.dataset.page);
@@ -352,7 +297,6 @@ class AdminPage {
             </button>
         `;
         
-        // Show max 5 pages around current
         const startPage = Math.max(1, currentPage - 2);
         const endPage = Math.min(totalPages, startPage + 4);
         
@@ -381,8 +325,6 @@ class AdminPage {
         await productManager.loadProducts(page, this.currentFilters);
         this.renderProducts();
         Utils.hideLoading();
-        
-        // Smooth scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -391,8 +333,6 @@ class AdminPage {
         if (!filterSelect) return;
         
         const categories = categoryManager.getCategories();
-        
-        // Keep current selected value
         const currentValue = filterSelect.value;
         
         filterSelect.innerHTML = `
@@ -592,34 +532,6 @@ class AdminPage {
         if (confirmed) {
             await authManager.signOut();
             window.location.href = 'login.html';
-        }
-    }
-
-    openCategoriesModal() {
-        categoriesModal.open();
-    }
-
-    async confirmDeleteCategory(categoryId) {
-        const category = categoryManager.getCategoryById(categoryId);
-        if (!category) return;
-        
-        const confirmed = await Utils.showConfirm(
-            `Eliminar "${category.name}"`,
-            `¿Estás seguro de que deseas eliminar esta categoría? Los productos en esta categoría no se eliminarán pero perderán su asociación de categoría.`,
-            'warning'
-        );
-        
-        if (confirmed) {
-            Utils.showLoading('Eliminando categoría...');
-            const result = await categoryManager.deleteCategory(categoryId);
-            
-            if (result.success) {
-                // Recargar datos
-                await this.loadData(true);
-                Utils.showSuccess('Categoría eliminada correctamente');
-            } else {
-                Utils.showError(result.error);
-            }
         }
     }
 
