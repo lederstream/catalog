@@ -479,8 +479,10 @@ class CategoriesModal {
     setupEventListeners() {
         this.removeEventListeners();
         
+        // Botón agregar categoría
         this.addListener('#addCategoryBtn', 'click', () => this.handleAddCategory());
 
+        // Botones cerrar
         const closeButtons = document.querySelectorAll('#categoriesModal .modal-close, #categoriesModal .cancel-btn');
         closeButtons.forEach(btn => {
             this.addListener(btn, 'click', () => {
@@ -488,6 +490,7 @@ class CategoriesModal {
             });
         });
 
+        // Event listeners para categorías (delegación de eventos)
         this.setupCategoryEventListeners();
     }
 
@@ -495,7 +498,7 @@ class CategoriesModal {
         const element = typeof selector === 'string' ? document.querySelector(selector) : selector;
         if (element) {
             element.addEventListener(event, handler);
-            const key = `${selector}-${event}`;
+            const key = `${Date.now()}-${event}`; // Key única
             this.eventListeners.set(key, { element, event, handler });
         }
     }
@@ -540,23 +543,37 @@ class CategoriesModal {
                 </div>
             </div>
         `).join('');
-        
-        this.setupCategoryEventListeners();
     }
 
     setupCategoryEventListeners() {
-        document.querySelectorAll('.delete-category-btn').forEach(btn => {
-            this.addEventListener(btn, 'click', async (e) => {
-                const categoryId = e.currentTarget.dataset.id;
-                await this.confirmDeleteCategory(categoryId);
-            });
-        });
+        // Usar delegación de eventos para los botones dinámicos
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList) return;
 
-        document.querySelectorAll('.edit-category-btn').forEach(btn => {
-            this.addEventListener(btn, 'click', async (e) => {
-                const categoryId = e.currentTarget.dataset.id;
-                await this.editCategory(categoryId);
-            });
+        // Eliminar listeners previos si existen
+        categoriesList.removeEventListener('click', this.handleCategoryClick);
+        
+        // Agregar nuevo listener
+        this.handleCategoryClick = (e) => {
+            const editBtn = e.target.closest('.edit-category-btn');
+            const deleteBtn = e.target.closest('.delete-category-btn');
+            
+            if (editBtn) {
+                const categoryId = editBtn.dataset.id;
+                this.editCategory(categoryId);
+            }
+            
+            if (deleteBtn) {
+                const categoryId = deleteBtn.dataset.id;
+                this.confirmDeleteCategory(categoryId);
+            }
+        };
+        
+        categoriesList.addEventListener('click', this.handleCategoryClick);
+        this.eventListeners.set('categories-list-click', { 
+            element: categoriesList, 
+            event: 'click', 
+            handler: this.handleCategoryClick 
         });
     }
 
