@@ -225,7 +225,7 @@ class ProductManager {
             }
             
             for (const plan of planes) {
-                if (!plan.nombre || (!plan.precio_soles && !plan.precio_dolares)) {
+                if (!plan.nombre || (!plan.price_soles && !plan.price_dollars)) {
                     return false;
                 }
             }
