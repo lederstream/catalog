@@ -348,103 +348,116 @@ class ProductModal {
         }
     }
 
-    async handleProductSubmit(e) {
-        e.preventDefault();
+async handleProductSubmit(e) {
+    e.preventDefault();
+    
+    const productId = document.getElementById('productId').value;
+    
+    try {
+        // Obtener valores directamente de los inputs
+        const name = document.getElementById('name').value;
+        const category = document.getElementById('category').value;
+        const description = document.getElementById('description').value;
+        const photo_url = document.getElementById('photo_url').value;
         
-        const formData = new FormData(e.target);
-        const productId = document.getElementById('productId').value;
+        // Collect plan data
+        const plans = [];
+        document.querySelectorAll('.plan-row').forEach(row => {
+            const name = row.querySelector('.plan-name').value;
+            const price_soles = parseFloat(row.querySelector('.plan-price-soles').value) || 0;
+            const price_dollars = parseFloat(row.querySelector('.plan-price-dollars').value) || 0;
+            const features = row.querySelector('.plan-features').value;
+            
+            if (name) {
+                plans.push({
+                    name,
+                    price_soles: price_soles > 0 ? price_soles : null,
+                    price_dollars: price_dollars > 0 ? price_dollars : null,
+                    features: features ? features.split(',').map(f => f.trim()) : []
+                });
+            }
+        });
         
-        try {
-            const plans = [];
-            document.querySelectorAll('.plan-row').forEach(row => {
-                const name = row.querySelector('.plan-name').value;
-                const price_soles = parseFloat(row.querySelector('.plan-price-soles').value) || 0;
-                const price_dollars = parseFloat(row.querySelector('.plan-price-dollars').value) || 0;
-                const features = row.querySelector('.plan-features').value;
-                
-                if (name) {
-                    plans.push({
-                        name,
-                        price_soles: price_soles > 0 ? price_soles : null,
-                        price_dollars: price_dollars > 0 ? price_dollars : null,
-                        features: features ? features.split(',').map(f => f.trim()) : []
-                    });
-                }
-            });
-            
-            if (!this.validateForm(formData, plans)) {
-                return;
-            }
-            
-            const productData = {
-                name: formData.get('name'),
-                description: formData.get('description'),
-                category_id: formData.get('category'),
-                photo_url: formData.get('photo_url'),
-                plans: JSON.stringify(plans),
-            };
-            
-            let result;
-            if (productId) {
-                result = await productManager.updateProduct(productId, productData);
-                Utils.showNotification('Producto actualizado correctamente', 'success');
-            } else {
-                result = await productManager.createProduct(productData);
-                Utils.showNotification('Producto creado correctamente', 'success');
-            }
-            
-            this.modalManager.hideCurrentModal();
-            
-            if (window.adminPage && typeof window.adminPage.loadData === 'function') {
-                window.adminPage.loadData(true);
-            }
-            
-        } catch (error) {
-            console.error('Error saving product:', error);
-            Utils.showNotification('Error al guardar el producto: ' + error.message, 'error');
+        // Validar usando los valores directos
+        if (!this.validateForm(name, category, description, photo_url, plans)) {
+            return;
         }
+        
+        // Prepare product data
+        const productData = {
+            name: name,
+            description: description,
+            category_id: category,
+            photo_url: photo_url,
+            plans: JSON.stringify(plans),
+        };
+        
+        let result;
+        if (productId) {
+            result = await productManager.updateProduct(productId, productData);
+            Utils.showNotification('Producto actualizado correctamente', 'success');
+        } else {
+            result = await productManager.createProduct(productData);
+            Utils.showNotification('Producto creado correctamente', 'success');
+        }
+        
+        this.modalManager.hideCurrentModal();
+        
+        if (window.adminPage && typeof window.adminPage.loadData === 'function') {
+            window.adminPage.loadData(true);
+        }
+        
+    } catch (error) {
+        console.error('Error saving product:', error);
+        Utils.showNotification('Error al guardar el producto: ' + error.message, 'error');
     }
+}
 
-    validateForm(formData, plans) {
-        if (!formData.get('name') || formData.get('name').trim().length < 2) {
-            Utils.showNotification('El nombre del producto debe tener al menos 2 caracteres', 'error');
-            return false;
-        }
-        
-        if (!formData.get('category')) {
-            Utils.showNotification('Debe seleccionar una categoría', 'error');
-            return false;
-        }
-        
-        if (!formData.get('description') || formData.get('description').trim().length < 10) {
-            Utils.showNotification('La descripción debe tener al menos 10 caracteres', 'error');
-            return false;
-        }
-        
-        if (!formData.get('photo_url') || !this.isValidUrl(formData.get('photo_url'))) {
-            Utils.showNotification('Debe proporcionar una URL de imagen válida', 'error');
-            return false;
-        }
-        
-        if (plans.length === 0) {
-            Utils.showNotification('Debe agregar al menos un plan', 'error');
-            return false;
-        }
-        
-        for (const plan of plans) {
-            if (!plan.name || plan.name.trim().length === 0) {
-                Utils.showNotification('Todos los planes deben tener un nombre', 'error');
-                return false;
-            }
-            
-            if (!plan.price_soles && !plan.price_dollars) {
-                Utils.showNotification('Cada plan debe tener al menos un precio (S/ o $)', 'error');
-                return false;
-            }
-        }
-        
-        return true;
+validateForm(name, category, description, photoUrl, plans) {
+    // Validar nombre
+    if (!name || name.trim().length < 2) {
+        Utils.showNotification('El nombre del producto debe tener al menos 2 caracteres', 'error');
+        return false;
     }
+    
+    // Validar categoría
+    if (!category) {
+        Utils.showNotification('Debe seleccionar una categoría', 'error');
+        return false;
+    }
+    
+    // Validar descripción
+    if (!description || description.trim().length < 10) {
+        Utils.showNotification('La descripción debe tener al menos 10 caracteres', 'error');
+        return false;
+    }
+    
+    // Validar URL de imagen
+    if (!photoUrl || !this.isValidUrl(photoUrl)) {
+        Utils.showNotification('Debe proporcionar una URL de imagen válida', 'error');
+        return false;
+    }
+    
+    // Validar planes
+    if (plans.length === 0) {
+        Utils.showNotification('Debe agregar al menos un plan', 'error');
+        return false;
+    }
+    
+    for (const plan of plans) {
+        if (!plan.name || plan.name.trim().length === 0) {
+            Utils.showNotification('Todos los planes deben tener un nombre', 'error');
+            return false;
+        }
+        
+        if (!plan.price_soles && !plan.price_dollars) {
+            Utils.showNotification('Cada plan debe tener al menos un precio (S/ o $)', 'error');
+            return false;
+        }
+    }
+    
+    return true;
+}
 
     isValidUrl(string) {
         try {
