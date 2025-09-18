@@ -533,14 +533,14 @@ class CategoriesModal {
 
     setupCategoryEventListeners() {
         document.querySelectorAll('.delete-category-btn').forEach(btn => {
-            this.addListener(btn, 'click', async (e) => {
+            this.addEventListener(btn, 'click', async (e) => {
                 const categoryId = e.currentTarget.dataset.id;
                 await this.confirmDeleteCategory(categoryId);
             });
         });
 
         document.querySelectorAll('.edit-category-btn').forEach(btn => {
-            this.addListener(btn, 'click', async (e) => {
+            this.addEventListener(btn, 'click', async (e) => {
                 const categoryId = e.currentTarget.dataset.id;
                 await this.editCategory(categoryId);
             });
