@@ -38,7 +38,7 @@ class CategoryManager {
                 .insert([{ name: name.trim(), color }])
                 .select()
                 .single();
-            
+                
             if (error) throw error;
             
             // Update local list
