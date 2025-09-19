@@ -78,13 +78,23 @@ class CategoryManager {
 
     async deleteCategory(id) {
         try {
-            // Primero, actualizar todos los productos que usan esta categoría
-            const { error: updateError } = await supabase
+            // Verificar si hay productos usando esta categoría
+            const { data: products, error: productsError } = await supabase
                 .from('products')
-                .update({ category_id: null })
+                .select('id')
                 .eq('category_id', id);
+                
+            if (productsError) throw productsError;
             
-            if (updateError) throw updateError;
+            // Si hay productos, actualizarlos para quitar la categoría
+            if (products && products.length > 0) {
+                const { error: updateError } = await supabase
+                    .from('products')
+                    .update({ category_id: null })
+                    .eq('category_id', id);
+                    
+                if (updateError) throw updateError;
+            }
             
             // Luego eliminar la categoría
             const { error } = await supabase
@@ -100,10 +110,12 @@ class CategoryManager {
             return { success: true };
         } catch (error) {
             console.error('Error deleting category:', error.message);
-            return { success: false, error: error.message };
+            return { 
+                success: false, 
+                error: error.message || 'Error al eliminar la categoría' 
+            };
         }
     }
-
     getCategoryById(id) {
         return this.categories.find(category => category.id === id);
     }
