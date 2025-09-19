@@ -1,309 +1,142 @@
-// scripts/managers/product-manager.js
-import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class ProductManager {
-    constructor() {
-        this.products = [];
-        this.currentPage = 1;
-        this.itemsPerPage = 12;
-        this.totalProducts = 0;
-        this.currentFilters = {
-            category: '',
-            search: '',
-            sort: 'newest'
-        };
-        this.isInitialized = false;
-    }
-
-    async loadProducts(page = 1, filters = {}) {
-        try {
-            this.currentPage = page;
-            this.currentFilters = { ...this.currentFilters, ...filters };
-            
-            console.log('🔄 Cargando productos con filtros:', this.currentFilters);
-            
-            // Construir consulta base
-            let query = supabase
-                .from('products')
-                .select(`
-                    *,
-                    categories (*)
-                `, { count: 'exact' });
-            
-            // Aplicar filtros
-            if (this.currentFilters.category && this.currentFilters.category !== '') {
-                query = query.eq('category_id', this.currentFilters.category);
-            }
-            
-            if (this.currentFilters.search && this.currentFilters.search !== '') {
-                query = query.ilike('name', `%${this.currentFilters.search}%`);
-            }
-            
-            // Aplicar ordenamiento
-            switch (this.currentFilters.sort) {
-                case 'newest':
-                    query = query.order('created_at', { ascending: false });
-                    break;
-                case 'oldest':
-                    query = query.order('created_at', { ascending: true });
-                    break;
-                case 'name_asc':
-                    query = query.order('name', { ascending: true });
-                    break;
-                case 'name_desc':
-                    query = query.order('name', { ascending: false });
-                    break;
-                default:
-                    query = query.order('created_at', { ascending: false });
-            }
-            
-            // Aplicar paginación
-            const from = (page - 1) * this.itemsPerPage;
-            const to = from + this.itemsPerPage - 1;
-            query = query.range(from, to);
-            
-            // Ejecutar consulta
-            const { data, error, count } = await query;
-            
-            if (error) {
-                console.error('❌ Error en consulta Supabase:', error);
-                throw error;
-            }
-            
-            console.log('✅ Productos cargados:', data?.length || 0);
-            this.products = data || [];
-            this.totalProducts = count || 0;
-            
-            return { success: true, products: this.products, total: this.totalProducts };
-        } catch (error) {
-            console.error('❌ Error al cargar productos:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async initialize() {
-        try {
-            await this.loadProducts(1, this.currentFilters);
-            this.isInitialized = true;
-            return { success: true };
-        } catch (error) {
-            console.error('Error initializing ProductManager:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    getProducts() {
-        return this.products;
-    }
-
-    getTotalProducts() {
-        return this.totalProducts;
-    }
-
-    getTotalPages() {
-        return Math.ceil(this.totalProducts / this.itemsPerPage);
-    }
-
-    getCurrentPage() {
-        return this.currentPage;
-    }
-    
-    async getProductById(id) {
-        try {
-            const { data, error } = await supabase
-                .from('products')
-                .select('*, categories(name, color)')
-                .eq('id', id)
-                .single();
-            
-            if (error) throw error;
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error al obtener producto:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async createProduct(productData) {
-        try {
-            // Validar datos del producto
-            if (!this.validateProduct(productData)) {
-                return { success: false, error: 'Datos del producto inválidos' };
-            }
-            
-            const { data, error } = await supabase
-                .from('products')
-                .insert([productData])
-                .select()
-                .single();
-            
-            if (error) throw error;
-            
-            // Recargar productos para mantener la sincronización
-            await this.loadProducts(this.currentPage, this.currentFilters);
-            
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error al crear producto:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async updateProduct(id, productData) {
-        try {
-            // Validar datos del producto
-            if (!this.validateProduct(productData)) {
-                return { success: false, error: 'Datos del producto inválidos' };
-            }
-            
-            const { data, error } = await supabase
-                .from('products')
-                .update(productData)
-                .eq('id', id)
-                .select()
-                .single();
-            
-            if (error) throw error;
-            
-            // Recargar productos para mantener la sincronización
-            await this.loadProducts(this.currentPage, this.currentFilters);
-            
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error al actualizar producto:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async deleteProduct(id) {
-        try {
-            const { error } = await supabase
-                .from('products')
-                .delete()
-                .eq('id', id);
-            
-            if (error) throw error;
-            
-            // Recargar productos para mantener la sincronización
-            await this.loadProducts(
-                this.currentPage > 1 && this.products.length === 1 ? 
-                this.currentPage - 1 : this.currentPage, 
-                this.currentFilters
-            );
-            
-            return { success: true };
-        } catch (error) {
-            console.error('Error al eliminar producto:', error.message);
-            return { success: false, error: error.message };
-        }
-    }
-
-    validateProduct(productData) {
-        // Validaciones básicas
-        if (!productData.name || productData.name.trim().length < 2) {
-            return false;
-        }
+export class ProductCard {
+    static create(product, isAdmin = false) {
+        const card = document.createElement('div');
+        card.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300 product-card';
         
-        if (!productData.description || productData.description.trim().length < 10) {
-            return false;
-        }
+        const categoryColor = product.categories ? product.categories.color : '#3B82F6';
+        const categoryName = product.categories ? product.categories.name : 'Sin categoría';
         
-        if (!productData.category_id) {
-            return false;
-        }
-        
-        if (!productData.photo_url) {
-            return false;
-        }
-        
-        try {
-            // Validar que plans sea un JSON válido
-            const plans = typeof productData.plans === 'string' ? 
-                JSON.parse(productData.plans) : 
-                productData.plans;
+        card.innerHTML = `
+            <div class="relative">
+                <img src="${Utils.getSafeImageUrl(product.photo_url)}" alt="${product.name}" 
+                     class="w-full h-48 object-cover" onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+no+disponible'">
+                <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded-full" 
+                      style="background-color: ${categoryColor}">
+                    ${categoryName}
+                </span>
+            </div>
+            <div class="p-4">
+                <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
+                <p class="text-gray-600 text-sm mb-4 line-clamp-3">${product.description}</p>
                 
-            if (!Array.isArray(plans) || plans.length === 0) {
-                return false;
-            }
-            
-            for (const plan of plans) {
-                if (!plan.name || (!plan.price_soles && !plan.price_dollars)) {
-                    return false;
-                }
-            }
-        } catch (error) {
-            return false;
-        }
+                <div class="mb-4">
+                    ${this.renderPlans(product.plans)}
+                </div>
+                
+                ${isAdmin ? this.renderAdminActions(product) : ''}
+            </div>
+        `;
         
-        return true;
+        return card;
     }
 
-    // Métodos para estadísticas
-    async getStats() {
+    static renderPlans(plans) {
+        let parsedPlans = [];
+        
         try {
-            // Obtener conteo total de productos
-            const { count: totalProducts, error: productsError } = await supabase
-                .from('products')
-                .select('*', { count: 'exact' });
-            
-            if (productsError) throw productsError;
-            
-            // Obtener conteo por categoría
-            const { data: categoriesData, error: categoriesError } = await supabase
-                .from('categories')
-                .select('id, name, color');
-            
-            if (categoriesError) throw categoriesError;
-            
-            const categoriesWithCount = await Promise.all(
-                categoriesData.map(async category => {
-                    const { count, error } = await supabase
-                        .from('products')
-                        .select('*', { count: 'exact' })
-                        .eq('category_id', category.id);
-                    
-                    if (error) throw error;
-                    
-                    return {
-                        ...category,
-                        product_count: count || 0
-                    };
-                })
-            );
-            
-            // Obtener productos recientes
-            const { data: recentProducts, error: recentError } = await supabase
-                .from('products')
-                .select('*, categories(name)')
-                .order('created_at', { ascending: false })
-                .limit(5);
-            
-            if (recentError) throw recentError;
-            
-            // Obtener productos activos
-            const { count: activeProducts, error: activeError } = await supabase
-                .from('products')
-                .select('*', { count: 'exact' })
-                .eq('status', 'active');
-            
-            if (activeError) throw activeError;
-            
-            return {
-                success: true,
-                stats: {
-                    totalProducts,
-                    activeProducts,
-                    categories: categoriesWithCount,
-                    recentProducts
-                }
-            };
+            // Intentar parsear los planes de diferentes formas
+            if (typeof plans === 'string') {
+                parsedPlans = JSON.parse(plans);
+            } else if (Array.isArray(plans)) {
+                parsedPlans = plans;
+            } else if (plans && typeof plans === 'object') {
+                // Si es un objeto, convertirlo a array
+                parsedPlans = Object.values(plans);
+            }
         } catch (error) {
-            console.error('Error al obtener estadísticas:', error.message);
-            return { success: false, error: error.message };
+            console.error('Error parsing plans:', error);
+            parsedPlans = [];
         }
+        
+        if (!parsedPlans || parsedPlans.length === 0) {
+            return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
+        }
+        
+        let html = `
+            <div class="space-y-3">
+                <h4 class="font-medium text-sm text-gray-700 mb-2">Planes disponibles:</h4>
+        `;
+        
+        parsedPlans.forEach((plan, index) => {
+            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+            
+            // Mostrar solo los primeros 3 planes, el resto en acordeón
+            if (index < 3) {
+                html += `
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-medium text-sm">${plan.name}</span>
+                            <div class="text-right">
+                                ${priceSoles > 0 ? `<div class="font-semibold text-green-600">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                                ${priceDollars > 0 ? `<div class="text-xs text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
+                            </div>
+                        </div>
+                        ${plan.features && plan.features.length > 0 ? `
+                            <div class="text-xs text-gray-600">
+                                <span class="font-medium">Incluye:</span> ${plan.features.join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+        });
+        
+        // Mostrar más planes si hay más de 3
+        if (parsedPlans.length > 3) {
+            html += `
+                <div class="bg-blue-50 rounded-lg p-3 text-center">
+                    <button class="text-blue-600 text-sm font-medium view-more-plans" 
+                            onclick="this.closest('.product-card').querySelector('.additional-plans').classList.toggle('hidden'); this.classList.add('hidden');">
+                        +${parsedPlans.length - 3} planes más disponibles
+                        <i class="fas fa-chevron-down ml-1"></i>
+                    </button>
+                </div>
+                
+                <div class="additional-plans hidden space-y-3">
+            `;
+            
+            parsedPlans.slice(3).forEach(plan => {
+                const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+                const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+                
+                html += `
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="font-medium text-sm">${plan.name}</span>
+                            <div class="text-right">
+                                ${priceSoles > 0 ? `<div class="font-semibold text-green-600">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                                ${priceDollars > 0 ? `<div class="text-xs text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
+                            </div>
+                        </div>
+                        ${plan.features && plan.features.length > 0 ? `
+                            <div class="text-xs text-gray-600">
+                                <span class="font-medium">Incluye:</span> ${plan.features.join(', ')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+        }
+        
+        html += '</div>';
+        return html;
+    }
+
+    static renderAdminActions(product) {
+        return `
+            <div class="flex justify-between pt-3 border-t">
+                <button class="edit-product text-blue-600 hover:text-blue-800 text-sm font-medium" data-id="${product.id}">
+                    <i class="fas fa-edit mr-1"></i> Editar
+                </button>
+                <button class="delete-product text-red-600 hover:text-red-800 text-sm font-medium" data-id="${product.id}">
+                    <i class="fas fa-trash mr-1"></i> Eliminar
+                </button>
+            </div>
+        `;
     }
 }
-
-// Instancia global para usar en toda la aplicación
-export const productManager = new ProductManager();
