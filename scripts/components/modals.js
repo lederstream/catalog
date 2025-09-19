@@ -607,13 +607,13 @@ async renderCategoriesList() {
                 if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
                     window.adminPage.renderCategoryFilters();
                 }
-                Utils.showSuccess('Categoría actualizada correctamente', 'success');
+                Utils.showNotification('Categoría actualizada correctamente', 'success');
             } else {
-                Utils.showError(result.error);
+                Utils.showNotification(result.error, 'error');
             }
         } catch (error) {
             console.error('Error editing category:', error);
-            Utils.showError('Error al actualizar la categoría');
+            Utils.showNotification('Error al actualizar la categoría');
         } finally {
             Utils.hideLoading();
         }
@@ -621,13 +621,12 @@ async renderCategoriesList() {
 
     async confirmDeleteCategory(categoryId) {
         const category = categoryManager.getCategoryById(categoryId);
-        if (!category) return;
+        if (!category) {
+            Utils.showNotification('Categoría no encontrada', 'error');
+            return;
+        }
         
-        const confirmed = await Utils.showConfirm(
-            `Eliminar "${category.name}"`,
-            `¿Estás seguro de que deseas eliminar esta categoría? Los productos en esta categoría no se eliminarán pero perderán su asociación de categoría.`,
-            'warning'
-        );
+        const confirmed = confirm(`¿Estás seguro de que deseas eliminar la categoría "${category.name}"? Los productos en esta categoría perderán su asociación.`);
         
         if (confirmed) {
             Utils.showLoading('Eliminando categoría...');
@@ -638,10 +637,11 @@ async renderCategoriesList() {
                 if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
                     window.adminPage.renderCategoryFilters();
                 }
-                Utils.showSuccess('Categoría eliminada correctamente');
+                Utils.showNotification('Categoría eliminada correctamente', 'success');
             } else {
-                Utils.showError(result.error);
+                Utils.showNotification(result.error, 'error');
             }
+            Utils.hideLoading();
         }
     }
 
