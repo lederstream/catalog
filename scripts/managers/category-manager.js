@@ -141,7 +141,13 @@ class CategoryManager {
     }
 
     getCategoryById(id) {
-        return this.categories.find(category => category.id === id);
+        // CORRECCIÓN: Normalizar IDs para comparación (Supabase puede devolver números o strings)
+        const searchId = typeof id === 'string' ? parseInt(id) : id;
+        
+        return this.categories.find(category => {
+            const categoryId = typeof category.id === 'string' ? parseInt(category.id) : category.id;
+            return categoryId === searchId;
+        });
     }
 
     getCategoryColor(id) {
