@@ -79,13 +79,17 @@ class AdminPage {
         try {
             console.log('🔄 Initializing managers...');
             
-            const [categoryResult, productResult] = await Promise.all([
-                categoryManager.initialize(),
-                productManager.initialize()
-            ]);
+            await authManager.initialize();
             
-            if (!categoryResult.success || !productResult.success) {
-                throw new Error('Managers initialization failed');
+            // Inicializar categoryManager primero ya que productManager lo necesita
+            const categoryResult = await categoryManager.initialize();
+            if (!categoryResult.success) {
+                console.error('Failed to initialize category manager');
+            }
+            
+            const productResult = await productManager.initialize();
+            if (!productResult.success) {
+                console.error('Failed to initialize product manager');
             }
             
             console.log('✅ Managers initialized successfully');
