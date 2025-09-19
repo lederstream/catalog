@@ -106,18 +106,21 @@ class IndexPage {
             return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
         }
         
+        // Generar ID único
+        const accordionId = `plans-${Math.random().toString(36).substr(2, 9)}`;
+        
         let html = `
-            <div class="space-y-2">
+            <div class="space-y-2" id="${accordionId}">
                 <h4 class="font-medium text-sm text-gray-700 mb-1">Planes:</h4>
         `;
         
-        // Mostrar máximo 2 planes principales
+        // Mostrar primeros 2 planes
         parsedPlans.slice(0, 2).forEach(plan => {
             const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
             const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
             
             html += `
-                <div class="flex justify-between items-center text-xs">
+                <div class="flex justify-between items-center text-xs plan-item">
                     <span class="font-medium">${plan.name}</span>
                     <div class="text-right">
                         ${priceSoles > 0 ? `<div class="font-semibold">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
@@ -131,7 +134,7 @@ class IndexPage {
         if (parsedPlans.length > 2) {
             html += `
                 <div class="text-xs text-blue-600 text-center cursor-pointer view-more-trigger" 
-                    onclick="this.closest('.product-card').querySelector('.additional-plans').classList.toggle('hidden'); this.classList.add('hidden');">
+                    onclick="toggleSimplePlansAccordion('${accordionId}', ${parsedPlans.length - 2})">
                     +${parsedPlans.length - 2} planes más
                 </div>
                 
@@ -143,7 +146,7 @@ class IndexPage {
                 const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
                 
                 html += `
-                    <div class="flex justify-between items-center text-xs">
+                    <div class="flex justify-between items-center text-xs plan-item">
                         <span>${plan.name}</span>
                         <div class="text-right">
                             ${priceSoles > 0 ? `<div>${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
@@ -159,6 +162,7 @@ class IndexPage {
         html += '</div>';
         return html;
     }
+
     showError() {
         const productsGrid = document.getElementById('productsGrid');
         if (!productsGrid) return;
