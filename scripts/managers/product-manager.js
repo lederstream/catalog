@@ -194,18 +194,22 @@ class ProductManager {
 
     validateProduct(productData) {
         if (!productData.name || productData.name.trim().length < 2) {
+            console.error('Validación fallida: Nombre muy corto');
             return false;
         }
         
         if (!productData.description || productData.description.trim().length < 10) {
+            console.error('Validación fallida: Descripción muy corta');
             return false;
         }
         
         if (!productData.category_id) {
+            console.error('Validación fallida: Sin categoría');
             return false;
         }
         
         if (!productData.photo_url) {
+            console.error('Validación fallida: Sin URL de foto');
             return false;
         }
         
@@ -214,15 +218,27 @@ class ProductManager {
                 JSON.parse(productData.plans) : productData.plans;
                 
             if (!Array.isArray(plans) || plans.length === 0) {
+                console.error('Validación fallida: Sin planes');
                 return false;
             }
             
             for (const plan of plans) {
-                if (!plan.name || (!plan.price_soles && !plan.price_dollars)) {
+                if (!plan.name || plan.name.trim().length === 0) {
+                    console.error('Validación fallida: Plan sin nombre');
+                    return false;
+                }
+                
+                // CORRECCIÓN: Asegurar que al menos un precio tenga valor
+                const hasValidPrice = (plan.price_soles !== null && plan.price_soles !== undefined && plan.price_soles !== '') ||
+                                    (plan.price_dollars !== null && plan.price_dollars !== undefined && plan.price_dollars !== '');
+                
+                if (!hasValidPrice) {
+                    console.error('Validación fallida: Plan sin precio válido', plan);
                     return false;
                 }
             }
         } catch (error) {
+            console.error('Error parsing plans:', error);
             return false;
         }
         
