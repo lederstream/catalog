@@ -459,7 +459,11 @@ class AdminPage {
         // Manage categories button
         const manageCategoriesBtn = document.getElementById('manageCategoriesBtn');
         if (manageCategoriesBtn) {
-            manageCategoriesBtn.addEventListener('click', () => {
+            manageCategoriesBtn.addEventListener('click', async () => {
+                // Asegurar que el categoryManager esté inicializado
+                if (!categoryManager.isInitialized) {
+                    await categoryManager.initialize();
+                }
                 categoriesModal.open();
             });
         }
