@@ -677,3 +677,42 @@
     .remove-plan:hover {
         color: #b91c1c;
     }
+
+
+
+
+    .product-card {
+    transition: all 0.3s ease;
+}
+
+.product-card:hover {
+    transform: translateY(-2px);
+}
+
+.view-more-plans, .view-more-trigger {
+    transition: all 0.2s ease;
+}
+
+.view-more-plans:hover, .view-more-trigger:hover {
+    opacity: 0.8;
+}
+
+.additional-plans {
+    animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .product-card {
+        margin-bottom: 1rem;
+    }
+    
+    .additional-plans {
+        font-size: 0.8rem;
+    }
+}
