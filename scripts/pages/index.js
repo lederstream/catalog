@@ -226,6 +226,23 @@ class IndexPage {
     }
 }
 
+// Función global para el acordeón simple (index page)
+window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
+    const container = document.getElementById(accordionId);
+    if (!container) return;
+    
+    const additionalPlans = container.querySelector('.additional-plans');
+    const viewMoreBtn = container.querySelector('.view-more-trigger');
+    
+    if (additionalPlans.classList.contains('hidden')) {
+        additionalPlans.classList.remove('hidden');
+        viewMoreBtn.textContent = 'Ocultar planes';
+        additionalPlans.style.animation = 'fadeIn 0.3s ease-in-out';
+    } else {
+        additionalPlans.classList.add('hidden');
+        viewMoreBtn.textContent = `+${remainingPlansCount} planes más`;
+    }
+};
 // Inicializar la página
 document.addEventListener('DOMContentLoaded', () => {
     new IndexPage();
