@@ -461,8 +461,11 @@ validateForm(name, category, description, photoUrl, plans) {
             return false;
         }
         
-        if (!plan.price_soles && !plan.price_dollars) {
-            Utils.showNotification('Cada plan debe tener al menos un precio (S/ o $)', 'error');
+        const hasValidPrice = (plan.price_soles !== null && plan.price_soles !== undefined && plan.price_soles !== '') ||
+                             (plan.price_dollars !== null && plan.price_dollars !== undefined && plan.price_dollars !== '');
+        
+        if (!hasValidPrice) {
+            Utils.showNotification(`El plan "${plan.name}" debe tener al menos un precio válido`, 'error');
             return false;
         }
     }
