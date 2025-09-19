@@ -2,7 +2,7 @@
 import { supabase } from '../supabase.js';
 import { Utils } from '../core/utils.js';
 
-export class CategoryManager {
+class CategoryManager {
     constructor() {
         this.categories = [];
         this.isInitialized = false;
@@ -18,9 +18,11 @@ export class CategoryManager {
             if (error) throw error;
             
             this.categories = data || [];
+            this.isInitialized = true;
             return { success: true, categories: this.categories };
         } catch (error) {
             console.error('Error loading categories:', error.message);
+            this.categories = [];
             return { success: false, error: error.message };
         }
     }
