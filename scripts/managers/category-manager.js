@@ -38,7 +38,7 @@ class CategoryManager {
                 .insert([{ name: name.trim(), color }])
                 .select()
                 .single();
-                
+
             if (error) throw error;
             
             // Update local list
@@ -116,6 +116,30 @@ class CategoryManager {
             };
         }
     }
+
+    // Método para parsear mensajes de error de Supabase
+    parseErrorMessage(error) {
+        console.log('🔍 Error details:', error);
+        
+        if (error.code === '42501') {
+            return 'No tienes permisos para realizar esta acción. Verifica las políticas RLS.';
+        }
+        if (error.code === '23505') {
+            return 'Ya existe una categoría con ese nombre.';
+        }
+        if (error.code === '42P01') {
+            return 'La tabla categories no existe. Verifica la base de datos.';
+        }
+        if (error.code === '42703') {
+            return 'Error en la estructura de la base de datos.';
+        }
+        if (error.message.includes('JWT')) {
+            return 'Error de autenticación. Por favor, inicia sesión nuevamente.';
+        }
+        
+        return error.message || 'Error de base de datos';
+    }
+
     getCategoryById(id) {
         return this.categories.find(category => category.id === id);
     }
@@ -140,7 +164,28 @@ class CategoryManager {
             return { success: false, error: error.message };
         }
     }
+        async diagnose() {
+        console.log('=== DIAGNÓSTICO CATEGORY MANAGER ===');
+        console.log('Initialized:', this.isInitialized);
+        console.log('Categories count:', this.categories.length);
+        console.log('Categories:', this.categories);
+        
+        // Probar conexión con Supabase
+        try {
+            const { data, error } = await supabase
+                .from('categories')
+                .select('count')
+                .limit(1);
+                
+            console.log('Supabase connection test:', error ? '❌ Error' : '✅ Success');
+            if (error) console.error('Test error:', error);
+        } catch (testError) {
+            console.error('Connection test failed:', testError);
+        }
+    }
 }
 
+
+
 // Global instance for use throughout the application
-export const categoryManager = new CategoryManager();
+export const categoryManager = new CategoryManager();s
