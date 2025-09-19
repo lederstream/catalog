@@ -8,6 +8,8 @@ export class ProductCard {
         const categoryColor = product.categories ? product.categories.color : '#3B82F6';
         const categoryName = product.categories ? product.categories.name : 'Sin categoría';
         
+        const plansHtml = this.renderPlans(product.plans);
+        
         card.innerHTML = `
             <div class="relative">
                 <img src="${Utils.getSafeImageUrl(product.photo_url)}" alt="${product.name}" 
@@ -21,8 +23,8 @@ export class ProductCard {
                 <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
                 <p class="text-gray-600 text-sm mb-4 line-clamp-3">${product.description}</p>
                 
-                <div class="mb-4">
-                    ${this.renderPlans(product.plans)}
+                <div class="mb-4 product-plans-container">
+                    ${plansHtml}
                 </div>
                 
                 ${isAdmin ? this.renderAdminActions(product) : ''}
@@ -36,13 +38,11 @@ export class ProductCard {
         let parsedPlans = [];
         
         try {
-            // Intentar parsear los planes de diferentes formas
             if (typeof plans === 'string') {
                 parsedPlans = JSON.parse(plans);
             } else if (Array.isArray(plans)) {
                 parsedPlans = plans;
             } else if (plans && typeof plans === 'object') {
-                // Si es un objeto, convertirlo a array
                 parsedPlans = Object.values(plans);
             }
         } catch (error) {
@@ -54,43 +54,26 @@ export class ProductCard {
             return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
         }
         
+        // Generar ID único para este acordeón
+        const accordionId = `plans-accordion-${Math.random().toString(36).substr(2, 9)}`;
+        
         let html = `
-            <div class="space-y-3">
+            <div class="space-y-3" id="${accordionId}">
                 <h4 class="font-medium text-sm text-gray-700 mb-2">Planes disponibles:</h4>
         `;
         
-        parsedPlans.forEach((plan, index) => {
-            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
-            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
-            
-            // Mostrar solo los primeros 3 planes, el resto en acordeón
-            if (index < 3) {
-                html += `
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-medium text-sm">${plan.name}</span>
-                            <div class="text-right">
-                                ${priceSoles > 0 ? `<div class="font-semibold text-green-600">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
-                                ${priceDollars > 0 ? `<div class="text-xs text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
-                            </div>
-                        </div>
-                        ${plan.features && plan.features.length > 0 ? `
-                            <div class="text-xs text-gray-600">
-                                <span class="font-medium">Incluye:</span> ${plan.features.join(', ')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
-            }
+        // Mostrar primeros 2 planes
+        parsedPlans.slice(0, 2).forEach(plan => {
+            html += this.renderPlanItem(plan);
         });
         
-        // Mostrar más planes si hay más de 3
-        if (parsedPlans.length > 3) {
+        // Si hay más de 2 planes, mostrar botón y planes ocultos
+        if (parsedPlans.length > 2) {
             html += `
                 <div class="bg-blue-50 rounded-lg p-3 text-center">
-                    <button class="text-blue-600 text-sm font-medium view-more-plans" 
-                            onclick="this.closest('.product-card').querySelector('.additional-plans').classList.toggle('hidden'); this.classList.add('hidden');">
-                        +${parsedPlans.length - 3} planes más disponibles
+                    <button type="button" class="text-blue-600 text-sm font-medium view-more-plans-btn"
+                            onclick="togglePlansAccordion('${accordionId}')">
+                        +${parsedPlans.length - 2} planes más disponibles
                         <i class="fas fa-chevron-down ml-1"></i>
                     </button>
                 </div>
@@ -98,26 +81,9 @@ export class ProductCard {
                 <div class="additional-plans hidden space-y-3">
             `;
             
-            parsedPlans.slice(3).forEach(plan => {
-                const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
-                const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
-                
-                html += `
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <div class="flex justify-between items-start mb-2">
-                            <span class="font-medium text-sm">${plan.name}</span>
-                            <div class="text-right">
-                                ${priceSoles > 0 ? `<div class="font-semibold text-green-600">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
-                                ${priceDollars > 0 ? `<div class="text-xs text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
-                            </div>
-                        </div>
-                        ${plan.features && plan.features.length > 0 ? `
-                            <div class="text-xs text-gray-600">
-                                <span class="font-medium">Incluye:</span> ${plan.features.join(', ')}
-                            </div>
-                        ` : ''}
-                    </div>
-                `;
+            // Mostrar planes restantes
+            parsedPlans.slice(2).forEach(plan => {
+                html += this.renderPlanItem(plan);
             });
             
             html += `</div>`;
@@ -125,6 +91,28 @@ export class ProductCard {
         
         html += '</div>';
         return html;
+    }
+
+    static renderPlanItem(plan) {
+        const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+        const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+        
+        return `
+            <div class="bg-gray-50 rounded-lg p-3 plan-item">
+                <div class="flex justify-between items-start mb-2">
+                    <span class="font-medium text-sm">${plan.name}</span>
+                    <div class="text-right">
+                        ${priceSoles > 0 ? `<div class="font-semibold text-green-600">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                        ${priceDollars > 0 ? `<div class="text-xs text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
+                    </div>
+                </div>
+                ${plan.features && plan.features.length > 0 ? `
+                    <div class="text-xs text-gray-600">
+                        <span class="font-medium">Incluye:</span> ${plan.features.join(', ')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
     }
 
     static renderAdminActions(product) {
@@ -140,3 +128,22 @@ export class ProductCard {
         `;
     }
 }
+
+// Función global para toggle del acordeón
+window.togglePlansAccordion = function(accordionId) {
+    const container = document.getElementById(accordionId);
+    if (!container) return;
+    
+    const additionalPlans = container.querySelector('.additional-plans');
+    const viewMoreBtn = container.querySelector('.view-more-plans-btn');
+    const icon = viewMoreBtn.querySelector('i');
+    
+    if (additionalPlans.classList.contains('hidden')) {
+        additionalPlans.classList.remove('hidden');
+        viewMoreBtn.innerHTML = `Ocultar planes <i class="fas fa-chevron-up ml-1"></i>`;
+        additionalPlans.style.animation = 'fadeIn 0.3s ease-in-out';
+    } else {
+        additionalPlans.classList.add('hidden');
+        viewMoreBtn.innerHTML = `+${additionalPlans.querySelectorAll('.plan-item').length} planes más disponibles <i class="fas fa-chevron-down ml-1"></i>`;
+    }
+};
