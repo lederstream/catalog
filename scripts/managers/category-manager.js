@@ -164,25 +164,7 @@ class CategoryManager {
             return { success: false, error: error.message };
         }
     }
-        async diagnose() {
-        console.log('=== DIAGNÓSTICO CATEGORY MANAGER ===');
-        console.log('Initialized:', this.isInitialized);
-        console.log('Categories count:', this.categories.length);
-        console.log('Categories:', this.categories);
-        
-        // Probar conexión con Supabase
-        try {
-            const { data, error } = await supabase
-                .from('categories')
-                .select('count')
-                .limit(1);
-                
-            console.log('Supabase connection test:', error ? '❌ Error' : '✅ Success');
-            if (error) console.error('Test error:', error);
-        } catch (testError) {
-            console.error('Connection test failed:', testError);
-        }
-    }
+    
 }
 
 
