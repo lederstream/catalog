@@ -122,29 +122,58 @@ class ProductManager {
         }
     }
 
-    async createProduct(productData) {
-        try {
-            if (!this.validateProduct(productData)) {
-                return { success: false, error: 'Datos del producto inválidos' };
-            }
-            
-            const { data, error } = await supabase
-                .from('products')
-                .insert([productData])
-                .select()
-                .single();
-            
-            if (error) throw error;
-            
-            // Recargar productos
-            await this.loadProducts(this.currentPage, this.currentFilters);
-            
-            return { success: true, product: data };
-        } catch (error) {
-            console.error('Error al crear producto:', error.message);
-            return { success: false, error: error.message };
+async createProduct(productData) {
+    try {
+        if (!this.validateProduct(productData)) {
+            return { success: false, error: 'Datos del producto inválidos' };
         }
+        
+        // Parsear planes para obtener precios principales
+        let mainPriceSoles = 0;
+        let mainPriceDollars = 0;
+        
+        try {
+            const plans = typeof productData.plans === 'string' ? 
+                JSON.parse(productData.plans) : productData.plans;
+            
+            if (plans && plans.length > 0) {
+                // Usar el precio del primer plan como precio principal
+                const firstPlan = plans[0];
+                mainPriceSoles = firstPlan.price_soles || 0;
+                mainPriceDollars = firstPlan.price_dollars || 0;
+            }
+        } catch (error) {
+            console.error('Error parsing plans for main prices:', error);
+        }
+        
+        // Preparar datos para insertar
+        const insertData = {
+            name: productData.name,
+            description: productData.description,
+            category_id: productData.category_id,
+            photo_url: productData.photo_url,
+            plans: productData.plans,
+            price_soles: mainPriceSoles,
+            price_dollars: mainPriceDollars
+        };
+        
+        const { data, error } = await supabase
+            .from('products')
+            .insert([insertData])
+            .select()
+            .single();
+        
+        if (error) throw error;
+        
+        // Recargar productos
+        await this.loadProducts(this.currentPage, this.currentFilters);
+        
+        return { success: true, product: data };
+    } catch (error) {
+        console.error('Error al crear producto:', error.message);
+        return { success: false, error: error.message };
     }
+}
 
     async updateProduct(id, productData) {
         try {
@@ -152,9 +181,37 @@ class ProductManager {
                 return { success: false, error: 'Datos del producto inválidos' };
             }
             
+            // Parsear planes para obtener precios principales
+            let mainPriceSoles = 0;
+            let mainPriceDollars = 0;
+            
+            try {
+                const plans = typeof productData.plans === 'string' ? 
+                    JSON.parse(productData.plans) : productData.plans;
+                
+                if (plans && plans.length > 0) {
+                    const firstPlan = plans[0];
+                    mainPriceSoles = firstPlan.price_soles || 0;
+                    mainPriceDollars = firstPlan.price_dollars || 0;
+                }
+            } catch (error) {
+                console.error('Error parsing plans for main prices:', error);
+            }
+            
+            // Preparar datos para actualizar
+            const updateData = {
+                name: productData.name,
+                description: productData.description,
+                category_id: productData.category_id,
+                photo_url: productData.photo_url,
+                plans: productData.plans,
+                price_soles: mainPriceSoles,
+                price_dollars: mainPriceDollars
+            };
+            
             const { data, error } = await supabase
                 .from('products')
-                .update(productData)
+                .update(updateData)
                 .eq('id', id)
                 .select()
                 .single();
