@@ -474,6 +474,7 @@ class CategoriesModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
         this.eventListeners = new Map();
+        this.handleCategoryClick = this.handleCategoryClick.bind(this);
     }
 
     setupEventListeners() {
@@ -490,7 +491,7 @@ class CategoriesModal {
             });
         });
 
-        // Event listeners para categorías (delegación de eventos)
+        // Configurar eventos para categorías existentes
         this.setupCategoryEventListeners();
     }
 
@@ -511,136 +512,164 @@ class CategoriesModal {
     }
 
     async open() {
-        if (!this.modalManager.showModal('categoriesModal')) return;
-        await this.renderCategoriesList();
-        this.setupEventListeners();
+        try {
+            // Asegurarse de que el categoryManager esté inicializado
+            if (!categoryManager.isInitialized) {
+                await categoryManager.initialize();
+            }
+            
+            if (!this.modalManager.showModal('categoriesModal')) return;
+            
+            await this.renderCategoriesList();
+            this.setupEventListeners();
+            
+        } catch (error) {
+            console.error('Error opening categories modal:', error);
+            Utils.showNotification('Error al abrir el modal de categorías', 'error');
+        }
     }
 
-async renderCategoriesList() {
-    const categoriesList = document.getElementById('categoriesList');
-    if (!categoriesList) return;
-    
-    // Asegurarse de que las categorías estén cargadas
-    if (!categoryManager.isInitialized) {
-        await categoryManager.loadCategories();
+    async renderCategoriesList() {
+        const categoriesList = document.getElementById('categoriesList');
+        if (!categoriesList) return;
+        
+        try {
+            // Cargar categorías si no están cargadas
+            if (categoryManager.categories.length === 0) {
+                await categoryManager.loadCategories();
+            }
+            
+            const categories = categoryManager.getCategories();
+            
+            if (!categories || categories.length === 0) {
+                categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No hay categorías</p>';
+                return;
+            }
+            
+            categoriesList.innerHTML = categories.map(category => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2" data-category-id="${category.id}">
+                    <div class="flex items-center">
+                        <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
+                        <span class="category-name font-medium">${category.name}</span>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button class="edit-category-btn text-blue-600 hover:text-blue-800 p-1" data-id="${category.id}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="delete-category-btn text-red-600 hover:text-red-800 p-1" data-id="${category.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+            
+        } catch (error) {
+            console.error('Error rendering categories list:', error);
+            categoriesList.innerHTML = '<p class="text-red-500 text-center py-4">Error al cargar categorías</p>';
+        }
     }
-    
-    const categories = categoryManager.getCategories();
-    
-    if (!categories || categories.length === 0) {
-        categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No hay categorías</p>';
-        return;
-    }
-    
-    categoriesList.innerHTML = categories.map(category => `
-        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2" data-category-id="${category.id}">
-            <div class="flex items-center">
-                <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
-                <span class="category-name font-medium">${category.name}</span>
-            </div>
-            <div class="flex space-x-2">
-                <button class="edit-category-btn text-blue-600 hover:text-blue-800 p-1" data-id="${category.id}">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="delete-category-btn text-red-600 hover:text-red-800 p-1" data-id="${category.id}">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
-}
 
     setupCategoryEventListeners() {
-        // Usar delegación de eventos para los botones dinámicos
         const categoriesList = document.getElementById('categoriesList');
         if (!categoriesList) return;
 
-        // Eliminar listeners previos si existen
-        categoriesList.removeEventListener('click', this.handleCategoryClick);
-        
-        // Agregar nuevo listener
-        this.handleCategoryClick = (e) => {
-            const editBtn = e.target.closest('.edit-category-btn');
-            const deleteBtn = e.target.closest('.delete-category-btn');
-            
-            if (editBtn) {
-                const categoryId = editBtn.dataset.id;
-                this.editCategory(categoryId);
-            }
-            
-            if (deleteBtn) {
-                const categoryId = deleteBtn.dataset.id;
-                this.confirmDeleteCategory(categoryId);
-            }
-        };
-        
+        // Usar delegación de eventos para manejar los botones dinámicos
         categoriesList.addEventListener('click', this.handleCategoryClick);
-        this.eventListeners.set('categories-list-click', { 
-            element: categoriesList, 
-            event: 'click', 
-            handler: this.handleCategoryClick 
+        
+        // Guardar referencia para poder removerlo después
+        this.eventListeners.set('categories-list-click', {
+            element: categoriesList,
+            event: 'click',
+            handler: this.handleCategoryClick
         });
     }
 
-    async editCategory(categoryId) {
-        if (!categoryManager.isInitialized) {
-        await categoryManager.loadCategories();
+    handleCategoryClick(e) {
+        const editBtn = e.target.closest('.edit-category-btn');
+        const deleteBtn = e.target.closest('.delete-category-btn');
+        
+        if (editBtn) {
+            const categoryId = editBtn.dataset.id;
+            this.editCategory(categoryId);
         }
         
-        const category = categoryManager.getCategoryById(categoryId);
-        if (!category) return;
+        if (deleteBtn) {
+            const categoryId = deleteBtn.dataset.id;
+            this.confirmDeleteCategory(categoryId);
+        }
+    }
 
-        const newName = prompt('Nuevo nombre de categoría:', category.name);
-        if (!newName || newName.trim() === '') return;
-
-        const newColor = prompt('Nuevo color (hexadecimal):', category.color || '#3B82F6');
-        
+    async editCategory(categoryId) {
         try {
+            const category = categoryManager.getCategoryById(categoryId);
+            if (!category) {
+                Utils.showNotification('Categoría no encontrada', 'error');
+                return;
+            }
+
+            const newName = prompt('Nuevo nombre de categoría:', category.name);
+            if (!newName || newName.trim() === '') return;
+
+            const newColor = prompt('Nuevo color (hexadecimal):', category.color || '#3B82F6');
+            if (!newColor) return;
+
             Utils.showLoading('Actualizando categoría...');
             const result = await categoryManager.updateCategory(categoryId, {
                 name: newName.trim(),
-                color: newColor || '#3B82F6'
+                color: newColor.trim()
             });
 
             if (result.success) {
                 await this.renderCategoriesList();
+                // Actualizar filtros en la página principal si existe
                 if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
                     window.adminPage.renderCategoryFilters();
                 }
                 Utils.showNotification('Categoría actualizada correctamente', 'success');
             } else {
-                Utils.showNotification(result.error, 'error');
+                Utils.showNotification(result.error || 'Error al actualizar categoría', 'error');
             }
         } catch (error) {
             console.error('Error editing category:', error);
-            Utils.showNotification('Error al actualizar la categoría');
+            Utils.showNotification('Error al actualizar la categoría', 'error');
         } finally {
             Utils.hideLoading();
         }
     }
 
     async confirmDeleteCategory(categoryId) {
-        const category = categoryManager.getCategoryById(categoryId);
-        if (!category) {
-            Utils.showNotification('Categoría no encontrada', 'error');
-            return;
-        }
-        
-        const confirmed = confirm(`¿Estás seguro de que deseas eliminar la categoría "${category.name}"? Los productos en esta categoría perderán su asociación.`);
-        
-        if (confirmed) {
-            Utils.showLoading('Eliminando categoría...');
-            const result = await categoryManager.deleteCategory(categoryId);
-            
-            if (result.success) {
-                await this.renderCategoriesList();
-                if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
-                    window.adminPage.renderCategoryFilters();
-                }
-                Utils.showNotification('Categoría eliminada correctamente', 'success');
-            } else {
-                Utils.showNotification(result.error, 'error');
+        try {
+            const category = categoryManager.getCategoryById(categoryId);
+            if (!category) {
+                Utils.showNotification('Categoría no encontrada', 'error');
+                return;
             }
+            
+            const confirmed = await Utils.showConfirm(
+                'Eliminar categoría',
+                `¿Estás seguro de que deseas eliminar la categoría "${category.name}"? Los productos en esta categoría perderán su asociación.`,
+                'warning'
+            );
+            
+            if (confirmed) {
+                Utils.showLoading('Eliminando categoría...');
+                const result = await categoryManager.deleteCategory(categoryId);
+                
+                if (result.success) {
+                    await this.renderCategoriesList();
+                    // Actualizar filtros en la página principal
+                    if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
+                        window.adminPage.renderCategoryFilters();
+                    }
+                    Utils.showNotification('Categoría eliminada correctamente', 'success');
+                } else {
+                    Utils.showNotification(result.error || 'Error al eliminar categoría', 'error');
+                }
+            }
+        } catch (error) {
+            console.error('Error deleting category:', error);
+            Utils.showNotification('Error al eliminar la categoría', 'error');
+        } finally {
             Utils.hideLoading();
         }
     }
@@ -666,16 +695,17 @@ async renderCategoriesList() {
             if (result.success) {
                 nameInput.value = '';
                 await this.renderCategoriesList();
+                // Actualizar filtros en la página principal
                 if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
                     window.adminPage.renderCategoryFilters();
                 }
-                Utils.showSuccess('Categoría creada correctamente');
+                Utils.showNotification('Categoría creada correctamente', 'success');
             } else {
-                Utils.showError(result.error);
+                Utils.showNotification(result.error || 'Error al crear categoría', 'error');
             }
         } catch (error) {
             console.error('Error adding category:', error);
-            Utils.showError('Error al crear la categoría: ' + error.message);
+            Utils.showNotification('Error al crear la categoría: ' + error.message, 'error');
         } finally {
             Utils.hideLoading();
         }
