@@ -109,6 +109,13 @@ class ProductModal {
             }, 500));
         }
 
+        // Validación en tiempo real de precios
+        this.addListener(document.getElementById('productForm'), 'input', (e) => {
+            if (e.target.classList.contains('plan-price-soles') || e.target.classList.contains('plan-price-dollars')) {
+                this.validatePriceInputs(e.target.closest('.plan-row'));
+            }
+        });
+
         // Form submission
         const productForm = document.getElementById('productForm');
         if (productForm) {
@@ -129,6 +136,21 @@ class ProductModal {
         }
     }
 
+    validatePriceInputs(planRow) {
+        const priceSoles = parseFloat(planRow.querySelector('.plan-price-soles').value) || 0;
+        const priceDollars = parseFloat(planRow.querySelector('.plan-price-dollars').value) || 0;
+        
+        const hasValidPrice = priceSoles > 0 || priceDollars > 0;
+        
+        const inputs = planRow.querySelectorAll('.plan-price-soles, .plan-price-dollars');
+        inputs.forEach(input => {
+            if (hasValidPrice) {
+                input.style.borderColor = '';
+            } else {
+                input.style.borderColor = 'red';
+            }
+        });
+    }
     removeEventListeners() {
         this.eventListeners.forEach(({ element, event, handler }) => {
             element.removeEventListener(event, handler);
