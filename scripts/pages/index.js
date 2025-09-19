@@ -87,29 +87,78 @@ class IndexPage {
     }
 
     renderPlans(plans) {
-        if (!plans || !Array.isArray(plans) || plans.length === 0) {
+        let parsedPlans = [];
+        
+        try {
+            if (typeof plans === 'string') {
+                parsedPlans = JSON.parse(plans);
+            } else if (Array.isArray(plans)) {
+                parsedPlans = plans;
+            } else if (plans && typeof plans === 'object') {
+                parsedPlans = Object.values(plans);
+            }
+        } catch (error) {
+            console.error('Error parsing plans:', error);
+            parsedPlans = [];
+        }
+        
+        if (!parsedPlans || parsedPlans.length === 0) {
             return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
         }
         
-        // Parse plans if they are stored as string
-        const parsedPlans = typeof plans === 'string' ? JSON.parse(plans) : plans;
-        
-        return `
+        let html = `
             <div class="space-y-2">
-                ${parsedPlans.slice(0, 3).map(plan => `
-                    <div class="flex justify-between items-center text-sm">
-                        <span class="font-medium">${plan.name}</span>
+                <h4 class="font-medium text-sm text-gray-700 mb-1">Planes:</h4>
+        `;
+        
+        // Mostrar máximo 2 planes principales
+        parsedPlans.slice(0, 2).forEach(plan => {
+            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+            
+            html += `
+                <div class="flex justify-between items-center text-xs">
+                    <span class="font-medium">${plan.name}</span>
+                    <div class="text-right">
+                        ${priceSoles > 0 ? `<div class="font-semibold">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                        ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        // Mostrar contador si hay más planes
+        if (parsedPlans.length > 2) {
+            html += `
+                <div class="text-xs text-blue-600 text-center cursor-pointer view-more-trigger" 
+                    onclick="this.closest('.product-card').querySelector('.additional-plans').classList.toggle('hidden'); this.classList.add('hidden');">
+                    +${parsedPlans.length - 2} planes más
+                </div>
+                
+                <div class="additional-plans hidden space-y-2">
+            `;
+            
+            parsedPlans.slice(2).forEach(plan => {
+                const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+                const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+                
+                html += `
+                    <div class="flex justify-between items-center text-xs">
+                        <span>${plan.name}</span>
                         <div class="text-right">
-                            <div class="font-semibold">${Utils.formatCurrency(plan.price_soles || 0, 'PEN')}</div>
-                            ${plan.price_dollars ? `<div class="text-gray-500">${Utils.formatCurrency(plan.price_dollars, 'USD')}</div>` : ''}
+                            ${priceSoles > 0 ? `<div>${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                            ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
                         </div>
                     </div>
-                `).join('')}
-                ${parsedPlans.length > 3 ? `<div class="text-xs text-gray-500 text-center">+${parsedPlans.length - 3} más</div>` : ''}
-            </div>
-        `;
+                `;
+            });
+            
+            html += `</div>`;
+        }
+        
+        html += '</div>';
+        return html;
     }
-
     showError() {
         const productsGrid = document.getElementById('productsGrid');
         if (!productsGrid) return;
