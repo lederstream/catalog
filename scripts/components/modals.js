@@ -516,34 +516,39 @@ class CategoriesModal {
         this.setupEventListeners();
     }
 
-    async renderCategoriesList() {
-        const categoriesList = document.getElementById('categoriesList');
-        if (!categoriesList) return;
-        
-        const { success, categories } = await categoryManager.loadCategories();
-        
-        if (!success || !categories || categories.length === 0) {
-            categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No hay categorías</p>';
-            return;
-        }
-        
-        categoriesList.innerHTML = categories.map(category => `
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-category-id="${category.id}">
-                <div class="flex items-center">
-                    <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
-                    <span class="category-name">${category.name}</span>
-                </div>
-                <div class="flex space-x-2">
-                    <button class="edit-category-btn text-blue-600 hover:text-blue-800" data-id="${category.id}">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="delete-category-btn text-red-600 hover:text-red-800" data-id="${category.id}">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </div>
-            </div>
-        `).join('');
+async renderCategoriesList() {
+    const categoriesList = document.getElementById('categoriesList');
+    if (!categoriesList) return;
+    
+    // Asegurarse de que las categorías estén cargadas
+    if (!categoryManager.isInitialized) {
+        await categoryManager.loadCategories();
     }
+    
+    const categories = categoryManager.getCategories();
+    
+    if (!categories || categories.length === 0) {
+        categoriesList.innerHTML = '<p class="text-gray-500 text-center py-4">No hay categorías</p>';
+        return;
+    }
+    
+    categoriesList.innerHTML = categories.map(category => `
+        <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg mb-2" data-category-id="${category.id}">
+            <div class="flex items-center">
+                <span class="w-4 h-4 rounded-full mr-3" style="background-color: ${category.color || '#3B82F6'}"></span>
+                <span class="category-name font-medium">${category.name}</span>
+            </div>
+            <div class="flex space-x-2">
+                <button class="edit-category-btn text-blue-600 hover:text-blue-800 p-1" data-id="${category.id}">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-category-btn text-red-600 hover:text-red-800 p-1" data-id="${category.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
 
     setupCategoryEventListeners() {
         // Usar delegación de eventos para los botones dinámicos
@@ -578,6 +583,10 @@ class CategoriesModal {
     }
 
     async editCategory(categoryId) {
+        if (!categoryManager.isInitialized) {
+        await categoryManager.loadCategories();
+        }
+        
         const category = categoryManager.getCategoryById(categoryId);
         if (!category) return;
 
@@ -598,7 +607,7 @@ class CategoriesModal {
                 if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
                     window.adminPage.renderCategoryFilters();
                 }
-                Utils.showSuccess('Categoría actualizada correctamente');
+                Utils.showSuccess('Categoría actualizada correctamente', 'success');
             } else {
                 Utils.showError(result.error);
             }
