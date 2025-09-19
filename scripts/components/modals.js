@@ -474,7 +474,6 @@ class CategoriesModal {
     constructor(modalManager) {
         this.modalManager = modalManager;
         this.eventListeners = new Map();
-        this.handleCategoryClick = this.handleCategoryClick.bind(this);
     }
 
     setupEventListeners() {
