@@ -348,71 +348,82 @@ class ProductModal {
         }
     }
 
-async handleProductSubmit(e) {
-    e.preventDefault();
-    
-    const productId = document.getElementById('productId').value;
-    
-    try {
-        // Obtener valores directamente de los inputs
-        const name = document.getElementById('name').value;
-        const category = document.getElementById('category').value;
-        const description = document.getElementById('description').value;
-        const photo_url = document.getElementById('photo_url').value;
+    async handleProductSubmit(e) {
+        e.preventDefault();
         
-        // Collect plan data
-        const plans = [];
-        document.querySelectorAll('.plan-row').forEach(row => {
-            const name = row.querySelector('.plan-name').value;
-            const price_soles = parseFloat(row.querySelector('.plan-price-soles').value) || 0;
-            const price_dollars = parseFloat(row.querySelector('.plan-price-dollars').value) || 0;
-            const features = row.querySelector('.plan-features').value;
+        const productId = document.getElementById('productId').value;
+        
+        try {
+            // Obtener valores directamente de los inputs
+            const name = document.getElementById('name').value;
+            const category = document.getElementById('category').value;
+            const description = document.getElementById('description').value;
+            const photo_url = document.getElementById('photo_url').value;
             
-            if (name) {
-                plans.push({
-                    name,
-                    price_soles: price_soles > 0 ? price_soles : null,
-                    price_dollars: price_dollars > 0 ? price_dollars : null,
-                    features: features ? features.split(',').map(f => f.trim()) : []
-                });
+            // Collect plan data - CORREGIDO
+            const plans = [];
+            document.querySelectorAll('.plan-row').forEach(row => {
+                const name = row.querySelector('.plan-name').value;
+                const price_soles = parseFloat(row.querySelector('.plan-price-soles').value) || 0;
+                const price_dollars = parseFloat(row.querySelector('.plan-price-dollars').value) || 0;
+                const features = row.querySelector('.plan-features').value;
+                
+                if (name) {
+                    // CORRECCIÓN: Asegurar que al menos un precio tenga valor
+                    const hasValidPrice = price_soles > 0 || price_dollars > 0;
+                    
+                    if (hasValidPrice) {
+                        plans.push({
+                            name,
+                            price_soles: price_soles > 0 ? price_soles : null,
+                            price_dollars: price_dollars > 0 ? price_dollars : null,
+                            features: features ? features.split(',').map(f => f.trim()) : []
+                        });
+                    } else {
+                        Utils.showNotification(`El plan "${name}" debe tener al menos un precio válido`, 'error');
+                        throw new Error('Plan sin precio válido');
+                    }
+                }
+            });
+            
+            // Validar usando los valores directos
+            if (!this.validateForm(name, category, description, photo_url, plans)) {
+                return;
             }
-        });
-        
-        // Validar usando los valores directos
-        if (!this.validateForm(name, category, description, photo_url, plans)) {
-            return;
+            
+            // Prepare product data
+            const productData = {
+                name: name,
+                description: description,
+                category_id: category,
+                photo_url: photo_url,
+                plans: JSON.stringify(plans),
+            };
+            
+            console.log('Enviando datos del producto:', productData);
+            
+            let result;
+            if (productId) {
+                result = await productManager.updateProduct(productId, productData);
+                Utils.showNotification('Producto actualizado correctamente', 'success');
+            } else {
+                result = await productManager.createProduct(productData);
+                Utils.showNotification('Producto creado correctamente', 'success');
+            }
+            
+            this.modalManager.hideCurrentModal();
+            
+            if (window.adminPage && typeof window.adminPage.loadData === 'function') {
+                window.adminPage.loadData(true);
+            }
+            
+        } catch (error) {
+            console.error('Error saving product:', error);
+            if (!error.message.includes('Plan sin precio válido')) {
+                Utils.showNotification('Error al guardar el producto: ' + error.message, 'error');
+            }
         }
-        
-        // Prepare product data
-        const productData = {
-            name: name,
-            description: description,
-            category_id: category,
-            photo_url: photo_url,
-            plans: JSON.stringify(plans),
-        };
-        
-        let result;
-        if (productId) {
-            result = await productManager.updateProduct(productId, productData);
-            Utils.showNotification('Producto actualizado correctamente', 'success');
-        } else {
-            result = await productManager.createProduct(productData);
-            Utils.showNotification('Producto creado correctamente', 'success');
-        }
-        
-        this.modalManager.hideCurrentModal();
-        
-        if (window.adminPage && typeof window.adminPage.loadData === 'function') {
-            window.adminPage.loadData(true);
-        }
-        
-    } catch (error) {
-        console.error('Error saving product:', error);
-        Utils.showNotification('Error al guardar el producto: ' + error.message, 'error');
     }
-}
-
 validateForm(name, category, description, photoUrl, plans) {
     // Validar nombre
     if (!name || name.trim().length < 2) {
