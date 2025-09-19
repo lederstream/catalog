@@ -607,34 +607,87 @@ class CategoriesModal {
                 return;
             }
 
-            const newName = prompt('Nuevo nombre de categoría:', category.name);
-            if (!newName || newName.trim() === '') return;
-
-            const newColor = prompt('Nuevo color (hexadecimal):', category.color || '#3B82F6');
-            if (!newColor) return;
-
-            Utils.showLoading('Actualizando categoría...');
-            const result = await categoryManager.updateCategory(categoryId, {
-                name: newName.trim(),
-                color: newColor.trim()
-            });
-
-            if (result.success) {
-                await this.renderCategoriesList();
-                // Actualizar filtros en la página principal si existe
-                if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
-                    window.adminPage.renderCategoryFilters();
-                }
-                Utils.showNotification('Categoría actualizada correctamente', 'success');
-            } else {
-                Utils.showNotification(result.error || 'Error al actualizar categoría', 'error');
-            }
+            // Crear modal de edición en lugar de usar prompt
+            this.createEditModal(category);
+            
         } catch (error) {
             console.error('Error editing category:', error);
             Utils.showNotification('Error al actualizar la categoría', 'error');
-        } finally {
-            Utils.hideLoading();
         }
+    }
+
+    createEditModal(category) {
+        // Eliminar modal existente si hay uno
+        if (this.editModal) {
+            this.editModal.remove();
+        }
+
+        // Crear modal de edición
+        this.editModal = document.createElement('div');
+        this.editModal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50';
+        this.editModal.innerHTML = `
+            <div class="bg-white rounded-lg p-6 w-96">
+                <h3 class="text-lg font-semibold mb-4">Editar Categoría</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-700 mb-1">Nombre</label>
+                        <input type="text" id="editCategoryName" value="${category.name}" 
+                            class="w-full px-3 py-2 border rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-700 mb-1">Color</label>
+                        <input type="color" id="editCategoryColor" value="${category.color || '#3B82F6'}" 
+                            class="w-full h-10 p-1 border rounded-lg">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 mt-6">
+                    <button class="cancel-edit px-4 py-2 bg-gray-200 rounded-lg">Cancelar</button>
+                    <button class="save-edit px-4 py-2 bg-blue-500 text-white rounded-lg">Guardar</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(this.editModal);
+        
+        // Manejar eventos
+        this.editModal.querySelector('.cancel-edit').addEventListener('click', () => {
+            this.editModal.remove();
+            this.editModal = null;
+        });
+        
+        this.editModal.querySelector('.save-edit').addEventListener('click', async () => {
+            await this.saveCategoryChanges(category.id);
+        });
+    }
+
+    async saveCategoryChanges(categoryId) {
+        const newName = this.editModal.querySelector('#editCategoryName').value.trim();
+        const newColor = this.editModal.querySelector('#editCategoryColor').value;
+        
+        if (!newName) {
+            Utils.showNotification('El nombre no puede estar vacío', 'error');
+            return;
+        }
+        
+        Utils.showLoading('Actualizando categoría...');
+        const result = await categoryManager.updateCategory(categoryId, {
+            name: newName,
+            color: newColor
+        });
+        
+        this.editModal.remove();
+        this.editModal = null;
+        
+        if (result.success) {
+            await this.renderCategoriesList();
+            if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
+                window.adminPage.renderCategoryFilters();
+            }
+            Utils.showNotification('Categoría actualizada correctamente', 'success');
+        } else {
+            Utils.showNotification(result.error || 'Error al actualizar categoría', 'error');
+        }
+        Utils.hideLoading();
     }
 
     async confirmDeleteCategory(categoryId) {
@@ -676,7 +729,9 @@ class CategoriesModal {
 
     async handleAddCategory() {
         const nameInput = document.getElementById('newCategoryName');
+        const colorInput = document.getElementById('newCategoryColor'); // NUEVO: input de color
         const name = nameInput.value.trim();
+        const color = colorInput ? colorInput.value : '#3B82F6'; // NUEVO: obtener color
         
         if (!name) {
             Utils.showNotification('Por favor ingrese un nombre de categoría', 'error');
@@ -690,10 +745,11 @@ class CategoriesModal {
         
         try {
             Utils.showLoading('Creando categoría...');
-            const result = await categoryManager.createCategory(name);
+            const result = await categoryManager.createCategory(name, color); // Pasar color
             
             if (result.success) {
                 nameInput.value = '';
+                if (colorInput) colorInput.value = '#3B82F6'; // Resetear color
                 await this.renderCategoriesList();
                 // Actualizar filtros en la página principal
                 if (window.adminPage && typeof window.adminPage.renderCategoryFilters === 'function') {
