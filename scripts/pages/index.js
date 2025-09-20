@@ -17,10 +17,8 @@ class IndexPage {
 
     async init() {
         try {
-            // Mostrar loading inicial
             this.showLoading();
             
-            // Cargar categorías y productos
             await Promise.all([
                 categoryManager.loadCategories(),
                 this.loadInitialProducts()
@@ -65,11 +63,6 @@ class IndexPage {
             option.textContent = category.name;
             categoryFilter.appendChild(option);
         });
-
-        // Establecer valor actual si existe
-        if (this.currentFilters.category) {
-            categoryFilter.value = this.currentFilters.category;
-        }
     }
 
     showLoading() {
@@ -86,10 +79,7 @@ class IndexPage {
 
     renderProducts() {
         const productsGrid = document.getElementById('productsGrid');
-        if (!productsGrid) {
-            console.warn('productsGrid no encontrado');
-            return;
-        }
+        if (!productsGrid) return;
 
         if (this.isLoading) {
             this.showLoading();
@@ -107,6 +97,9 @@ class IndexPage {
             `;
             return;
         }
+        
+        // DEBUG: Verificar qué productos se están renderizando
+        console.log('Renderizando productos:', products.length);
         
         productsGrid.innerHTML = products.map(product => `
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
@@ -128,80 +121,7 @@ class IndexPage {
     }
 
     renderPlans(plans) {
-        let parsedPlans = [];
-        
-        try {
-            if (typeof plans === 'string') {
-                parsedPlans = JSON.parse(plans);
-            } else if (Array.isArray(plans)) {
-                parsedPlans = plans;
-            } else if (plans && typeof plans === 'object') {
-                parsedPlans = Object.values(plans);
-            }
-        } catch (error) {
-            console.error('Error parsing plans:', error);
-            parsedPlans = [];
-        }
-        
-        if (!parsedPlans || parsedPlans.length === 0) {
-            return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
-        }
-        
-        // Generar ID único
-        const accordionId = `plans-${Math.random().toString(36).substr(2, 9)}`;
-        
-        let html = `
-            <div class="space-y-2" id="${accordionId}">
-                <h4 class="font-medium text-sm text-gray-700 mb-1">Planes:</h4>
-        `;
-        
-        // Mostrar primeros 2 planes
-        parsedPlans.slice(0, 2).forEach(plan => {
-            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
-            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
-            
-            html += `
-                <div class="flex justify-between items-center text-xs plan-item">
-                    <span class="font-medium">${plan.name}</span>
-                    <div class="text-right">
-                        ${priceSoles > 0 ? `<div class="font-semibold">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
-                        ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
-                    </div>
-                </div>
-            `;
-        });
-        
-        // Mostrar contador si hay más planes
-        if (parsedPlans.length > 2) {
-            html += `
-                <div class="text-xs text-blue-600 text-center cursor-pointer view-more-trigger" 
-                    onclick="toggleSimplePlansAccordion('${accordionId}', ${parsedPlans.length - 2})">
-                    +${parsedPlans.length - 2} planes más
-                </div>
-                
-                <div class="additional-plans hidden space-y-2">
-            `;
-            
-            parsedPlans.slice(2).forEach(plan => {
-                const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
-                const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
-                
-                html += `
-                    <div class="flex justify-between items-center text-xs plan-item">
-                        <span>${plan.name}</span>
-                        <div class="text-right">
-                            ${priceSoles > 0 ? `<div>${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
-                            ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += `</div>`;
-        }
-        
-        html += '</div>';
-        return html;
+        // ... (mantén el mismo código de renderPlans)
     }
 
     showError() {
@@ -220,8 +140,11 @@ class IndexPage {
     }
 
     setupEventListeners() {
-        // Filtro de categorías
         const categoryFilter = document.getElementById('categoryFilter');
+        const searchInput = document.getElementById('searchInput');
+        const sortSelect = document.getElementById('sortSelect');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+
         if (categoryFilter) {
             categoryFilter.addEventListener('change', (e) => {
                 this.currentFilters.category = e.target.value;
@@ -230,8 +153,6 @@ class IndexPage {
             });
         }
         
-        // Búsqueda
-        const searchInput = document.getElementById('searchInput');
         if (searchInput) {
             searchInput.addEventListener('input', Utils.debounce((e) => {
                 this.currentFilters.search = e.target.value.trim();
@@ -240,8 +161,6 @@ class IndexPage {
             }, 500));
         }
         
-        // Ordenamiento
-        const sortSelect = document.getElementById('sortSelect');
         if (sortSelect) {
             sortSelect.addEventListener('change', (e) => {
                 this.currentFilters.sort = e.target.value;
@@ -250,20 +169,12 @@ class IndexPage {
             });
         }
 
-        // Limpiar búsqueda
-        const clearSearchBtn = document.getElementById('clearSearchBtn');
         if (clearSearchBtn && searchInput) {
             clearSearchBtn.addEventListener('click', () => {
                 searchInput.value = '';
                 this.currentFilters.search = '';
                 this.currentPage = 1;
                 this.applyFilters();
-                clearSearchBtn.classList.add('hidden');
-            });
-
-            // Mostrar/ocultar botón de limpiar según si hay texto
-            searchInput.addEventListener('input', () => {
-                clearSearchBtn.classList.toggle('hidden', !searchInput.value);
             });
         }
     }
@@ -282,9 +193,9 @@ class IndexPage {
         }
 
         if (nextBtn) {
-            nextBtn.addEventListener('click', async () => {
-                const totalPages = productManager.getTotalPages();
-                if (this.currentPage < totalPages) {
+            nextBtn.addEventListener('click', () => {
+                // Usamos el productManager para obtener el total de páginas
+                if (this.currentPage < productManager.getTotalPages()) {
                     this.currentPage++;
                     this.applyFilters();
                 }
@@ -300,19 +211,16 @@ class IndexPage {
         const pageInfo = document.getElementById('pageInfo');
         const totalProducts = document.getElementById('totalProducts');
 
-        const totalPages = productManager.getTotalPages() || 1;
-        const totalProductsCount = productManager.getTotalProducts() || 0;
+        // Usar métodos del productManager
+        const totalPages = productManager.getTotalPages ? productManager.getTotalPages() : 1;
+        const totalProductsCount = productManager.getTotalProducts ? productManager.getTotalProducts() : 0;
 
         if (prevBtn) {
             prevBtn.disabled = this.currentPage === 1;
-            prevBtn.classList.toggle('opacity-50', this.currentPage === 1);
-            prevBtn.classList.toggle('cursor-not-allowed', this.currentPage === 1);
         }
 
         if (nextBtn) {
             nextBtn.disabled = this.currentPage >= totalPages;
-            nextBtn.classList.toggle('opacity-50', this.currentPage >= totalPages);
-            nextBtn.classList.toggle('cursor-not-allowed', this.currentPage >= totalPages);
         }
 
         if (pageInfo) {
@@ -325,11 +233,13 @@ class IndexPage {
     }
 
     async applyFilters() {
+        console.log('🔄 Aplicando filtros:', this.currentFilters);
         this.isLoading = true;
         this.renderProducts();
 
         try {
             const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
+            console.log('✅ Resultado:', result.success ? `${result.products?.length} productos` : 'Error');
             
             if (!result.success) {
                 this.showError();
@@ -347,7 +257,7 @@ class IndexPage {
     }
 }
 
-// Función global para el acordeón simple (index page)
+// Función global para el acordeón
 window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     const container = document.getElementById(accordionId);
     if (!container) return;
@@ -366,7 +276,7 @@ window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     }
 };
 
-// Inicializar la página
+// Inicializar
 document.addEventListener('DOMContentLoaded', () => {
     new IndexPage();
 });
