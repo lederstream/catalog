@@ -234,6 +234,7 @@ class AdminPage {
                                     <div class="flex justify-between text-xs">
                                         <span>${plan.name}</span>
                                         <span>${Utils.formatCurrency(plan.price_soles || 0, 'PEN')}</span>
+                                        <span>${Utils.formatCurrency(plan.price_dollars || 0, 'USD')}</span>
                                     </div>
                                 `).join('')}
                                 ${plans.length > 2 ? `<div class="text-xs text-gray-500">+${plans.length - 2} más</div>` : ''}
