@@ -17,6 +17,9 @@ class IndexPage {
 
     async init() {
         try {
+            // Mostrar loading inicial
+            this.showLoading();
+            
             // Cargar categorías y productos
             await Promise.all([
                 categoryManager.loadCategories(),
@@ -42,7 +45,10 @@ class IndexPage {
 
     populateCategoryFilter() {
         const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter) return;
+        if (!categoryFilter) {
+            console.warn('categoryFilter no encontrado');
+            return;
+        }
         
         const categories = categoryManager.getCategories();
         if (!categories || categories.length === 0) return;
@@ -66,42 +72,47 @@ class IndexPage {
         }
     }
 
+    showLoading() {
+        const productsGrid = document.getElementById('productsGrid');
+        if (!productsGrid) return;
+        
+        productsGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3"></i>
+                <p class="text-gray-500">Cargando productos...</p>
+            </div>
+        `;
+    }
+
     renderProducts() {
         const productsGrid = document.getElementById('productsGrid');
-        const loadingElement = document.getElementById('loadingProducts');
-        const errorElement = document.getElementById('productsError');
-        
+        if (!productsGrid) {
+            console.warn('productsGrid no encontrado');
+            return;
+        }
+
         if (this.isLoading) {
-            productsGrid.classList.add('hidden');
-            loadingElement.classList.remove('hidden');
-            errorElement.classList.add('hidden');
+            this.showLoading();
             return;
         }
 
         const products = productManager.getProducts();
         
         if (!products || products.length === 0) {
-            productsGrid.classList.add('hidden');
-            loadingElement.classList.add('hidden');
-            errorElement.classList.remove('hidden');
-            errorElement.innerHTML = `
-                <div class="text-center py-12">
+            productsGrid.innerHTML = `
+                <div class="col-span-full text-center py-12">
                     <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No hay productos disponibles</p>
                 </div>
             `;
             return;
         }
-
-        productsGrid.classList.remove('hidden');
-        loadingElement.classList.add('hidden');
-        errorElement.classList.add('hidden');
         
         productsGrid.innerHTML = products.map(product => `
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
                 <div class="relative">
                     <img src="${product.photo_url}" alt="${product.name}" 
-                         class="w-full h-48 object-cover">
+                         class="w-full h-48 object-cover" onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+no+disponible'">
                     <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded-full" 
                           style="background-color: ${product.categories?.color || '#3B82F6'}">
                         ${product.categories?.name || 'Sin categoría'}
@@ -195,24 +206,17 @@ class IndexPage {
 
     showError() {
         const productsGrid = document.getElementById('productsGrid');
-        const loadingElement = document.getElementById('loadingProducts');
+        if (!productsGrid) return;
         
-        if (productsGrid) productsGrid.classList.add('hidden');
-        if (loadingElement) loadingElement.classList.add('hidden');
-        
-        const errorElement = document.getElementById('productsError');
-        if (errorElement) {
-            errorElement.classList.remove('hidden');
-            errorElement.innerHTML = `
-                <div class="text-center py-12">
-                    <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i>
-                    <p class="text-gray-500">Error al cargar los productos</p>
-                    <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" onclick="location.reload()">
-                        Reintentar
-                    </button>
-                </div>
-            `;
-        }
+        productsGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i>
+                <p class="text-gray-500">Error al cargar los productos</p>
+                <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" onclick="location.reload()">
+                    Reintentar
+                </button>
+            </div>
+        `;
     }
 
     setupEventListeners() {
@@ -248,14 +252,18 @@ class IndexPage {
 
         // Limpiar búsqueda
         const clearSearchBtn = document.getElementById('clearSearchBtn');
-        if (clearSearchBtn) {
+        if (clearSearchBtn && searchInput) {
             clearSearchBtn.addEventListener('click', () => {
-                if (searchInput) {
-                    searchInput.value = '';
-                    this.currentFilters.search = '';
-                    this.currentPage = 1;
-                    this.applyFilters();
-                }
+                searchInput.value = '';
+                this.currentFilters.search = '';
+                this.currentPage = 1;
+                this.applyFilters();
+                clearSearchBtn.classList.add('hidden');
+            });
+
+            // Mostrar/ocultar botón de limpiar según si hay texto
+            searchInput.addEventListener('input', () => {
+                clearSearchBtn.classList.toggle('hidden', !searchInput.value);
             });
         }
     }
@@ -263,7 +271,6 @@ class IndexPage {
     setupPagination() {
         const prevBtn = document.getElementById('prevPage');
         const nextBtn = document.getElementById('nextPage');
-        const pageInfo = document.getElementById('pageInfo');
 
         if (prevBtn) {
             prevBtn.addEventListener('click', () => {
@@ -293,21 +300,27 @@ class IndexPage {
         const pageInfo = document.getElementById('pageInfo');
         const totalProducts = document.getElementById('totalProducts');
 
+        const totalPages = productManager.getTotalPages() || 1;
+        const totalProductsCount = productManager.getTotalProducts() || 0;
+
         if (prevBtn) {
             prevBtn.disabled = this.currentPage === 1;
+            prevBtn.classList.toggle('opacity-50', this.currentPage === 1);
+            prevBtn.classList.toggle('cursor-not-allowed', this.currentPage === 1);
         }
 
         if (nextBtn) {
-            const totalPages = productManager.getTotalPages();
             nextBtn.disabled = this.currentPage >= totalPages;
+            nextBtn.classList.toggle('opacity-50', this.currentPage >= totalPages);
+            nextBtn.classList.toggle('cursor-not-allowed', this.currentPage >= totalPages);
         }
 
         if (pageInfo) {
-            pageInfo.textContent = `Página ${this.currentPage} de ${productManager.getTotalPages() || 1}`;
+            pageInfo.textContent = `Página ${this.currentPage} de ${totalPages}`;
         }
 
         if (totalProducts) {
-            totalProducts.textContent = `${productManager.getTotalProducts() || 0} productos encontrados`;
+            totalProducts.textContent = `${totalProductsCount} producto${totalProductsCount !== 1 ? 's' : ''} encontrado${totalProductsCount !== 1 ? 's' : ''}`;
         }
     }
 
@@ -342,10 +355,11 @@ window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     const additionalPlans = container.querySelector('.additional-plans');
     const viewMoreBtn = container.querySelector('.view-more-trigger');
     
+    if (!additionalPlans || !viewMoreBtn) return;
+    
     if (additionalPlans.classList.contains('hidden')) {
         additionalPlans.classList.remove('hidden');
         viewMoreBtn.textContent = 'Ocultar planes';
-        additionalPlans.style.animation = 'fadeIn 0.3s ease-in-out';
     } else {
         additionalPlans.classList.add('hidden');
         viewMoreBtn.textContent = `+${remainingPlansCount} planes más`;
