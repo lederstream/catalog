@@ -59,6 +59,10 @@ class IndexPage {
             option.textContent = category.name;
             categoryFilter.appendChild(option);
         });
+
+        if (this.currentFilters.category) {
+            categoryFilter.value = this.currentFilters.category;
+        }
     }
 
     renderProducts() {
@@ -234,7 +238,80 @@ class IndexPage {
             console.error('Error applying filters:', error);
         }
     }
+        setupPagination() {
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.applyFilters();
+                }
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', async () => {
+                const totalPages = productManager.getTotalPages();
+                if (this.currentPage < totalPages) {
+                    this.currentPage++;
+                    this.applyFilters();
+                }
+            });
+        }
+
+        this.updatePagination();
+    }
+
+    updatePagination() {
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+        const totalProducts = document.getElementById('totalProducts');
+
+        if (prevBtn) {
+            prevBtn.disabled = this.currentPage === 1;
+        }
+
+        if (nextBtn) {
+            const totalPages = productManager.getTotalPages();
+            nextBtn.disabled = this.currentPage >= totalPages;
+        }
+
+        if (pageInfo) {
+            pageInfo.textContent = `Página ${this.currentPage} de ${productManager.getTotalPages() || 1}`;
+        }
+
+        if (totalProducts) {
+            totalProducts.textContent = `${productManager.getTotalProducts() || 0} productos encontrados`;
+        }
+    }
+
+    async applyFilters() {
+        this.isLoading = true;
+        this.renderProducts();
+
+        try {
+            const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
+            
+            if (!result.success) {
+                this.showError();
+                return;
+            }
+
+            this.renderProducts();
+            this.updatePagination();
+        } catch (error) {
+            console.error('Error applying filters:', error);
+            this.showError();
+        } finally {
+            this.isLoading = false;
+        }
+    }
 }
+
 
 // Función global para el acordeón simple (index page)
 window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
