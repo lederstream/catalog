@@ -54,24 +54,64 @@
             <p class="text-center text-gray-600 mb-8">Explora todos nuestros productos y servicios disponibles</p>
             
             <!-- Filtros -->
-            <div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap items-center justify-between">
-                <div class="flex items-center space-x-4 mb-4 md:mb-0 w-full md:w-auto">
+            <div class="bg-white rounded-lg shadow p-4 mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-4 flex-1 min-w-[200px]">
                     <span class="font-medium hidden md:block">Filtrar por:</span>
-                    <select id="categoryFilter" class="w-full md:w-48 border rounded-lg px-3 py-2">
-                        <option value="all">Todas las categorías</option>
+                    <select id="categoryFilter" class="flex-1 border rounded-lg px-3 py-2">
+                        <option value="">Todas las categorías</option>
                         <!-- Las categorías se cargarán dinámicamente -->
                     </select>
                 </div>
-                <div class="w-full md:w-auto">
-                    <input type="text" id="searchInput" placeholder="Buscar productos..." class="w-full md:w-64 border rounded-lg px-4 py-2">
+                
+                <div class="flex items-center space-x-4 flex-1 min-w-[200px]">
+                    <span class="font-medium hidden md:block">Ordenar por:</span>
+                    <select id="sortSelect" class="flex-1 border rounded-lg px-3 py-2">
+                        <option value="newest">Más recientes</option>
+                        <option value="oldest">Más antiguos</option>
+                        <option value="name_asc">Nombre A-Z</option>
+                        <option value="name_desc">Nombre Z-A</option>
+                    </select>
+                </div>
+                
+                <div class="relative flex-1 min-w-[250px]">
+                    <input type="text" id="searchInput" placeholder="Buscar productos..." 
+                           class="w-full border rounded-lg px-4 py-2 pr-10">
+                    <button id="clearSearchBtn" class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 hidden">
+                        <i class="fas fa-times"></i>
+                    </button>
                 </div>
             </div>
+
+            <!-- Contador de resultados -->
+            <div class="mb-4">
+                <span id="totalProducts" class="text-sm text-gray-600">Cargando productos...</span>
+            </div>
+            
+            <!-- Estados -->
+            <div id="loadingProducts" class="hidden col-span-full text-center py-12">
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3"></i>
+                <p class="text-gray-500">Cargando productos...</p>
+            </div>
+
+            <div id="productsError" class="hidden col-span-full"></div>
             
             <!-- Grid de Productos -->
             <div id="productsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                <div class="text-center py-12 col-span-full">
-                    <div class="loading-spinner"></div>
-                    <p class="mt-4">Cargando productos...</p>
+                <!-- Los productos se cargarán aquí dinámicamente -->
+            </div>
+
+            <!-- Paginación -->
+            <div class="flex justify-between items-center mt-8 pt-6 border-t border-gray-200">
+                <div>
+                    <span id="pageInfo" class="text-sm text-gray-600">Página 1 de 1</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <button id="prevPage" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        <i class="fas fa-chevron-left mr-2"></i>Anterior
+                    </button>
+                    <button id="nextPage" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
+                        Siguiente<i class="fas fa-chevron-right ml-2"></i>
+                    </button>
                 </div>
             </div>
         </section>
