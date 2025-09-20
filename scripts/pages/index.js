@@ -67,19 +67,34 @@ class IndexPage {
 
     renderProducts() {
         const productsGrid = document.getElementById('productsGrid');
-        if (!productsGrid) return;
+        const loadingElement = document.getElementById('loadingProducts');
+        const errorElement = document.getElementById('productsError');
         
+        if (this.isLoading) {
+            productsGrid.classList.add('hidden');
+            loadingElement.classList.remove('hidden');
+            errorElement.classList.add('hidden');
+            return;
+        }
+
         const products = productManager.getProducts();
         
         if (!products || products.length === 0) {
-            productsGrid.innerHTML = `
-                <div class="text-center py-12 col-span-full">
+            productsGrid.classList.add('hidden');
+            loadingElement.classList.add('hidden');
+            errorElement.classList.remove('hidden');
+            errorElement.innerHTML = `
+                <div class="text-center py-12">
                     <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
                     <p class="text-gray-500">No hay productos disponibles</p>
                 </div>
             `;
             return;
         }
+
+        productsGrid.classList.remove('hidden');
+        loadingElement.classList.add('hidden');
+        errorElement.classList.add('hidden');
         
         productsGrid.innerHTML = products.map(product => `
             <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
@@ -99,7 +114,7 @@ class IndexPage {
             </div>
         `).join('');
     }
-
+    
     renderPlans(plans) {
         let parsedPlans = [];
         
