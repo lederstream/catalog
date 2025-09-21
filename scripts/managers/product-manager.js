@@ -23,10 +23,13 @@ class ProductManager {
             
             console.log('🔄 Cargando productos con filtros:', this.currentFilters);
             
-            // Construir consulta base
+            // CORRECCIÓN: Cambiar la consulta para que funcione con filtros
             let query = supabase
                 .from('products')
-                .select('*, categories(*)', { count: 'exact' });
+                .select(`
+                    *,
+                    categories (*)
+                `, { count: 'exact' });
             
             // Aplicar filtros
             if (this.currentFilters.category) {
@@ -69,7 +72,13 @@ class ProductManager {
             }
             
             console.log('✅ Productos cargados:', data?.length || 0);
-            this.products = data || [];
+            
+            // CORRECCIÓN: Asegurar que las categorías se procesen correctamente
+            this.products = data ? data.map(product => ({
+                ...product,
+                categories: Array.isArray(product.categories) ? product.categories[0] : product.categories
+            })) : [];
+            
             this.totalProducts = count || 0;
             
             return { success: true, products: this.products, total: this.totalProducts };
@@ -110,78 +119,31 @@ class ProductManager {
         try {
             const { data, error } = await supabase
                 .from('products')
-                .select('*, categories(name, color)')
+                .select('*, categories!inner(*)')
                 .eq('id', id)
                 .single();
             
             if (error) throw error;
-            return { success: true, product: data };
+            
+            // Procesar la categoría
+            const processedData = {
+                ...data,
+                categories: Array.isArray(data.categories) ? data.categories[0] : data.categories
+            };
+            
+            return { success: true, product: processedData };
         } catch (error) {
             console.error('Error al obtener producto:', error.message);
             return { success: false, error: error.message };
         }
     }
 
-async createProduct(productData) {
-    try {
-        if (!this.validateProduct(productData)) {
-            return { success: false, error: 'Datos del producto inválidos' };
-        }
-        
-        // Parsear planes para obtener precios principales
-        let mainPriceSoles = 0;
-        let mainPriceDollars = 0;
-        
-        try {
-            const plans = typeof productData.plans === 'string' ? 
-                JSON.parse(productData.plans) : productData.plans;
-            
-            if (plans && plans.length > 0) {
-                // Usar el precio del primer plan como precio principal
-                const firstPlan = plans[0];
-                mainPriceSoles = firstPlan.price_soles || 0;
-                mainPriceDollars = firstPlan.price_dollars || 0;
-            }
-        } catch (error) {
-            console.error('Error parsing plans for main prices:', error);
-        }
-        
-        // Preparar datos para insertar
-        const insertData = {
-            name: productData.name,
-            description: productData.description,
-            category_id: productData.category_id,
-            photo_url: productData.photo_url,
-            plans: productData.plans,
-            price_soles: mainPriceSoles,
-            price_dollars: mainPriceDollars
-        };
-        
-        const { data, error } = await supabase
-            .from('products')
-            .insert([insertData])
-            .select()
-            .single();
-        
-        if (error) throw error;
-        
-        // Recargar productos
-        await this.loadProducts(this.currentPage, this.currentFilters);
-        
-        return { success: true, product: data };
-    } catch (error) {
-        console.error('Error al crear producto:', error.message);
-        return { success: false, error: error.message };
-    }
-}
-
-    async updateProduct(id, productData) {
+    async createProduct(productData) {
         try {
             if (!this.validateProduct(productData)) {
                 return { success: false, error: 'Datos del producto inválidos' };
             }
             
-            // Parsear planes para obtener precios principales
             let mainPriceSoles = 0;
             let mainPriceDollars = 0;
             
@@ -198,7 +160,55 @@ async createProduct(productData) {
                 console.error('Error parsing plans for main prices:', error);
             }
             
-            // Preparar datos para actualizar
+            const insertData = {
+                name: productData.name,
+                description: productData.description,
+                category_id: productData.category_id,
+                photo_url: productData.photo_url,
+                plans: productData.plans,
+                price_soles: mainPriceSoles,
+                price_dollars: mainPriceDollars
+            };
+            
+            const { data, error } = await supabase
+                .from('products')
+                .insert([insertData])
+                .select()
+                .single();
+            
+            if (error) throw error;
+            
+            await this.loadProducts(this.currentPage, this.currentFilters);
+            
+            return { success: true, product: data };
+        } catch (error) {
+            console.error('Error al crear producto:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async updateProduct(id, productData) {
+        try {
+            if (!this.validateProduct(productData)) {
+                return { success: false, error: 'Datos del producto inválidos' };
+            }
+            
+            let mainPriceSoles = 0;
+            let mainPriceDollars = 0;
+            
+            try {
+                const plans = typeof productData.plans === 'string' ? 
+                    JSON.parse(productData.plans) : productData.plans;
+                
+                if (plans && plans.length > 0) {
+                    const firstPlan = plans[0];
+                    mainPriceSoles = firstPlan.price_soles || 0;
+                    mainPriceDollars = firstPlan.price_dollars || 0;
+                }
+            } catch (error) {
+                console.error('Error parsing plans for main prices:', error);
+            }
+            
             const updateData = {
                 name: productData.name,
                 description: productData.description,
@@ -218,7 +228,6 @@ async createProduct(productData) {
             
             if (error) throw error;
             
-            // Recargar productos
             await this.loadProducts(this.currentPage, this.currentFilters);
             
             return { success: true, product: data };
@@ -237,7 +246,6 @@ async createProduct(productData) {
             
             if (error) throw error;
             
-            // Recargar productos
             const newPage = this.currentPage > 1 && this.products.length === 1 ? 
                 this.currentPage - 1 : this.currentPage;
             await this.loadProducts(newPage, this.currentFilters);
@@ -251,22 +259,18 @@ async createProduct(productData) {
 
     validateProduct(productData) {
         if (!productData.name || productData.name.trim().length < 2) {
-            console.error('Validación fallida: Nombre muy corto');
             return false;
         }
         
         if (!productData.description || productData.description.trim().length < 10) {
-            console.error('Validación fallida: Descripción muy corta');
             return false;
         }
         
         if (!productData.category_id) {
-            console.error('Validación fallida: Sin categoría');
             return false;
         }
         
         if (!productData.photo_url) {
-            console.error('Validación fallida: Sin URL de foto');
             return false;
         }
         
@@ -275,27 +279,22 @@ async createProduct(productData) {
                 JSON.parse(productData.plans) : productData.plans;
                 
             if (!Array.isArray(plans) || plans.length === 0) {
-                console.error('Validación fallida: Sin planes');
                 return false;
             }
             
             for (const plan of plans) {
                 if (!plan.name || plan.name.trim().length === 0) {
-                    console.error('Validación fallida: Plan sin nombre');
                     return false;
                 }
                 
-                // CORRECCIÓN: Asegurar que al menos un precio tenga valor
                 const hasValidPrice = (plan.price_soles !== null && plan.price_soles !== undefined && plan.price_soles !== '') ||
                                     (plan.price_dollars !== null && plan.price_dollars !== undefined && plan.price_dollars !== '');
                 
                 if (!hasValidPrice) {
-                    console.error('Validación fallida: Plan sin precio válido', plan);
                     return false;
                 }
             }
         } catch (error) {
-            console.error('Error parsing plans:', error);
             return false;
         }
         
@@ -304,21 +303,18 @@ async createProduct(productData) {
 
     async getStats() {
         try {
-            // Obtener conteo total de productos
             const { count: totalProducts, error: productsError } = await supabase
                 .from('products')
                 .select('*', { count: 'exact' });
             
             if (productsError) throw productsError;
             
-            // Obtener categorías
             const { data: categoriesData, error: categoriesError } = await supabase
                 .from('categories')
                 .select('id, name, color');
             
             if (categoriesError) throw categoriesError;
             
-            // Obtener conteo por categoría
             const categoriesWithCount = await Promise.all(
                 categoriesData.map(async category => {
                     const { count, error } = await supabase
@@ -335,10 +331,9 @@ async createProduct(productData) {
                 })
             );
             
-            // Obtener productos recientes
             const { data: recentProducts, error: recentError } = await supabase
                 .from('products')
-                .select('*, categories(name)')
+                .select('*, categories!inner(*)')
                 .order('created_at', { ascending: false })
                 .limit(5);
             
@@ -349,7 +344,10 @@ async createProduct(productData) {
                 stats: {
                     totalProducts,
                     categories: categoriesWithCount,
-                    recentProducts
+                    recentProducts: recentProducts.map(p => ({
+                        ...p,
+                        categories: Array.isArray(p.categories) ? p.categories[0] : p.categories
+                    }))
                 }
             };
         } catch (error) {
