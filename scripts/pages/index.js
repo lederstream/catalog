@@ -315,7 +315,7 @@ renderProducts() {
 async applyFilters() {
     console.log('🔄 Aplicando filtros...');
     this.isLoading = true;
-    this.renderProducts();
+    this.showLoading();
 
     try {
         const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
