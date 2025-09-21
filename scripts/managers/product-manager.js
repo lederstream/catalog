@@ -23,12 +23,12 @@ class ProductManager {
             
             console.log('🔄 Cargando productos con filtros:', this.currentFilters);
             
-            // CORRECCIÓN: Cambiar la consulta para que funcione con filtros
+            // CORRECCIÓN: Cambiar la consulta para usar la sintaxis correcta de Supabase
             let query = supabase
                 .from('products')
                 .select(`
                     *,
-                    categories (*)
+                    categories!inner (*)
                 `, { count: 'exact' });
             
             // Aplicar filtros
@@ -73,13 +73,29 @@ class ProductManager {
             
             console.log('✅ Productos cargados:', data?.length || 0);
             
-            // CORRECCIÓN: Asegurar que las categorías se procesen correctamente
-            this.products = data ? data.map(product => ({
-                ...product,
-                categories: Array.isArray(product.categories) ? product.categories[0] : product.categories
-            })) : [];
+            // CORRECCIÓN: Procesar correctamente las categorías
+            this.products = data ? data.map(product => {
+                // Asegurar que categories sea un objeto, no un array
+                let categories = product.categories;
+                if (Array.isArray(categories) && categories.length > 0) {
+                    categories = categories[0];
+                } else if (Array.isArray(categories) && categories.length === 0) {
+                    categories = null;
+                }
+                
+                return {
+                    ...product,
+                    categories: categories
+                };
+            }) : [];
             
             this.totalProducts = count || 0;
+            
+            // DEBUG: Verificar la estructura de los productos
+            if (this.products.length > 0) {
+                console.log('📋 Primer producto después de procesar:', this.products[0]);
+                console.log('🏷️ Categoría del primer producto:', this.products[0].categories);
+            }
             
             return { success: true, products: this.products, total: this.totalProducts };
         } catch (error) {
