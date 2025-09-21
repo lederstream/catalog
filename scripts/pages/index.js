@@ -78,74 +78,52 @@ class IndexPage {
         productsGrid.appendChild(loadingDiv);
     }
 
-    renderProducts() {
-        const productsGrid = document.getElementById('productsGrid');
-        if (!productsGrid) {
-            console.error('❌ productsGrid no encontrado en el DOM');
-            return;
-        }
+renderProducts() {
+    const productsGrid = document.getElementById('productsGrid');
+    if (!productsGrid) {
+        console.error('❌ productsGrid no encontrado en el DOM');
+        return;
+    }
 
-        if (this.isLoading) {
-            this.showLoading();
-            return;
-        }
+    if (this.isLoading) {
+        this.showLoading();
+        return;
+    }
 
-        const products = productManager.getProducts();
-        
-        console.log('📦 Productos a renderizar:', products?.length);
-        
-        if (!products || products.length === 0) {
-            console.log('ℹ️ No hay productos para mostrar');
-            productsGrid.innerHTML = `
-                <div class="col-span-full text-center py-12">
-                    <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-gray-500">No hay productos disponibles</p>
-                </div>
-            `;
-            return;
-        }
+    const products = productManager.getProducts();
     
+    console.log('📦 Productos a renderizar:', products?.length);
+    
+    if (!products || products.length === 0) {
+        console.log('ℹ️ No hay productos para mostrar');
+        productsGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
+                <p class="text-gray-500">No hay productos disponibles</p>
+            </div>
+        `;
+        return;
+    }
+
     // LIMPIAR primero el contenedor
-        productsGrid.innerHTML = '';
+    productsGrid.innerHTML = '';
     
     // Crear un fragmento de documento para mejor performance
-        const fragment = document.createDocumentFragment();
+    const fragment = document.createDocumentFragment();
     
-        products.forEach(product => {
-            // Manejo seguro de categorías
-            const category = product.categories || {};
-            const categoryColor = category.color || '#3B82F6';
-            const categoryName = category.name || 'Sin categoría';
-            
-            const productElement = document.createElement('div');
-            productElement.className = 'bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300';
-            productElement.innerHTML = `
-                <div class="relative">
-                    <img src="${product.photo_url || 'https://via.placeholder.com/300x200'}" 
-                        alt="${product.name}" 
-                        class="w-full h-48 object-cover" 
-                        onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+no+disponible'">
-                    <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded-full" 
-                        style="background-color: ${categoryColor}">
-                        ${categoryName}
-                    </span>
-                </div>
-                <div class="p-4">
-                    <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
-                    <p class="text-gray-600 text-sm mb-4 line-clamp-3">${product.description || 'Sin descripción'}</p>
-                    ${this.renderPlans(product.plans)}
-                </div>
-            `;
-            
-            fragment.appendChild(productElement);
-        });
+    products.forEach(product => {
+        // USAR EL COMPONENTE ProductCard EN LUGAR DEL HTML MANUAL
+        const card = ProductCard.create(product);
+        fragment.appendChild(card);
+    });
     
     // Agregar todos los productos al DOM de una vez
     productsGrid.appendChild(fragment);
     
-    console.log('✅ Renderización completada correctamente');
+    console.log('✅ Renderización completada correctamente con ProductCard');
 }
-    renderPlans(plans) {
+
+renderPlans(plans) {
         let parsedPlans = [];
         
         try {
@@ -328,7 +306,7 @@ class IndexPage {
                 return;
             }
             await new Promise(resolve => setTimeout(resolve, 50));
-            
+
             // Verificar que los productos estén realmente ahí
             const currentProducts = productManager.getProducts();
             console.log('👀 Productos en manager:', currentProducts.length);
