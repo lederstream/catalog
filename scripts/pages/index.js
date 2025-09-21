@@ -43,20 +43,15 @@ class IndexPage {
 
     populateCategoryFilter() {
         const categoryFilter = document.getElementById('categoryFilter');
-        if (!categoryFilter) {
-            console.warn('categoryFilter no encontrado');
-            return;
-        }
+        if (!categoryFilter) return;
         
         const categories = categoryManager.getCategories();
-        if (!categories || categories.length === 0) return;
+        if (!categories) return;
         
-        // Limpiar opciones excepto "Todas"
         while (categoryFilter.options.length > 1) {
             categoryFilter.remove(1);
         }
         
-        // Agregar categorías
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category.id;
@@ -98,30 +93,105 @@ class IndexPage {
             return;
         }
         
-        // DEBUG: Verificar qué productos se están renderizando
-        console.log('Renderizando productos:', products.length);
-        
-        productsGrid.innerHTML = products.map(product => `
-            <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
-                <div class="relative">
-                    <img src="${product.photo_url}" alt="${product.name}" 
-                         class="w-full h-48 object-cover" onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+no+disponible'">
-                    <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded-full" 
-                          style="background-color: ${product.categories?.color || '#3B82F6'}">
-                        ${product.categories?.name || 'Sin categoría'}
-                    </span>
+        productsGrid.innerHTML = products.map(product => {
+            // Manejo seguro de categorías
+            const category = product.categories || {};
+            const categoryColor = category.color || '#3B82F6';
+            const categoryName = category.name || 'Sin categoría';
+            
+            return `
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                    <div class="relative">
+                        <img src="${product.photo_url || 'https://via.placeholder.com/300x200'}" 
+                             alt="${product.name}" 
+                             class="w-full h-48 object-cover" 
+                             onerror="this.src='https://via.placeholder.com/300x200?text=Imagen+no+disponible'">
+                        <span class="absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded-full" 
+                              style="background-color: ${categoryColor}">
+                            ${categoryName}
+                        </span>
+                    </div>
+                    <div class="p-4">
+                        <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
+                        <p class="text-gray-600 text-sm mb-4 line-clamp-3">${product.description || 'Sin descripción'}</p>
+                        ${this.renderPlans(product.plans)}
+                    </div>
                 </div>
-                <div class="p-4">
-                    <h3 class="font-semibold text-lg mb-2 line-clamp-2">${product.name}</h3>
-                    <p class="text-gray-600 text-sm mb-4 line-clamp-3">${product.description}</p>
-                    ${this.renderPlans(product.plans)}
-                </div>
-            </div>
-        `).join('');
+            `;
+        }).join('');
     }
 
     renderPlans(plans) {
-        // ... (mantén el mismo código de renderPlans)
+        let parsedPlans = [];
+        
+        try {
+            if (typeof plans === 'string') {
+                parsedPlans = JSON.parse(plans);
+            } else if (Array.isArray(plans)) {
+                parsedPlans = plans;
+            } else if (plans && typeof plans === 'object') {
+                parsedPlans = Object.values(plans);
+            }
+        } catch (error) {
+            console.error('Error parsing plans:', error);
+            parsedPlans = [];
+        }
+        
+        if (!parsedPlans || parsedPlans.length === 0) {
+            return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
+        }
+        
+        const accordionId = `plans-${Math.random().toString(36).substr(2, 9)}`;
+        
+        let html = `
+            <div class="space-y-2" id="${accordionId}">
+                <h4 class="font-medium text-sm text-gray-700 mb-1">Planes:</h4>
+        `;
+        
+        parsedPlans.slice(0, 2).forEach(plan => {
+            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+            
+            html += `
+                <div class="flex justify-between items-center text-xs plan-item">
+                    <span class="font-medium">${plan.name}</span>
+                    <div class="text-right">
+                        ${priceSoles > 0 ? `<div class="font-semibold">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                        ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
+                    </div>
+                </div>
+            `;
+        });
+        
+        if (parsedPlans.length > 2) {
+            html += `
+                <div class="text-xs text-blue-600 text-center cursor-pointer view-more-trigger" 
+                    onclick="toggleSimplePlansAccordion('${accordionId}', ${parsedPlans.length - 2})">
+                    +${parsedPlans.length - 2} planes más
+                </div>
+                <div class="additional-plans hidden space-y-2">
+            `;
+            
+            parsedPlans.slice(2).forEach(plan => {
+                const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
+                const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
+                
+                html += `
+                    <div class="flex justify-between items-center text-xs plan-item">
+                        <span>${plan.name}</span>
+                        <div class="text-right">
+                            ${priceSoles > 0 ? `<div>${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
+                            ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += `</div>`;
+        }
+        
+        html += '</div>';
+        return html;
     }
 
     showError() {
@@ -194,7 +264,6 @@ class IndexPage {
 
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
-                // Usamos el productManager para obtener el total de páginas
                 if (this.currentPage < productManager.getTotalPages()) {
                     this.currentPage++;
                     this.applyFilters();
@@ -211,35 +280,21 @@ class IndexPage {
         const pageInfo = document.getElementById('pageInfo');
         const totalProducts = document.getElementById('totalProducts');
 
-        // Usar métodos del productManager
-        const totalPages = productManager.getTotalPages ? productManager.getTotalPages() : 1;
-        const totalProductsCount = productManager.getTotalProducts ? productManager.getTotalProducts() : 0;
+        const totalPages = productManager.getTotalPages() || 1;
+        const totalProductsCount = productManager.getTotalProducts() || 0;
 
-        if (prevBtn) {
-            prevBtn.disabled = this.currentPage === 1;
-        }
-
-        if (nextBtn) {
-            nextBtn.disabled = this.currentPage >= totalPages;
-        }
-
-        if (pageInfo) {
-            pageInfo.textContent = `Página ${this.currentPage} de ${totalPages}`;
-        }
-
-        if (totalProducts) {
-            totalProducts.textContent = `${totalProductsCount} producto${totalProductsCount !== 1 ? 's' : ''} encontrado${totalProductsCount !== 1 ? 's' : ''}`;
-        }
+        if (prevBtn) prevBtn.disabled = this.currentPage === 1;
+        if (nextBtn) nextBtn.disabled = this.currentPage >= totalPages;
+        if (pageInfo) pageInfo.textContent = `Página ${this.currentPage} de ${totalPages}`;
+        if (totalProducts) totalProducts.textContent = `${totalProductsCount} productos encontrados`;
     }
 
     async applyFilters() {
-        console.log('🔄 Aplicando filtros:', this.currentFilters);
         this.isLoading = true;
         this.renderProducts();
 
         try {
             const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
-            console.log('✅ Resultado:', result.success ? `${result.products?.length} productos` : 'Error');
             
             if (!result.success) {
                 this.showError();
@@ -257,7 +312,6 @@ class IndexPage {
     }
 }
 
-// Función global para el acordeón
 window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     const container = document.getElementById(accordionId);
     if (!container) return;
@@ -276,7 +330,6 @@ window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     }
 };
 
-// Inicializar
 document.addEventListener('DOMContentLoaded', () => {
     new IndexPage();
 });
