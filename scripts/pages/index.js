@@ -82,6 +82,8 @@ class IndexPage {
         }
 
         const products = productManager.getProducts();
+        console.log('📦 Productos a renderizar:', products);
+        console.log('🔍 Número de productos:', products?.length);
         
         if (!products || products.length === 0) {
             productsGrid.innerHTML = `
@@ -92,7 +94,12 @@ class IndexPage {
             `;
             return;
         }
-        
+        if (products.length > 0) {
+        console.log('👀 Primer producto:', products[0]);
+        console.log('📸 URL de imagen:', products[0].photo_url);
+        console.log('🏷️ Categoría:', products[0].categories);
+    }
+    
         productsGrid.innerHTML = products.map(product => {
             // Manejo seguro de categorías
             const category = product.categories || {};
