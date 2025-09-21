@@ -13,170 +13,285 @@ class IndexPage {
         };
         this.currentPage = 1;
         this.isLoading = false;
-        console.log('📋 IndexPage constructor llamado');
+        
+        // Bind methods
+        this.applyFilters = this.applyFilters.bind(this);
+        this.handleSearch = this.handleSearch.bind(this);
+        this.handleCategoryChange = this.handleCategoryChange.bind(this);
+        this.handleSortChange = this.handleSortChange.bind(this);
     }
 
     async init() {
         try {
-            console.log('🔄 Inicializando IndexPage...');
+            console.log('🏠 Inicializando IndexPage...');
             this.showLoading();
             
-            // Inicializar managers
+            // Inicializar managers en SECUENCIA, no en paralelo
             console.log('🔄 Inicializando categoryManager...');
-            const categoryResult = await categoryManager.initialize();
-            console.log('✅ categoryManager:', categoryResult.success);
+            await categoryManager.initialize();
             
             console.log('🔄 Inicializando productManager...');
-            const productResult = await productManager.initialize();
-            console.log('✅ productManager:', productResult.success);
+            await productManager.initialize();
             
+            console.log('📦 Cargando productos iniciales...');
             await this.loadInitialProducts();
+            
             this.renderProducts();
             this.populateCategoryFilter();
             this.setupEventListeners();
             this.setupPagination();
             
             console.log('✅ IndexPage inicializado correctamente');
+            
         } catch (error) {
             console.error('❌ Error inicializando IndexPage:', error);
-            this.showError();
+            this.showError('Error al cargar los productos: ' + error.message);
         }
     }
 
     async loadInitialProducts() {
-        console.log('📦 Cargando productos iniciales...');
         const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
-        console.log('📊 Resultado carga inicial:', result);
-        
         if (!result.success) {
             throw new Error(result.error);
         }
     }
 
-    showLoading() {
-        const productsGrid = document.getElementById('productsGrid');
-        if (!productsGrid) {
-            console.error('❌ productsGrid no encontrado en el DOM');
+    populateCategoryFilter() {
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (!categoryFilter) {
+            console.warn('⚠️ categoryFilter no encontrado');
             return;
         }
         
-        console.log('⏳ Mostrando loading state...');
-        productsGrid.innerHTML = '';
+        const categories = categoryManager.getCategories();
+        if (!categories || categories.length === 0) {
+            console.warn('⚠️ No hay categorías disponibles');
+            return;
+        }
         
-        const loadingDiv = document.createElement('div');
-        loadingDiv.className = 'col-span-full text-center py-12';
-        loadingDiv.innerHTML = `
-            <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3"></i>
-            <p class="text-gray-500">Cargando productos...</p>
+        // Limpiar y poblar el filtro
+        categoryFilter.innerHTML = '<option value="">Todas las categorías</option>';
+        
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categoryFilter.appendChild(option);
+        });
+    }
+
+    showLoading() {
+        const productsGrid = document.getElementById('productsGrid');
+        if (!productsGrid) return;
+        
+        productsGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3"></i>
+                <p class="text-gray-500">Cargando productos...</p>
+            </div>
         `;
+    }
+
+    showError(message = 'Error al cargar los productos') {
+        const productsGrid = document.getElementById('productsGrid');
+        if (!productsGrid) return;
         
-        productsGrid.appendChild(loadingDiv);
+        productsGrid.innerHTML = `
+            <div class="col-span-full text-center py-12">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-3"></i>
+                <p class="text-gray-500">${message}</p>
+                <button class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" onclick="location.reload()">
+                    Reintentar
+                </button>
+            </div>
+        `;
     }
 
     renderProducts() {
-        console.log('🎨 Renderizando productos...');
         const productsGrid = document.getElementById('productsGrid');
-        
         if (!productsGrid) {
             console.error('❌ productsGrid no encontrado en el DOM');
-            return;
-        }
-
-        if (this.isLoading) {
-            console.log('⏳ En estado loading, mostrando spinner...');
-            this.showLoading();
             return;
         }
 
         const products = productManager.getProducts();
-        console.log('📦 Productos disponibles:', products?.length);
-        console.log('🔍 Primer producto:', products[0]);
+        console.log('🎨 Renderizando', products.length, 'productos');
         
-        if (!products || products.length === 0) {
-            console.log('ℹ️ No hay productos para mostrar');
+        if (products.length === 0) {
             productsGrid.innerHTML = `
                 <div class="col-span-full text-center py-12">
-                    <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
-                    <p class="text-gray-500">No hay productos disponibles</p>
+                    <i class="fas fa-search text-4xl text-gray-400 mb-3"></i>
+                    <p class="text-gray-500">No se encontraron productos</p>
+                    <p class="text-sm text-gray-400 mt-1">Intenta con otros filtros</p>
                 </div>
             `;
             return;
         }
 
-        // LIMPIAR el contenedor
+        // Limpiar y renderizar
         productsGrid.innerHTML = '';
         
-        // Crear fragmento para mejor performance
-        const fragment = document.createDocumentFragment();
-        
-        products.forEach((product, index) => {
-            console.log(`🖼️ Creando card para producto ${index}:`, product.name);
-            
+        products.forEach(product => {
             try {
-                const card = ProductCard.create(product);
-                fragment.appendChild(card);
+                const cardElement = ProductCard.create(product);
+                productsGrid.appendChild(cardElement);
             } catch (error) {
-                console.error(`❌ Error creando card para producto ${index}:`, error);
+                console.error('❌ Error creando card para producto:', product.name, error);
             }
         });
+    }
+
+    setupEventListeners() {
+        // Search input
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) {
+            searchInput.addEventListener('input', this.handleSearch);
+        }
+
+        // Category filter
+        const categoryFilter = document.getElementById('categoryFilter');
+        if (categoryFilter) {
+            categoryFilter.addEventListener('change', this.handleCategoryChange);
+        }
+
+        // Sort select
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) {
+            sortSelect.addEventListener('change', this.handleSortChange);
+        }
+
+        // Clear search
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', () => {
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.value = '';
+                    this.currentFilters.search = '';
+                    this.applyFilters();
+                }
+            });
+        }
+
+        // Pagination
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
         
-        // Agregar todos los productos al DOM
-        productsGrid.appendChild(fragment);
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                if (this.currentPage > 1) {
+                    this.currentPage--;
+                    this.applyFilters();
+                }
+            });
+        }
         
-        console.log('✅ Renderización completada');
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                const totalPages = productManager.getTotalPages();
+                if (this.currentPage < totalPages) {
+                    this.currentPage++;
+                    this.applyFilters();
+                }
+            });
+        }
+    }
+
+    handleSearch(event) {
+        this.currentFilters.search = event.target.value.trim();
+        this.currentPage = 1;
+        this.applyFilters();
+    }
+
+    handleCategoryChange(event) {
+        this.currentFilters.category = event.target.value;
+        this.currentPage = 1;
+        this.applyFilters();
+    }
+
+    handleSortChange(event) {
+        this.currentFilters.sort = event.target.value;
+        this.currentPage = 1;
+        this.applyFilters();
     }
 
     async applyFilters() {
         console.log('🔄 Aplicando filtros:', this.currentFilters);
+        
         this.isLoading = true;
         this.showLoading();
 
         try {
             const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
-            console.log('📊 Resultado de loadProducts:', result);
             
             if (!result.success) {
-                console.error('❌ Error al cargar productos:', result.error);
-                this.showError();
-                return;
+                throw new Error(result.error);
             }
 
-            // Pequeña pausa para asegurar que el DOM se actualice
+            // Pequeño delay para permitir que el DOM se actualice
             await new Promise(resolve => setTimeout(resolve, 100));
             
             this.renderProducts();
             this.updatePagination();
             
         } catch (error) {
-            console.error('💥 Error applying filters:', error);
-            this.showError();
+            console.error('❌ Error aplicando filtros:', error);
+            this.showError('Error al aplicar filtros: ' + error.message);
         } finally {
             this.isLoading = false;
-            console.log('🏁 Filtros aplicados');
         }
-    }}
+    }
 
-// Función global para toggle de planes (si es necesaria)
-window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
-    const container = document.getElementById(accordionId);
-    if (!container) return;
-    
-    const additionalPlans = container.querySelector('.additional-plans');
-    const viewMoreBtn = container.querySelector('.view-more-trigger');
-    
-    if (!additionalPlans || !viewMoreBtn) return;
-    
-    if (additionalPlans.classList.contains('hidden')) {
-        additionalPlans.classList.remove('hidden');
-        viewMoreBtn.textContent = 'Ocultar planes';
-    } else {
-        additionalPlans.classList.add('hidden');
-        viewMoreBtn.textContent = `+${remainingPlansCount} planes más`;
+    updatePagination() {
+        const prevBtn = document.getElementById('prevPage');
+        const nextBtn = document.getElementById('nextPage');
+        const pageInfo = document.getElementById('pageInfo');
+        const totalProducts = document.getElementById('totalProducts');
+
+        const totalPages = productManager.getTotalPages();
+        const totalCount = productManager.getTotalProducts();
+
+        if (prevBtn) prevBtn.disabled = this.currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = this.currentPage >= totalPages;
+        if (pageInfo) pageInfo.textContent = `Página ${this.currentPage} de ${totalPages}`;
+        if (totalProducts) totalProducts.textContent = `${totalCount} productos encontrados`;
+    }
+
+    setupPagination() {
+        this.updatePagination();
+    }
+}
+
+// Inicialización global
+let indexPageInstance = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('🏠 DOM cargado, iniciando IndexPage...');
+    indexPageInstance = new IndexPage();
+    indexPageInstance.init();
+});
+
+// Debug helpers
+window.debugIndex = {
+    reload: () => indexPageInstance?.applyFilters(),
+    getProducts: () => productManager.getProducts(),
+    getFilters: () => indexPageInstance?.currentFilters,
+    testRender: () => {
+        const testProduct = {
+            id: 999,
+            name: "Producto de prueba",
+            description: "Descripción de prueba para verificar el renderizado",
+            photo_url: "https://via.placeholder.com/300x200",
+            categories: { name: "Test", color: "#ff0000" },
+            plans: JSON.stringify([{ name: "Plan Test", price_soles: 100, price_dollars: 30 }])
+        };
+        
+        const productsGrid = document.getElementById('productsGrid');
+        if (productsGrid) {
+            const card = ProductCard.create(testProduct);
+            productsGrid.innerHTML = '';
+            productsGrid.appendChild(card);
+            console.log('✅ Producto de prueba renderizado');
+        }
     }
 };
-
-// Inicializar cuando el DOM esté listo
-document.addEventListener('DOMContentLoaded', () => {
-    window.indexPage = new IndexPage();
-    window.indexPage.init();
-});
