@@ -312,27 +312,37 @@ renderProducts() {
         if (totalProducts) totalProducts.textContent = `${totalProductsCount} productos encontrados`;
     }
 
-    async applyFilters() {
-        this.isLoading = true;
-        this.renderProducts();
+async applyFilters() {
+    console.log('🔄 Aplicando filtros...');
+    this.isLoading = true;
+    this.renderProducts();
 
-        try {
-            const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
-            
-            if (!result.success) {
-                this.showError();
-                return;
-            }
-
-            this.renderProducts();
-            this.updatePagination();
-        } catch (error) {
-            console.error('Error applying filters:', error);
+    try {
+        const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
+        console.log('📊 Resultado de carga:', result);
+        
+        if (!result.success) {
+            console.error('❌ Error al cargar productos:', result.error);
             this.showError();
-        } finally {
-            this.isLoading = false;
+            return;
         }
+
+        // Verificar que los productos estén realmente ahí
+        const currentProducts = productManager.getProducts();
+        console.log('👀 Productos en manager:', currentProducts.length);
+        console.log('🔍 Primer producto:', currentProducts[0]);
+        
+        this.renderProducts();
+        this.updatePagination();
+        
+    } catch (error) {
+        console.error('💥 Error applying filters:', error);
+        this.showError();
+    } finally {
+        this.isLoading = false;
+        console.log('🏁 Filtros aplicados');
     }
+}
 }
 
 window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
