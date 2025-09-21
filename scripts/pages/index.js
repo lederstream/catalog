@@ -64,12 +64,17 @@ class IndexPage {
         const productsGrid = document.getElementById('productsGrid');
         if (!productsGrid) return;
         
-        productsGrid.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3"></i>
-                <p class="text-gray-500">Cargando productos...</p>
-            </div>
+        // Limpiar primero
+        productsGrid.innerHTML = '';
+        
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'col-span-full text-center py-12';
+        loadingDiv.innerHTML = `
+            <i class="fas fa-spinner fa-spin text-2xl text-blue-500 mb-3"></i>
+            <p class="text-gray-500">Cargando productos...</p>
         `;
+        
+        productsGrid.appendChild(loadingDiv);
     }
 
 renderProducts() {
