@@ -20,11 +20,13 @@ class IndexPage {
         try {
             this.showLoading();
             
+            // Inicializar managers primero
             await Promise.all([
-                categoryManager.loadCategories(),
-                this.loadInitialProducts()
+                categoryManager.initialize(),
+                productManager.initialize()
             ]);
             
+            await this.loadInitialProducts();
             this.renderProducts();
             this.populateCategoryFilter();
             this.setupEventListeners();
@@ -49,10 +51,12 @@ class IndexPage {
         const categories = categoryManager.getCategories();
         if (!categories) return;
         
+        // Limpiar opciones existentes (excepto la primera)
         while (categoryFilter.options.length > 1) {
             categoryFilter.remove(1);
         }
         
+        // Agregar categorías
         categories.forEach(category => {
             const option = document.createElement('option');
             option.value = category.id;
@@ -65,7 +69,6 @@ class IndexPage {
         const productsGrid = document.getElementById('productsGrid');
         if (!productsGrid) return;
         
-        // Limpiar primero
         productsGrid.innerHTML = '';
         
         const loadingDiv = document.createElement('div');
@@ -78,122 +81,49 @@ class IndexPage {
         productsGrid.appendChild(loadingDiv);
     }
 
-renderProducts() {
-    const productsGrid = document.getElementById('productsGrid');
-    if (!productsGrid) {
-        console.error('❌ productsGrid no encontrado en el DOM');
-        return;
-    }
-
-    if (this.isLoading) {
-        this.showLoading();
-        return;
-    }
-
-    const products = productManager.getProducts();
-    
-    console.log('📦 Productos a renderizar:', products?.length);
-    
-    if (!products || products.length === 0) {
-        console.log('ℹ️ No hay productos para mostrar');
-        productsGrid.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
-                <p class="text-gray-500">No hay productos disponibles</p>
-            </div>
-        `;
-        return;
-    }
-
-    // LIMPIAR primero el contenedor
-    productsGrid.innerHTML = '';
-    
-    // Crear un fragmento de documento para mejor performance
-    const fragment = document.createDocumentFragment();
-    
-    products.forEach(product => {
-        // USAR EL COMPONENTE ProductCard EN LUGAR DEL HTML MANUAL
-        const card = ProductCard.create(product);
-        fragment.appendChild(card);
-    });
-    
-    // Agregar todos los productos al DOM de una vez
-    productsGrid.appendChild(fragment);
-    
-    console.log('✅ Renderización completada correctamente con ProductCard');
-}
-
-renderPlans(plans) {
-        let parsedPlans = [];
-        
-        try {
-            if (typeof plans === 'string') {
-                parsedPlans = JSON.parse(plans);
-            } else if (Array.isArray(plans)) {
-                parsedPlans = plans;
-            } else if (plans && typeof plans === 'object') {
-                parsedPlans = Object.values(plans);
-            }
-        } catch (error) {
-            console.error('Error parsing plans:', error);
-            parsedPlans = [];
+    renderProducts() {
+        const productsGrid = document.getElementById('productsGrid');
+        if (!productsGrid) {
+            console.error('❌ productsGrid no encontrado en el DOM');
+            return;
         }
-        
-        if (!parsedPlans || parsedPlans.length === 0) {
-            return '<p class="text-gray-500 text-sm">No hay planes disponibles</p>';
+
+        if (this.isLoading) {
+            this.showLoading();
+            return;
         }
+
+        const products = productManager.getProducts();
         
-        const accordionId = `plans-${Math.random().toString(36).substr(2, 9)}`;
+        console.log('📦 Productos a renderizar:', products?.length);
         
-        let html = `
-            <div class="space-y-2" id="${accordionId}">
-                <h4 class="font-medium text-sm text-gray-700 mb-1">Planes:</h4>
-        `;
-        
-        parsedPlans.slice(0, 2).forEach(plan => {
-            const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
-            const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
-            
-            html += `
-                <div class="flex justify-between items-center text-xs plan-item">
-                    <span class="font-medium">${plan.name}</span>
-                    <div class="text-right">
-                        ${priceSoles > 0 ? `<div class="font-semibold">${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
-                        ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
-                    </div>
+        if (!products || products.length === 0) {
+            console.log('ℹ️ No hay productos para mostrar');
+            productsGrid.innerHTML = `
+                <div class="col-span-full text-center py-12">
+                    <i class="fas fa-box-open text-4xl text-gray-400 mb-3"></i>
+                    <p class="text-gray-500">No hay productos disponibles</p>
                 </div>
             `;
+            return;
+        }
+
+        // LIMPIAR el contenedor
+        productsGrid.innerHTML = '';
+        
+        // Crear fragmento para mejor performance
+        const fragment = document.createDocumentFragment();
+        
+        products.forEach(product => {
+            // USAR EL COMPONENTE ProductCard
+            const card = ProductCard.create(product);
+            fragment.appendChild(card);
         });
         
-        if (parsedPlans.length > 2) {
-            html += `
-                <div class="text-xs text-blue-600 text-center cursor-pointer view-more-trigger" 
-                    onclick="toggleSimplePlansAccordion('${accordionId}', ${parsedPlans.length - 2})">
-                    +${parsedPlans.length - 2} planes más
-                </div>
-                <div class="additional-plans hidden space-y-2">
-            `;
-            
-            parsedPlans.slice(2).forEach(plan => {
-                const priceSoles = typeof plan.price_soles === 'number' ? plan.price_soles : parseFloat(plan.price_soles || 0);
-                const priceDollars = typeof plan.price_dollars === 'number' ? plan.price_dollars : parseFloat(plan.price_dollars || 0);
-                
-                html += `
-                    <div class="flex justify-between items-center text-xs plan-item">
-                        <span>${plan.name}</span>
-                        <div class="text-right">
-                            ${priceSoles > 0 ? `<div>${Utils.formatCurrency(priceSoles, 'PEN')}</div>` : ''}
-                            ${priceDollars > 0 ? `<div class="text-gray-500">${Utils.formatCurrency(priceDollars, 'USD')}</div>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += `</div>`;
-        }
+        // Agregar todos los productos al DOM
+        productsGrid.appendChild(fragment);
         
-        html += '</div>';
-        return html;
+        console.log('✅ Renderización completada correctamente');
     }
 
     showError() {
@@ -266,7 +196,8 @@ renderPlans(plans) {
 
         if (nextBtn) {
             nextBtn.addEventListener('click', () => {
-                if (this.currentPage < productManager.getTotalPages()) {
+                const totalPages = productManager.getTotalPages();
+                if (this.currentPage < totalPages) {
                     this.currentPage++;
                     this.applyFilters();
                 }
@@ -292,25 +223,21 @@ renderPlans(plans) {
     }
 
     async applyFilters() {
-        console.log('🔄 Aplicando filtros...');
+        console.log('🔄 Aplicando filtros...', this.currentFilters);
         this.isLoading = true;
         this.showLoading();
 
         try {
             const result = await productManager.loadProducts(this.currentPage, this.currentFilters);
-            console.log('📊 Resultado de carga:', result);
             
             if (!result.success) {
                 console.error('❌ Error al cargar productos:', result.error);
                 this.showError();
                 return;
             }
-            await new Promise(resolve => setTimeout(resolve, 50));
 
-            // Verificar que los productos estén realmente ahí
-            const currentProducts = productManager.getProducts();
-            console.log('👀 Productos en manager:', currentProducts.length);
-            console.log('🔍 Primer producto:', currentProducts[0]);
+            // Pequeña pausa para asegurar que el DOM se actualice
+            await new Promise(resolve => setTimeout(resolve, 50));
             
             this.renderProducts();
             this.updatePagination();
@@ -325,6 +252,7 @@ renderPlans(plans) {
     }
 }
 
+// Función global para toggle de planes (si es necesaria)
 window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     const container = document.getElementById(accordionId);
     if (!container) return;
@@ -343,6 +271,7 @@ window.toggleSimplePlansAccordion = function(accordionId, remainingPlansCount) {
     }
 };
 
+// Inicializar cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
-    new IndexPage();
+    window.indexPage = new IndexPage();
 });
